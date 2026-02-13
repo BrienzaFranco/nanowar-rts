@@ -347,8 +347,10 @@ class Entity {
             const dy = node.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
+            // Si está tocando el nodo (colisión)
             if (dist < node.radius + this.radius) {
                 if (node.owner === this.owner) {
+                    // NODO PROPIO: Rebote suave
                     const nx = dx / dist;
                     const ny = dy / dist;
                     const pushDistance = (node.radius + this.radius) - dist + 2;
@@ -357,12 +359,24 @@ class Entity {
                     this.vx -= nx * 80;
                     this.vy -= ny * 80;
                 } else {
-                    node.hp -= this.damage;
-                    this.die('attack', node);
-                    
-                    if (node.hp <= 0) {
-                        node.owner = this.owner;
-                        node.hp = 10;
+                    // NODO ENEMIGO O NEUTRAL: Atacar y conquistar
+                    // Solo atacar si no estamos muriendo ya
+                    if (!this.dying) {
+                        console.log(`Entidad ${this.id} atacando nodo ${node.id}. HP antes: ${node.hp}`);
+                        node.hp -= this.damage;
+                        console.log(`HP después: ${node.hp}`);
+                        
+                        // Verificar conquista INMEDIATAMENTE
+                        if (node.hp <= 0) {
+                            console.log(`¡CONQUISTA! Nodo ${node.id} capturado por jugador ${this.owner}`);
+                            node.owner = this.owner;
+                            node.hp = 10; // HP inicial tras conquista
+                            // Resetear spawn timer para que empiece a producir
+                            node.hasSpawnedThisCycle = false;
+                        }
+                        
+                        // La entidad muere al atacar (1 por 1)
+                        this.die('attack', node);
                     }
                 }
                 return;
@@ -587,6 +601,10 @@ class Node {
         const screenInfluence = this.influenceRadius * camera.zoom;
         const baseColor = this.getColor();
         
+        // Si el nodo está por ser conquistado (HP bajo), mostrar efecto de alerta
+        const hpPercent = this.hp / this.maxHp;
+        const isCritical = hpPercent <= 0.3 && this.owner !== -1;
+        
         const r = parseInt(baseColor.slice(1, 3), 16);
         const g = parseInt(baseColor.slice(3, 5), 16);
         const b = parseInt(baseColor.slice(5, 7), 16);
@@ -596,8 +614,16 @@ class Node {
         ctx.arc(screenX, screenY, screenInfluence, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.03)`;
         ctx.fill();
-        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.1)`;
-        ctx.lineWidth = 1 * camera.zoom;
+        
+        // Si está crítico, hacer el borde más visible/pulsante
+        if (isCritical) {
+            const pulse = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+            ctx.strokeStyle = `rgba(255, 50, 50, ${0.3 + pulse * 0.4})`;
+            ctx.lineWidth = (2 + pulse * 2) * camera.zoom;
+        } else {
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.1)`;
+            ctx.lineWidth = 1 * camera.zoom;
+        }
         ctx.stroke();
         
         // Dibujar rally point si existe
