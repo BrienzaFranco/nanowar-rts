@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nanowar - Guerra de Nodos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Menú Principal -->
+        <div id="menu-screen" class="screen">
+            <div class="menu-container">
+                <h1 class="game-title">Nanowar</h1>
+                <p class="game-subtitle">Guerra de Nodos Multijugador</p>
+                
+                <div class="player-input">
+                    <label for="player-name">Tu Nombre:</label>
+                    <input type="text" id="player-name" placeholder="Jugador" maxlength="20">
+                </div>
+
+                <div class="menu-buttons">
+                    <button id="create-room-btn" class="btn-primary">Crear Sala</button>
+                </div>
+
+                <div class="rooms-section">
+                    <h2>Salas Disponibles</h2>
+                    <button id="refresh-rooms-btn" class="btn-secondary">Actualizar</button>
+                    <div id="room-list">
+                        <p class="no-rooms">No hay salas disponibles</p>
+                    </div>
+                </div>
+
+                <div class="singleplayer-section">
+                    <h2>Singleplayer</h2>
+                    <a href="singleplayer.html" class="btn-secondary">Jugar vs IA</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Diálogo Crear Sala -->
+        <div id="create-room-dialog" class="dialog" style="display: none;">
+            <div class="dialog-content">
+                <h3>Crear Nueva Sala</h3>
+                <div class="form-group">
+                    <label for="room-name">Nombre de la Sala:</label>
+                    <input type="text" id="room-name" placeholder="Sala de Juan" maxlength="30">
+                </div>
+                <div class="form-group">
+                    <label for="max-players">Jugadores Máximos:</label>
+                    <select id="max-players">
+                        <option value="2">2 jugadores</option>
+                        <option value="3">3 jugadores</option>
+                        <option value="4" selected>4 jugadores</option>
+                    </select>
+                </div>
+                <div class="dialog-buttons">
+                    <button id="cancel-create-room" class="btn-secondary">Cancelar</button>
+                    <button id="confirm-create-room" class="btn-primary">Crear</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lobby -->
+        <div id="lobby-screen" class="screen" style="display: none;">
+            <div class="lobby-container">
+                <h2>Sala de Espera</h2>
+                <div id="lobby-players" class="players-list">
+                    <!-- Jugadores se cargan dinámicamente -->
+                </div>
+                <div class="lobby-actions">
+                    <button id="ready-btn" class="btn-primary">Estoy Listo</button>
+                    <button id="leave-lobby-btn" class="btn-secondary">Salir</button>
+                </div>
+                <p class="lobby-info">Esperando a que todos los jugadores estén listos...</p>
+            </div>
+        </div>
+
+        <!-- Pantalla de Juego -->
+        <div id="game-screen" class="screen" style="display: none;">
+            <div id="ui">
+                <h1>Nanowar</h1>
+                <div id="score">
+                    <span id="player-nodes">Nodos: 0</span>
+                </div>
+                <div id="players-info">
+                    <!-- Info de jugadores se carga dinámicamente -->
+                </div>
+                <button id="leave-game-btn" class="btn-danger">Salir</button>
+            </div>
+            <canvas id="game-canvas"></canvas>
+            <div id="instructions">
+                Click y arrastra desde un nodo tuyo a otro para enviar unidades
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="multiplayer.js"></script>
+</body>
+</html>

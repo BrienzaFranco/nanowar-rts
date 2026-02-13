@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nanowar - Singleplayer</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .back-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 20;
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .back-link:hover {
+            background: rgba(0,0,0,0.9);
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-link">← Volver al Menú</a>
+    
+    <div id="game-container">
+        <div id="ui">
+            <h1>Nanowar</h1>
+            <div id="score">
+                <span id="player-nodes">Nodos: 1</span>
+                <span id="enemy-nodes">Enemigo: 1</span>
+            </div>
+            <button id="reset-btn" class="btn-primary">Reiniciar</button>
+        </div>
+        <canvas id="game-canvas"></canvas>
+        <div id="instructions">
+            <strong>RALLY POINT:</strong> Selecciona nodos + T + Click | <strong>STOP:</strong> Tecla S | <strong>WAYPOINTS:</strong> Hold Click Der traza línea<br>
+            <strong>NODOS:</strong> Chicos (rápidos, poca vida) | Grandes (lentos, mucha vida) | Mapa asimétrico con ventajas diferentes<br>
+            <strong>Seleccionar:</strong> Click izq | <strong>Shift+Click:</strong> Agregar | <strong>Zoom:</strong> Rueda | <strong>Pan:</strong> Space | <strong>Zoom inicial:</strong> Ver todo<br>
+            <small>Líneas de waypoint transparentes | Rally point = spawn dirigido | Distribución estratégica desbalanceada</small>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
