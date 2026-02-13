@@ -31,9 +31,20 @@
                     </div>
                 </div>
 
-                <div class="singleplayer-section">
-                    <h2>Singleplayer</h2>
-                    <a href="singleplayer.html" class="btn-secondary">Jugar vs IA</a>
+                <div class="mode-selection">
+                    <h2>Selecciona Modo</h2>
+                    <div class="mode-buttons">
+                        <a href="singleplayer.html" class="btn-mode btn-single">
+                            <span class="mode-icon">🎮</span>
+                            <span class="mode-title">Singleplayer</span>
+                            <span class="mode-desc">Jugar vs IA</span>
+                        </a>
+                        <button id="multiplayer-btn" class="btn-mode btn-multi" onclick="showMultiplayer()">
+                            <span class="mode-icon">🌐</span>
+                            <span class="mode-title">Multiplayer</span>
+                            <span class="mode-desc">Jugar online</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -98,5 +109,19 @@
     <!-- Socket.IO -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="multiplayer.js"></script>
+    <script>
+        function showMultiplayer() {
+            // Ocultar menú principal, mostrar sección de multiplayer
+            document.querySelector('.mode-selection').style.display = 'none';
+            document.querySelector('.rooms-section').style.display = 'block';
+            document.querySelector('.menu-buttons').style.display = 'block';
+        }
+        
+        // Por defecto, ocultar secciones de multiplayer hasta que se seleccione
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelector('.rooms-section').style.display = 'none';
+            document.querySelector('.menu-buttons').style.display = 'none';
+        });
+    </script>
 </body>
 </html>

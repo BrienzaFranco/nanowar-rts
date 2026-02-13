@@ -436,3 +436,70 @@ button:disabled {
 .game-title {
     animation: pulse 3s ease-in-out infinite;
 }
+
+/* Mode Selection Buttons */
+.mode-selection {
+    margin-top: 40px;
+    padding: 30px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 15px;
+}
+
+.mode-selection h2 {
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-mode {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 40px;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 15px;
+    color: white;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 180px;
+}
+
+.btn-mode:hover {
+    transform: translateY(-5px);
+    background: rgba(255,255,255,0.2);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.btn-single:hover {
+    border-color: #4CAF50;
+    box-shadow: 0 10px 30px rgba(76,175,80,0.3);
+}
+
+.btn-multi:hover {
+    border-color: #2196F3;
+    box-shadow: 0 10px 30px rgba(33,150,243,0.3);
+}
+
+.mode-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+.mode-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.mode-desc {
+    font-size: 14px;
+    opacity: 0.8;
+}
