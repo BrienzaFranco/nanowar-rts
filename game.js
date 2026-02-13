@@ -489,7 +489,10 @@ class Entity {
             ctx.lineTo(screenTx, screenTy);
             ctx.strokeStyle = `rgba(${this.getColor().slice(1)}, 0.4)`; // Use entity color
             ctx.lineWidth = 2 * camera.zoom;
-            ctx.stroke();
+            // Removed: ctx.stroke(); - User requested removal of this line ("la otra sacala")
+            // Actually I should remove the whole block if I want to remove the line.
+            // Better to just comment out or remove.
+            // ctx.stroke();
         }
     }
 }
@@ -595,30 +598,34 @@ class Node {
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw, bh);
         ctx.fillStyle = baseHpPercent > 0.5 ? '#2E7D32' : baseHpPercent > 0.25 ? '#F57F17' : '#C62828'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw * baseHpPercent, bh);
         if (totalHpPercent > baseHpPercent) { ctx.fillStyle = 'rgba(76,175,80,0.6)'; ctx.fillRect(sx - bw / 2 + bw * baseHpPercent, sy + sr + 8 * camera.zoom, bw * (totalHpPercent - baseHpPercent), bh); }
+
+        // Texto de vida (Base + Defensores) Grande y Dentro
+        const hpSize = Math.max(16, sr * 0.6); // Escalar con el nodo
+        ctx.font = `bold ${hpSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        let text = `${Math.ceil(this.baseHp)}`;
+        if (this.defendersInside > 0) text += `+${this.defendersInside}`;
+
+        // Sombra para legibilidad
+        ctx.lineWidth = 4 * camera.zoom;
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.strokeText(text, sx, sy);
+
+        // Color del texto: Blanco o del jugador?
+        // "Todo debe respetar el color del jugador que es"
+        // Si el nodo es del jugador, el fondo ya es del color.
+        // Usaremos Blanco para legibilidad maxima, pero quizas el borde del color?
+        // No, Blanco Brillante siempre legible.
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(text, sx, sy);
+
+        // Icono Espada pequeño si hay defensa
         if (this.defendersInside > 0) {
-            ctx.font = `bold ${18 * camera.zoom}px Arial`;
-            ctx.textAlign = 'center';
-
-            const hpText = `${Math.ceil(this.baseHp)}`;
-            const defText = ` + ${this.defendersInside}`;
-            const fullText = hpText + defText;
-            const width = ctx.measureText(fullText).width;
-
-            // Draw HP part (Green/White based on health?) No, owner color or white? White/Gray base.
-            // Let's use: Green for Base, Cyan for Defenders.
-            const startX = sx - width / 2;
-
-            ctx.fillStyle = '#4CAF50'; // Green for Base HP
-            ctx.fillText(hpText, startX + ctx.measureText(hpText).width / 2, sy + sr + 24 * camera.zoom);
-
-            ctx.fillStyle = '#00B0FF'; // Blueish for Defender count
-            ctx.fillText(defText, startX + ctx.measureText(hpText).width + ctx.measureText(defText).width / 2, sy + sr + 24 * camera.zoom);
-        } else {
-            // Only Base HP
-            ctx.font = `bold ${18 * camera.zoom}px Arial`;
-            ctx.fillStyle = '#4CAF50';
-            ctx.textAlign = 'center';
-            ctx.fillText(Math.ceil(this.baseHp), sx, sy + sr + 24 * camera.zoom);
+            ctx.font = `${hpSize * 0.5}px Arial`;
+            ctx.fillStyle = '#AAAAAA';
+            ctx.fillText("🛡️", sx, sy + hpSize * 0.8);
         }
     }
     isPointInside(x, y, camera) { const sx = (this.x - camera.x) * camera.zoom, sy = (this.y - camera.y) * camera.zoom; return Math.sqrt((x - sx) ** 2 + (y - sy) ** 2) < this.radius * camera.zoom; }
@@ -687,11 +694,11 @@ class Particle {
     constructor(x, y, color, size, type) {
         this.x = x; this.y = y; this.color = color; this.size = size; this.type = type;
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * (type === 'explosion' ? 150 : 80);
+        const speed = Math.random() * (type === 'explosion' ? 120 : 60);
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed;
-        this.life = 1.0;
-        this.maxLife = 1.0;
+        this.life = 0.8;
+        this.maxLife = 0.8;
     }
     update(dt) {
         this.x += this.vx * dt;
@@ -703,9 +710,21 @@ class Particle {
         const screen = camera.worldToScreen(this.x, this.y);
         ctx.globalAlpha = this.life / this.maxLife;
         ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(screen.x, screen.y, this.size * camera.zoom, 0, Math.PI * 2);
-        ctx.fill();
+
+        if (this.type === 'hit') {
+            // Spark line
+            ctx.beginPath();
+            ctx.moveTo(screen.x, screen.y);
+            ctx.lineTo(screen.x - this.vx * 0.1, screen.y - this.vy * 0.1);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 2 * camera.zoom;
+            ctx.stroke();
+        } else {
+            // Circle
+            ctx.beginPath();
+            ctx.arc(screen.x, screen.y, this.size * 0.6 * camera.zoom, 0, Math.PI * 2); // Smaller ("finitas")
+            ctx.fill();
+        }
         ctx.globalAlpha = 1.0;
     }
 }
@@ -815,77 +834,116 @@ class Game {
         this.isPanning = false;
         this.rallyMode = false;
 
-        this.worldWidth = 2000;
-        this.worldHeight = 1500;
-        this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
-
-        this.ai = new AIController(this, 1);
-        this.particles = [];
+        this.ai = null; // Removed single AI
+        this.ais = [];
+        this.playerCount = 4; // 4 Players (1 Human + 3 AI)
 
         this.createLevel();
         this.createInitialEntities();
+
+        // Init AIs for players 1, 2, 3
+        for (let i = 1; i < this.playerCount; i++) {
+            this.ais.push(new AIController(this, i));
+        }
     }
 
     createLevel() {
-        // Jugador 1 - Abajo
-        this.nodes.push(new Node(1, this.worldWidth * 0.7, this.worldHeight - 300, 0, 'small'));
+        this.nodes = [];
+        let idCounter = 1;
+        const cx = this.worldWidth / 2;
+        const cy = this.worldHeight / 2;
+        const radius = Math.min(this.worldWidth, this.worldHeight) * 0.35;
 
-        // Jugador 2 - Arriba
-        this.nodes.push(new Node(2, this.worldWidth * 0.5, 200, 1, 'large'));
-        this.nodes.push(new Node(3, this.worldWidth * 0.2, 400, 1, 'small'));
+        // Central Node
+        this.nodes.push(new Node(idCounter++, cx, cy, -1, 'large'));
 
-        // Nodos neutrales
-        const neutralNodes = [
-            { x: this.worldWidth * 0.15, y: this.worldHeight * 0.4, type: 'small' },
-            { x: this.worldWidth * 0.85, y: this.worldHeight * 0.35, type: 'medium' },
-            { x: this.worldWidth * 0.25, y: this.worldHeight * 0.6, type: 'medium' },
-            { x: this.worldWidth * 0.75, y: this.worldHeight * 0.65, type: 'small' },
-            { x: this.worldWidth * 0.45, y: this.worldHeight * 0.45, type: 'large' }, // Centro
-            { x: this.worldWidth * 0.6, y: this.worldHeight * 0.25, type: 'small' },
-            { x: this.worldWidth * 0.35, y: this.worldHeight * 0.75, type: 'small' },
-        ];
+        // Generate Random "Template" for consistency (Symmetric balance)
+        const templateNodes = [];
+        const satellites = 2 + Math.floor(Math.random() * 2); // 2-3 satellite neutrals per player
+        for (let j = 0; j < satellites; j++) {
+            const dist = 100 + Math.random() * 200;
+            const angleOffset = (Math.random() - 0.5) * 1.0; // +/- radians
+            const type = Math.random() > 0.7 ? 'medium' : 'small';
+            templateNodes.push({ dist, angleOffset, type });
+        }
 
-        neutralNodes.forEach((pos, i) => {
-            this.nodes.push(new Node(i + 4, pos.x, pos.y, -1, pos.type));
-        });
+        // Place Player Bases and Symmetric Neutrals
+        for (let i = 0; i < this.playerCount; i++) {
+            const angleBase = (i / this.playerCount) * Math.PI * 2 - Math.PI / 2;
+
+            // Home Base
+            const bx = cx + Math.cos(angleBase) * radius;
+            const by = cy + Math.sin(angleBase) * radius;
+            this.nodes.push(new Node(idCounter++, bx, by, i, 'large'));
+
+            // Symmetric Neutrals relative to Home Base or Center?
+            // Relative to Home Base connects them to player.
+            // Relative to Center with rotation is cleaner for "map sectors".
+            // Let's do relative to Home Base to give starting resources.
+            templateNodes.forEach(tmpl => {
+                const angle = angleBase + tmpl.angleOffset; // Rotate template
+                const nx = bx + Math.cos(angle + Math.PI) * tmpl.dist; // Towards center? or just offset?
+                // Let's put them between base and center
+                const tx = cx + Math.cos(angleBase + tmpl.angleOffset * 0.5) * (radius * 0.6 + Math.random() * 100);
+                // Wait, to be perfectly symmetric, I must use exact rotated coordinates from a "wedge".
+
+                // Better approach: Define wedge relative to CENTER
+                // Wedge center angle = angleBase.
+                // Template is polar offset (d, theta) from Center, rotated by angleBase.
+            });
+        }
+
+        // Let's retry the loop with proper wedge symmetry
+        // We generated templateNodes with { dist, angleOffset, type } relative to base... no.
+
+        // Clear and restart loop concept
+        // New Template: Nodes in the "Sector 0".
+        const sectorNeutrals = [];
+        for (let j = 0; j < 3; j++) {
+            // Random pos in sector
+            const dist = radius * (0.3 + Math.random() * 0.5); // Between center and base
+            const ang = (Math.random() - 0.5) * (Math.PI * 2 / this.playerCount) * 0.8;
+            const type = Math.random() > 0.5 ? 'medium' : 'small';
+            sectorNeutrals.push({ dist, ang, type });
+        }
+
+        for (let i = 0; i < this.playerCount; i++) {
+            const sectorAngle = (i / this.playerCount) * Math.PI * 2 - Math.PI / 2;
+
+            // Base
+            const bx = cx + Math.cos(sectorAngle) * radius;
+            const by = cy + Math.sin(sectorAngle) * radius;
+            this.nodes.push(new Node(idCounter++, bx, by, i, 'large'));
+
+            // Neutrals
+            sectorNeutrals.forEach(n => {
+                const na = sectorAngle + n.ang;
+                const nx = cx + Math.cos(na) * n.dist;
+                const ny = cy + Math.sin(na) * n.dist;
+                this.nodes.push(new Node(idCounter++, nx, ny, -1, n.type));
+            });
+        }
     }
 
     createInitialEntities() {
-        // Entidades Jugador 1
-        [0].forEach(nodeIndex => {
-            if (nodeIndex < this.nodes.length) {
-                const node = this.nodes[nodeIndex];
+        // Spawn actual units for all players
+        for (let i = 0; i < this.playerCount; i++) {
+            // Find base(s) for player i
+            const myNodes = this.nodes.filter(n => n.owner === i);
+            myNodes.forEach(node => {
                 const count = node.type === 'large' ? 12 : 8;
-                for (let i = 0; i < count; i++) {
-                    const angle = (i / count) * Math.PI * 2;
+                for (let k = 0; k < count; k++) {
+                    const angle = (k / count) * Math.PI * 2;
                     const dist = 70 + Math.random() * 40;
                     this.entities.push(new Entity(
                         node.x + Math.cos(angle) * dist,
                         node.y + Math.sin(angle) * dist,
-                        0,
-                        Date.now() + i
+                        i,
+                        Date.now() + k + (i * 100)
                     ));
                 }
-            }
-        });
-
-        // Entidades Jugador 2
-        [1, 2].forEach(nodeIndex => {
-            if (nodeIndex < this.nodes.length) {
-                const node = this.nodes[nodeIndex];
-                const count = node.type === 'large' ? 12 : 8;
-                for (let i = 0; i < count; i++) {
-                    const angle = (i / count) * Math.PI * 2;
-                    const dist = 70 + Math.random() * 40;
-                    this.entities.push(new Entity(
-                        node.x + Math.cos(angle) * dist,
-                        node.y + Math.sin(angle) * dist,
-                        1,
-                        Date.now() + i + 1000
-                    ));
-                }
-            }
-        });
+            });
+        }
     }
 
     resize() {
@@ -1070,7 +1128,9 @@ class Game {
 
     update(dt) {
         this.globalSpawnTimer.update(dt);
-        if (this.ai) this.ai.update(dt);
+        // Update all AIs
+        if (this.ais) this.ais.forEach(ai => ai.update(dt));
+        else if (this.ai) this.ai.update(dt); // Fallback? No, replaced.
 
         this.particles = this.particles.filter(p => p.update(dt));
 
@@ -1095,8 +1155,8 @@ class Game {
         this.drawGrid();
 
         // Links
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
-        this.ctx.lineWidth = 1 * this.camera.zoom;
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'; // More visible ("que se vea mas")
+        this.ctx.lineWidth = 2 * this.camera.zoom;
         for (let i = 0; i < this.nodes.length; i++) {
             for (let j = i + 1; j < this.nodes.length; j++) {
                 const pos1 = this.camera.worldToScreen(this.nodes[i].x, this.nodes[i].y);
@@ -1177,7 +1237,7 @@ class Game {
 
     spawnParticles(x, y, color, count, type) {
         for (let i = 0; i < count; i++) {
-            this.particles.push(new Particle(x, y, color, Math.random() * 3 + 2, type));
+            this.particles.push(new Particle(x, y, color, Math.random() * 1.5 + 1, type)); // Smaller
         }
     }
 }
