@@ -84,7 +84,7 @@ class WaypointLine {
     draw(ctx, camera) {
         if (this.points.length < 2) return;
 
-        const alpha = Math.max(0, this.life / this.maxLife) * 0.3;
+        const alpha = Math.max(0, this.life / this.maxLife) * 0.7;
         const color = PLAYER_COLORS[this.owner % PLAYER_COLORS.length];
 
         ctx.strokeStyle = color.startsWith('#') ? hexToRgba(color, alpha) : color;
@@ -95,8 +95,8 @@ class WaypointLine {
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
-        ctx.lineWidth = 2 * camera.zoom;
-        ctx.setLineDash([5 * camera.zoom, 5 * camera.zoom]);
+        ctx.lineWidth = 4 * camera.zoom;
+        ctx.setLineDash([8 * camera.zoom, 6 * camera.zoom]);
 
         ctx.beginPath();
         const start = this.points[0];
@@ -115,8 +115,8 @@ class WaypointLine {
             const screenY = (point.y - camera.y) * camera.zoom;
 
             ctx.beginPath();
-            ctx.arc(screenX, screenY, (i === this.points.length - 1 ? 4 : 2) * camera.zoom, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * (i === this.points.length - 1 ? 0.8 : 0.4)})`;
+            ctx.arc(screenX, screenY, (i === this.points.length - 1 ? 6 : 3) * camera.zoom, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha * (i === this.points.length - 1 ? 1 : 0.6)})`;
             ctx.fill();
         });
     }
@@ -135,9 +135,9 @@ class Entity {
         this.radius = 5;
         this.vx = 0;
         this.vy = 0;
-        this.maxSpeed = 120;
-        this.acceleration = 250;
-        this.friction = 0.95;
+        this.maxSpeed = 90;
+        this.acceleration = 180;
+        this.friction = 0.96;
 
         this.hp = 1;
         this.damage = 1;
@@ -374,12 +374,13 @@ class Entity {
         this.deathType = type;
         this.deathTime = 0;
         this.absorbTarget = node;
+        const playerColor = this.getColor();
         if (game && type === 'explosion') {
-            game.spawnParticles(this.x, this.y, this.getColor(), 8, 'explosion');
+            game.spawnParticles(this.x, this.y, playerColor, 8, 'explosion');
         } else if (game && type === 'attack') {
-            game.spawnParticles(this.x, this.y, '#FF4444', 5, 'hit');
+            game.spawnParticles(this.x, this.y, playerColor, 5, 'hit');
         } else if (game && type === 'sacrifice') {
-            game.spawnParticles(this.x, this.y, '#FFFFFF', 4, 'hit');
+            game.spawnParticles(this.x, this.y, playerColor, 4, 'hit');
         }
     }
 
@@ -503,9 +504,10 @@ class Entity {
 class Node {
     constructor(id, x, y, ownerId, type = 'medium') {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
-        if (type === 'small') { this.radius = 35; this.influenceRadius = 90; this.baseHp = 8; this.maxHp = 60; this.spawnInterval = 1.7; }
-        else if (type === 'large') { this.radius = 70; this.influenceRadius = 150; this.baseHp = 15; this.maxHp = 150; this.spawnInterval = 3.0; }
-        else { this.radius = 55; this.influenceRadius = 120; this.baseHp = 10; this.maxHp = 100; this.spawnInterval = 2.1; }
+        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 8; this.maxHp = 60; this.spawnInterval = 1.7; }
+        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 15; this.maxHp = 150; this.spawnInterval = 3.0; }
+        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 10; this.maxHp = 100; this.spawnInterval = 2.1; }
+        this.spawnEffect = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
     }
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
@@ -529,7 +531,8 @@ class Node {
     getTotalHp() { return Math.min(this.maxHp, this.baseHp + this.defendersInside); }
     receiveAttack(attackerId, damage, game) {
         this.hitFlash = 0.3;
-        if (game) game.spawnParticles(this.x, this.y, '#FF0000', 3, 'hit');
+        const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
+        if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
 
         // Consumir defensores físicos primero
         while (damage > 0 && this.defendingEntities && this.defendingEntities.length > 0) {
@@ -556,12 +559,15 @@ class Node {
     update(dt, entities, globalSpawnTimer, game) {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
+        if (this.spawnEffect > 0) this.spawnEffect -= dt;
         if (this.owner !== -1 && globalSpawnTimer.shouldSpawn && !this.hasSpawnedThisCycle) {
             this.hasSpawnedThisCycle = true;
             const angle = Math.random() * Math.PI * 2, dist = this.radius + 25 + Math.random() * 40;
             const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
             const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
             if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y);
+            this.spawnEffect = 0.5;
+            if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
             return entity;
         }
         if (!globalSpawnTimer.shouldSpawn) this.hasSpawnedThisCycle = false;
@@ -592,41 +598,19 @@ class Node {
             ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry); ctx.strokeStyle = `rgba(${areaColor},0.4)`; ctx.setLineDash([3 * camera.zoom, 3 * camera.zoom]); ctx.stroke(); ctx.setLineDash([]);
             ctx.beginPath(); ctx.arc(rx, ry, 5 * camera.zoom, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.6)`; ctx.fill();
         }
-        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = this.getColor(); ctx.fill(); ctx.strokeStyle = this.selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = this.selected ? 3 * camera.zoom : 1 * camera.zoom; ctx.stroke();
-        if (this.hitFlash > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,100,100,${this.hitFlash})`; ctx.lineWidth = 5 * camera.zoom; ctx.stroke(); }
-        const totalHp = this.getTotalHp(), maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100, baseHpPercent = this.baseHp / maxHp, totalHpPercent = totalHp / maxHp, bw = sr * 2, bh = 5 * camera.zoom;
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw, bh);
-        ctx.fillStyle = baseHpPercent > 0.5 ? '#2E7D32' : baseHpPercent > 0.25 ? '#F57F17' : '#C62828'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw * baseHpPercent, bh);
-        if (totalHpPercent > baseHpPercent) { ctx.fillStyle = 'rgba(76,175,80,0.6)'; ctx.fillRect(sx - bw / 2 + bw * baseHpPercent, sy + sr + 8 * camera.zoom, bw * (totalHpPercent - baseHpPercent), bh); }
-
-        // Texto de vida (Base + Defensores) Grande y Dentro
-        const hpSize = Math.max(16, sr * 0.6); // Escalar con el nodo
-        ctx.font = `bold ${hpSize}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        let text = `${Math.ceil(this.baseHp)}`;
-        if (this.defendersInside > 0) text += `+${this.defendersInside}`;
-
-        // Sombra para legibilidad
-        ctx.lineWidth = 4 * camera.zoom;
-        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-        ctx.strokeText(text, sx, sy);
-
-        // Color del texto: Blanco o del jugador?
-        // "Todo debe respetar el color del jugador que es"
-        // Si el nodo es del jugador, el fondo ya es del color.
-        // Usaremos Blanco para legibilidad maxima, pero quizas el borde del color?
-        // No, Blanco Brillante siempre legible.
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(text, sx, sy);
-
-        // Icono Espada pequeño si hay defensa
-        if (this.defendersInside > 0) {
-            ctx.font = `${hpSize * 0.5}px Arial`;
-            ctx.fillStyle = '#AAAAAA';
-            ctx.fillText("🛡️", sx, sy + hpSize * 0.8);
+        const baseColor = this.getColor();
+        let brightness = 1;
+        if (this.owner !== -1 && this.defendersInside > 0) {
+            brightness = 1 + Math.min(this.defendersInside * 0.15, 0.6);
         }
+        const r = parseInt(baseColor.slice(1, 3), 16);
+        const g = parseInt(baseColor.slice(3, 5), 16);
+        const b = parseInt(baseColor.slice(5, 7), 16);
+        const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
+        
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = brightColor; ctx.fill(); ctx.strokeStyle = this.selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = this.selected ? 3 * camera.zoom : 1 * camera.zoom; ctx.stroke();
+        if (this.hitFlash > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,100,100,${this.hitFlash})`; ctx.lineWidth = 5 * camera.zoom; ctx.stroke(); }
+        if (this.spawnEffect > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr * (1.3 + (0.5 - this.spawnEffect) * 0.6), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,255,255,${this.spawnEffect * 1.5})`; ctx.lineWidth = 3 * camera.zoom; ctx.stroke(); }
     }
     isPointInside(x, y, camera) { const sx = (this.x - camera.x) * camera.zoom, sy = (this.y - camera.y) * camera.zoom; return Math.sqrt((x - sx) ** 2 + (y - sy) ** 2) < this.radius * camera.zoom; }
 }
@@ -807,7 +791,7 @@ class Game {
 
         this.resize();
         this.camera = new Camera();
-        this.globalSpawnTimer = new GlobalSpawnTimer(2.5);
+        this.globalSpawnTimer = new GlobalSpawnTimer(3.5);
 
         this.setupEvents();
         this.init();
@@ -834,8 +818,8 @@ class Game {
         this.isPanning = false;
         this.rallyMode = false;
 
-        this.worldWidth = 2000;
-        this.worldHeight = 1500;
+        this.worldWidth = 2400;
+        this.worldHeight = 1800;
         this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
 
         this.ai = null; // Removed single AI
@@ -1127,22 +1111,11 @@ class Game {
 
         this.drawGrid();
 
-        // Links
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'; // More visible ("que se vea mas")
-        this.ctx.lineWidth = 2 * this.camera.zoom;
-        for (let i = 0; i < this.nodes.length; i++) {
-            for (let j = i + 1; j < this.nodes.length; j++) {
-                const pos1 = this.camera.worldToScreen(this.nodes[i].x, this.nodes[i].y);
-                const pos2 = this.camera.worldToScreen(this.nodes[j].x, this.nodes[j].y);
-                this.ctx.beginPath(); this.ctx.moveTo(pos1.x, pos1.y); this.ctx.lineTo(pos2.x, pos2.y); this.ctx.stroke();
-            }
-        }
-
         this.waypointLines.forEach(line => line.draw(this.ctx, this.camera));
 
         if (this.rightMouseDown && this.waypointLinePoints.length > 1) {
             const line = new WaypointLine(this.waypointLinePoints, 0);
-            line.life = 1.0;
+            line.life = 2.0;
             line.draw(this.ctx, this.camera);
         }
 
