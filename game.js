@@ -134,3 +134,5 @@ class Node {
         if (this.defendersInside > 0) { ctx.font = `${10 * camera.zoom}px Arial`; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.textAlign = 'center'; ctx.fillText(`⚔${this.defendersInside}`, sx, sy + sr + 22 * camera.zoom); }
     }
     isPointInside(x, y, camera) { const sx = (this.x - camera.x) * camera.zoom, sy = (this.y - camera.y) * camera.zoom; return Math.sqrt((x - sx) ** 2 + (y - sy) ** 2) < this.radius * camera.zoom; }
+}
+
