@@ -564,24 +564,16 @@ class Node {
             const angle = Math.random() * Math.PI * 2;
             const dist = this.radius + 25 + Math.random() * 40;
             
-            // Si tiene rally point, spawnear cerca del rally
-            let spawnX, spawnY;
-            if (this.rallyPoint) {
-                const rallyAngle = Math.random() * Math.PI * 2;
-                const rallyDist = 30 + Math.random() * 20;
-                spawnX = this.rallyPoint.x + Math.cos(rallyAngle) * rallyDist;
-                spawnY = this.rallyPoint.y + Math.sin(rallyAngle) * rallyDist;
-            } else {
-                spawnX = this.x + Math.cos(angle) * dist;
-                spawnY = this.y + Math.sin(angle) * dist;
-            }
-            
-            const entity = new Entity(spawnX, spawnY, this.owner, Date.now() + Math.random());
-            
-            // Si tiene rally point, la entidad va directo ahí
-            if (this.rallyPoint && (Math.abs(spawnX - this.rallyPoint.x) > 5 || Math.abs(spawnY - this.rallyPoint.y) > 5)) {
-                entity.setTarget(this.rallyPoint.x, this.rallyPoint.y);
-            }
+                // Spawnear SIEMPRE alrededor del nodo
+                const spawnX = this.x + Math.cos(angle) * dist;
+                const spawnY = this.y + Math.sin(angle) * dist;
+                
+                const entity = new Entity(spawnX, spawnY, this.owner, Date.now() + Math.random());
+                
+                // Si tiene rally point, darle comando de moverse ahí
+                if (this.rallyPoint) {
+                    entity.setTarget(this.rallyPoint.x, this.rallyPoint.y);
+                }
             
             return entity;
         }
