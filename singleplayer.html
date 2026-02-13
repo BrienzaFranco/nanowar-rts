@@ -36,12 +36,24 @@
             <button id="reset-btn" class="btn-primary">Reiniciar</button>
         </div>
         <canvas id="game-canvas"></canvas>
-        <div id="instructions">
+        <div id="instructions" onclick="this.style.display='none'" style="cursor: pointer; animation: fadeOut 0.5s ease-in 3s forwards;">
             <strong>RALLY POINT:</strong> Selecciona nodos + T + Click | <strong>STOP:</strong> Tecla S | <strong>WAYPOINTS:</strong> Hold Click Der traza línea<br>
             <strong>NODOS:</strong> Chicos (rápidos, poca vida) | Grandes (lentos, mucha vida) | Mapa asimétrico con ventajas diferentes<br>
             <strong>Seleccionar:</strong> Click izq | <strong>Shift+Click:</strong> Agregar | <strong>Zoom:</strong> Rueda | <strong>Pan:</strong> Space | <strong>Zoom inicial:</strong> Ver todo<br>
-            <small>Líneas de waypoint transparentes | Rally point = spawn dirigido | Distribución estratégica desbalanceada</small>
+            <small style="display: block; margin-top: 8px; opacity: 0.7;">Click para cerrar • Se oculta automáticamente en 3 segundos</small>
         </div>
+        <style>
+            @keyframes fadeOut {
+                to {
+                    opacity: 0;
+                    visibility: hidden;
+                }
+            }
+            #instructions:hover {
+                opacity: 1 !important;
+                animation: none !important;
+            }
+        </style>
     </div>
     <script src="game.js"></script>
 </body>

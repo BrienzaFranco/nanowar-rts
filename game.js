@@ -362,16 +362,13 @@ class Entity {
                     // NODO ENEMIGO O NEUTRAL: Atacar y conquistar
                     // Solo atacar si no estamos muriendo ya
                     if (!this.dying) {
-                        console.log(`Entidad ${this.id} atacando nodo ${node.id}. HP antes: ${node.hp}`);
-                        node.hp -= this.damage;
-                        console.log(`HP después: ${node.hp}`);
+                        // Reducir HP base (esto es lo que realmente baja)
+                        node.baseHp -= this.damage;
                         
                         // Verificar conquista INMEDIATAMENTE
-                        if (node.hp <= 0) {
-                            console.log(`¡CONQUISTA! Nodo ${node.id} capturado por jugador ${this.owner}`);
+                        if (node.baseHp <= 0) {
                             node.owner = this.owner;
-                            node.hp = 10; // HP inicial tras conquista
-                            // Resetear spawn timer para que empiece a producir
+                            node.baseHp = 10; // HP base inicial tras conquista
                             node.hasSpawnedThisCycle = false;
                         }
                         
@@ -510,22 +507,24 @@ class Node {
         if (type === 'small') {
             this.radius = 35;
             this.influenceRadius = 90;
-            this.hp = 8;
+            this.baseHp = 8;  // HP base (se reduce al atacar)
             this.maxHp = 60;
-            this.spawnInterval = 2.0; // Spawnea más rápido
+            this.spawnInterval = 2.0;
         } else if (type === 'large') {
             this.radius = 70;
             this.influenceRadius = 150;
-            this.hp = 15;
+            this.baseHp = 15;
             this.maxHp = 150;
-            this.spawnInterval = 3.5; // Spawnea más lento
+            this.spawnInterval = 3.5;
         } else { // medium
             this.radius = 55;
             this.influenceRadius = 120;
-            this.hp = 10;
+            this.baseHp = 10;
             this.maxHp = 100;
             this.spawnInterval = 2.5;
         }
+        
+        // HP total = base + protectores (se calcula dinámicamente)
         
         this.selected = false;
         this.hasSpawnedThisCycle = false;
@@ -554,9 +553,9 @@ class Node {
             }
         }
         
-        // HP base según tipo + protección
-        const baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
-        this.hp = Math.min(this.maxHp, baseHp + protectors);
+        // HP total = base + protectores (limitado por maxHp)
+        // Pero el baseHp nunca se regenera automáticamente, solo por ausencia de ataques
+        this.hp = Math.min(this.maxHp, this.baseHp + protectors);
         
         // Spawning
         if (this.owner !== -1 && globalSpawnTimer.shouldSpawn && !this.hasSpawnedThisCycle) {
