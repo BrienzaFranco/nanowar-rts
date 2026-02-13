@@ -1116,8 +1116,13 @@ class Game {
     }
 
     draw() {
-        this.ctx.fillStyle = '#151515';
+        if (this.loopCount < 10) console.log("Drawing frame", this.nodes.length, this.camera);
+
+        this.ctx.fillStyle = '#151515'; // Back to dark gray
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Debug: Draw a big red square to prove canvas works
+        // this.ctx.fillStyle = 'red'; this.ctx.fillRect(100, 100, 200, 200);
 
         this.drawGrid();
 
@@ -1189,6 +1194,10 @@ class Game {
     start() {
         let lastTime = performance.now();
         const loop = (now) => {
+            if (!this.loopCount) this.loopCount = 0;
+            if (this.loopCount < 10) console.log("Loop running", this.loopCount);
+            this.loopCount++;
+
             try {
                 const dt = Math.min((now - lastTime) / 1000, 0.05);
                 lastTime = now;
