@@ -609,21 +609,18 @@ class Node {
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
         const maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100;
-        const fillPercent = Math.min(1, this.baseHp / maxHp);
+        const totalHp = this.getTotalHp();
+        const fillPercent = Math.min(1, totalHp / maxHp);
         
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
         ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
         ctx.fill();
         
         if (fillPercent > 0) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(sx, sy, sr - 2 * camera.zoom, 0, Math.PI * 2);
-            ctx.clip();
-            const fillHeight = sr * 2 * fillPercent;
-            ctx.fillStyle = brightColor;
-            ctx.fillRect(sx - sr, sy + sr - fillHeight, sr * 2, fillHeight);
-            ctx.restore();
+            const fillRadius = sr * fillPercent;
+            ctx.beginPath(); ctx.arc(sx, sy, fillRadius, 0, Math.PI * 2); 
+            ctx.fillStyle = brightColor; 
+            ctx.fill();
         }
         
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = this.selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = this.selected ? 3 * camera.zoom : 1 * camera.zoom; ctx.stroke();
@@ -859,39 +856,35 @@ class Game {
         let idCounter = 1;
         const cx = this.worldWidth / 2;
         const cy = this.worldHeight / 2;
-        const radius = Math.min(this.worldWidth, this.worldHeight) * 0.35;
+        const baseRadius = Math.min(this.worldWidth, this.worldHeight) * 0.42;
 
-        // Central Node
+        // Central cluster (galaxy core)
         this.nodes.push(new Node(idCounter++, cx, cy, -1, 'large'));
-
-        // Generate Random "Template" for consistency (Symmetric balance)
-        // Nodes in the "Sector 0" relative to center.
-        const sectorNeutrals = [];
-        const satellites = 2 + Math.floor(Math.random() * 2); // 2-3 satellite neutrals per player
-        for (let j = 0; j < satellites; j++) {
-            // Random pos in sector (wedge)
-            const dist = radius * (0.3 + Math.random() * 0.5); // Between center and base
-            const ang = (Math.random() - 0.5) * (Math.PI * 2 / this.playerCount) * 0.8;
-            const type = Math.random() > 0.5 ? 'medium' : 'small';
-            sectorNeutrals.push({ dist, ang, type });
+        for (let c = 0; c < 2; c++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 120 + Math.random() * 80;
+            this.nodes.push(new Node(idCounter++, cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist, -1, 'small'));
         }
 
-        // Place Player Bases and Symmetric Neutrals
+        // Player clusters (galaxies)
         for (let i = 0; i < this.playerCount; i++) {
             const sectorAngle = (i / this.playerCount) * Math.PI * 2 - Math.PI / 2;
-
-            // Base
-            const bx = cx + Math.cos(sectorAngle) * radius;
-            const by = cy + Math.sin(sectorAngle) * radius;
+            
+            // Base at outer edge
+            const bx = cx + Math.cos(sectorAngle) * baseRadius;
+            const by = cy + Math.sin(sectorAngle) * baseRadius;
             this.nodes.push(new Node(idCounter++, bx, by, i, 'large'));
 
-            // Neutrals
-            sectorNeutrals.forEach(n => {
-                const na = sectorAngle + n.ang;
-                const nx = cx + Math.cos(na) * n.dist;
-                const ny = cy + Math.sin(na) * n.dist;
-                this.nodes.push(new Node(idCounter++, nx, ny, -1, n.type));
-            });
+            // Galaxy cluster around each player base
+            const clusterSize = 2 + Math.floor(Math.random() * 2);
+            for (let c = 0; c < clusterSize; c++) {
+                const angle = sectorAngle + (Math.random() - 0.5) * 1.2;
+                const dist = baseRadius * (0.45 + Math.random() * 0.35);
+                const nx = cx + Math.cos(angle) * dist;
+                const ny = cy + Math.sin(angle) * dist;
+                const type = Math.random() > 0.4 ? 'medium' : 'small';
+                this.nodes.push(new Node(idCounter++, nx, ny, -1, type));
+            }
         }
     }
 
