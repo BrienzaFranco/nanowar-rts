@@ -508,6 +508,9 @@ class Node {
         else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 15; this.maxHp = 150; this.spawnInterval = 3.0; }
         else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 10; this.maxHp = 100; this.spawnInterval = 2.1; }
         this.spawnEffect = 0;
+        this.spawnTimer = 0;
+        this.spawnInterval = this.type === 'small' ? 2.0 : this.type === 'large' ? 3.5 : 2.5;
+        this.spawnProgress = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
     }
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
@@ -560,39 +563,68 @@ class Node {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
-        if (this.owner !== -1 && globalSpawnTimer.shouldSpawn && !this.hasSpawnedThisCycle) {
-            this.hasSpawnedThisCycle = true;
-            const angle = Math.random() * Math.PI * 2, dist = this.radius + 25 + Math.random() * 40;
-            const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
-            const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
-            if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y);
-            this.spawnEffect = 0.5;
-            if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
-            return entity;
+        
+        if (this.owner !== -1) {
+            this.spawnTimer += dt;
+            const baseDefenders = 1;
+            const defenderBonus = Math.min(this.defendersInside, 10);
+            const effectiveDefenders = baseDefenders + defenderBonus;
+            const spawnThreshold = this.spawnInterval / effectiveDefenders;
+            
+            if (this.spawnTimer >= spawnThreshold) {
+                this.spawnTimer = 0;
+                const angle = Math.random() * Math.PI * 2, dist = this.radius + 25 + Math.random() * 40;
+                const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
+                const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
+                if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y);
+                this.spawnEffect = 0.5;
+                if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
+                return entity;
+            }
+            this.spawnProgress = this.spawnTimer / spawnThreshold;
+        } else {
+            this.spawnTimer = 0;
+            this.spawnProgress = 0;
         }
-        if (!globalSpawnTimer.shouldSpawn) this.hasSpawnedThisCycle = false;
         return null;
     }
     draw(ctx, camera) {
         const sx = (this.x - camera.x) * camera.zoom, sy = (this.y - camera.y) * camera.zoom, sr = this.radius * camera.zoom, sir = this.influenceRadius * camera.zoom;
         let maxDefenders = 0, dominantOwner = -1;
         for (let owner in this.defenderCounts) { if (this.defenderCounts[owner] > maxDefenders) { maxDefenders = this.defenderCounts[owner]; dominantOwner = parseInt(owner); } }
-        let areaColor;
+        let areaColor, borderColor;
         if (this.owner !== -1) {
-            // Si tiene dueño, color del dueño SIEMPRE
             const c = PLAYER_COLORS[this.owner % PLAYER_COLORS.length].slice(1);
             areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
+            borderColor = areaColor;
         } else {
-            // Neutral: color del dominante o gris
             if (dominantOwner === -1 || maxDefenders === 0) {
                 const c = '#757575'.slice(1);
                 areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
+                borderColor = areaColor;
             } else {
                 const c = PLAYER_COLORS[dominantOwner % PLAYER_COLORS.length].slice(1);
                 areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
+                borderColor = areaColor;
             }
         }
-        ctx.beginPath(); ctx.arc(sx, sy, sir, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.1)`; ctx.fill(); ctx.strokeStyle = `rgba(${areaColor},0.4)`; ctx.lineWidth = 2 * camera.zoom; ctx.stroke();
+        // Aura punteada
+        ctx.beginPath(); ctx.arc(sx, sy, sir, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.08)`; ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy, sir, 0, Math.PI * 2); ctx.strokeStyle = `rgba(${areaColor},0.25)`; ctx.lineWidth = 1.5 * camera.zoom; ctx.setLineDash([8 * camera.zoom, 6 * camera.zoom]); ctx.stroke(); ctx.setLineDash([]);
+        // Línea de rally
+        if (this.rallyPoint && this.owner !== -1) {
+            const rx = (this.rallyPoint.x - camera.x) * camera.zoom, ry = (this.rallyPoint.y - camera.y) * camera.zoom;
+            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry); ctx.strokeStyle = `rgba(${areaColor},0.5)`; ctx.setLineDash([4 * camera.zoom, 4 * camera.zoom]); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.arc(rx, ry, 5 * camera.zoom, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.7)`; ctx.fill();
+        }
+        // Animación de generación
+        if (this.owner !== -1 && this.spawnProgress > 0) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, sr + 6 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + this.spawnProgress * Math.PI * 2);
+            ctx.strokeStyle = `rgba(255,255,255,${0.4 + this.spawnProgress * 0.4})`;
+            ctx.lineWidth = 3 * camera.zoom;
+            ctx.stroke();
+        }
         if (this.rallyPoint && this.owner !== -1) {
             const rx = (this.rallyPoint.x - camera.x) * camera.zoom, ry = (this.rallyPoint.y - camera.y) * camera.zoom;
             ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry); ctx.strokeStyle = `rgba(${areaColor},0.4)`; ctx.setLineDash([3 * camera.zoom, 3 * camera.zoom]); ctx.stroke(); ctx.setLineDash([]);
@@ -623,7 +655,8 @@ class Node {
             ctx.fill();
         }
         
-        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = this.selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = this.selected ? 3 * camera.zoom : 1 * camera.zoom; ctx.stroke();
+        const borderColorStr = this.selected ? 'rgba(255,255,255,0.9)' : `rgba(${borderColor},0.7)`;
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = borderColorStr; ctx.lineWidth = this.selected ? 3 * camera.zoom : 2 * camera.zoom; ctx.stroke();
         if (this.hitFlash > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,100,100,${this.hitFlash})`; ctx.lineWidth = 5 * camera.zoom; ctx.stroke(); }
         if (this.spawnEffect > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr * (1.3 + (0.5 - this.spawnEffect) * 0.6), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,255,255,${this.spawnEffect * 1.5})`; ctx.lineWidth = 3 * camera.zoom; ctx.stroke(); }
     }
