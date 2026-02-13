@@ -158,9 +158,10 @@ class Entity {
         this.waypoints.push({ x, y });
     }
 
-    setTarget(x, y) {
+    setTarget(x, y, node = null) {
         this.waypoints = [{ x, y }];
         this.currentTarget = null;
+        this.targetNode = node;
     }
 
     stop() {
@@ -310,6 +311,7 @@ class Entity {
         const targetNy = targetDy / targetDist;
 
         for (let node of nodes) {
+            if (this.targetNode === node) continue; // Don't avoid target
             const dx = node.x - this.x;
             const dy = node.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -335,6 +337,11 @@ class Entity {
 
             if (dist < node.radius + this.radius) {
                 if (node.owner === this.owner) {
+                    if (this.targetNode === node) {
+                        this.stop();
+                        this.targetNode = null;
+                        return;
+                    }
                     const nx = dx / dist;
                     const ny = dy / dist;
                     const pushDistance = (node.radius + this.radius) - dist + 2;
@@ -558,7 +565,7 @@ class Node {
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw, bh);
         ctx.fillStyle = baseHpPercent > 0.5 ? '#2E7D32' : baseHpPercent > 0.25 ? '#F57F17' : '#C62828'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw * baseHpPercent, bh);
         if (totalHpPercent > baseHpPercent) { ctx.fillStyle = 'rgba(76,175,80,0.6)'; ctx.fillRect(sx - bw / 2 + bw * baseHpPercent, sy + sr + 8 * camera.zoom, bw * (totalHpPercent - baseHpPercent), bh); }
-        if (this.defendersInside > 0) { ctx.font = `${10 * camera.zoom}px Arial`; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.textAlign = 'center'; ctx.fillText(`⚔${this.defendersInside}`, sx, sy + sr + 22 * camera.zoom); }
+        if (this.defendersInside > 0) { ctx.font = `bold ${16 * camera.zoom}px Arial`; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.textAlign = 'center'; ctx.fillText(`⚔${this.defendersInside}`, sx, sy + sr + 22 * camera.zoom); }
     }
     isPointInside(x, y, camera) { const sx = (this.x - camera.x) * camera.zoom, sy = (this.y - camera.y) * camera.zoom; return Math.sqrt((x - sx) ** 2 + (y - sy) ** 2) < this.radius * camera.zoom; }
 }
@@ -778,7 +785,8 @@ class Game {
         if (e.button === 2) {
             this.rightMouseDown = true;
             this.waypointLinePoints = [{ x: worldPos.x, y: worldPos.y }];
-            this.executeCommand(worldPos.x, worldPos.y);
+            const clickedNode = this.nodes.find(n => n.isPointInside(this.mouse.x, this.mouse.y, this.camera));
+            this.executeCommand(worldPos.x, worldPos.y, clickedNode);
             return;
         }
 
@@ -863,10 +871,10 @@ class Game {
         this.selectBox = false;
     }
 
-    executeCommand(worldX, worldY) {
+    executeCommand(worldX, worldY, targetNode = null) {
         if (this.selectedEntities.length === 0) return;
         this.commandIndicators.push(new CommandIndicator(worldX, worldY, 'move', true));
-        this.selectedEntities.forEach(ent => { if (!ent.dead) ent.setTarget(worldX, worldY); });
+        this.selectedEntities.forEach(ent => { if (!ent.dead) ent.setTarget(worldX, worldY, targetNode); });
     }
 
     onWheel(e) {
@@ -893,7 +901,7 @@ class Game {
         this.commandIndicators.push(new CommandIndicator(targetNode.x, targetNode.y, 'attack', true));
         const count = Math.ceil(this.selectedEntities.length / 2);
         const attackers = this.selectedEntities.slice(0, count);
-        attackers.forEach(ent => { if (!ent.dead) ent.setTarget(targetNode.x, targetNode.y); });
+        attackers.forEach(ent => { if (!ent.dead) ent.setTarget(targetNode.x, targetNode.y, targetNode); });
         this.clearSelection();
     }
 
