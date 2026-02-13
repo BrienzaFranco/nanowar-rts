@@ -1,4 +1,6 @@
 // NANOWAR RTS v4.0 - Sistema de Defensa y Conquista
+console.log("Script execution started");
+// alert("Script Started"); // Uncomment to verify parsing
 // =================================================
 // - Vida combinada: baseHp + defensores dentro del area
 // - Defensores se consumen primero al atacar  
@@ -846,6 +848,7 @@ class Game {
         for (let i = 1; i < this.playerCount; i++) {
             this.ais.push(new AIController(this, i));
         }
+        console.log("Init completed, particles:", this.particles);
     }
 
     createLevel() {
