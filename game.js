@@ -836,6 +836,10 @@ class Game {
         this.isPanning = false;
         this.rallyMode = false;
 
+        this.worldWidth = 2000;
+        this.worldHeight = 1500;
+        this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
+
         this.ai = null; // Removed single AI
         this.ais = [];
         this.particles = [];
