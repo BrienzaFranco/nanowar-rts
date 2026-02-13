@@ -171,17 +171,18 @@ class Entity {
         this.vy *= 0.3;
     }
 
-    update(dt, allEntities, nodes, camera) {
-        if (this.dead) return;
-
+    update(dt, entities, nodes, camera, game) {
         if (this.dying) {
             this.deathTime += dt;
-            if (this.deathTime >= 0.4) this.dead = true;
+            if (this.deathTime > 0.4) { this.dead = true; }
+            if (this.deathType === 'attack' && this.absorbTarget) {
+                // ... animation handled in draw
+            }
             return;
         }
 
         this.processWaypoints();
-        this.handleCollisionsAndCohesion(allEntities, nodes);
+        this.handleCollisionsAndCohesion(entities, nodes);
 
         this.vx += (Math.random() - 0.5) * 10 * dt;
         this.vy += (Math.random() - 0.5) * 10 * dt;
@@ -213,7 +214,7 @@ class Entity {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
-        this.checkNodeProximity(nodes);
+        this.checkNodeProximity(nodes, game);
     }
 
     processWaypoints() {
@@ -329,7 +330,7 @@ class Entity {
         }
     }
 
-    checkNodeProximity(nodes) {
+    checkNodeProximity(nodes, game) {
         for (let node of nodes) {
             const dx = node.x - this.x;
             const dy = node.y - this.y;
@@ -351,8 +352,8 @@ class Entity {
                     this.vy -= ny * 80;
                 } else {
                     if (!this.dying) {
-                        node.receiveAttack(this.owner, this.damage);
-                        this.die('attack', node);
+                        node.receiveAttack(this.owner, this.damage, game);
+                        this.die('attack', node, game);
                     }
                 }
                 return;
@@ -364,11 +365,22 @@ class Entity {
         this.setTarget(x, y);
     }
 
-    die(type, node = null) {
+    getColor() {
+        return PLAYER_COLORS[this.owner % PLAYER_COLORS.length];
+    }
+
+    die(type, node = null, game = null) {
         this.dying = true;
         this.deathType = type;
-        this.absorbTarget = node;
         this.deathTime = 0;
+        this.absorbTarget = node;
+        if (game && type === 'explosion') {
+            game.spawnParticles(this.x, this.y, this.getColor(), 8, 'explosion');
+        } else if (game && type === 'attack') {
+            game.spawnParticles(this.x, this.y, '#FF4444', 5, 'hit');
+        } else if (game && type === 'sacrifice') {
+            game.spawnParticles(this.x, this.y, '#FFFFFF', 4, 'hit');
+        }
     }
 
     isPointInside(x, y, camera) {
@@ -463,6 +475,22 @@ class Entity {
                 ctx.stroke();
             }
         }
+
+        // Draw path line always for player 0
+        if (this.owner === 0 && this.waypoints.length > 0 && !this.dead && !this.dying) {
+            const screenX = (this.x - camera.x) * camera.zoom;
+            const screenY = (this.y - camera.y) * camera.zoom;
+            const target = this.waypoints[0];
+            const screenTx = (target.x - camera.x) * camera.zoom;
+            const screenTy = (target.y - camera.y) * camera.zoom;
+
+            ctx.beginPath();
+            ctx.moveTo(screenX, screenY);
+            ctx.lineTo(screenTx, screenTy);
+            ctx.strokeStyle = `rgba(${this.getColor().slice(1)}, 0.4)`; // Use entity color
+            ctx.lineWidth = 2 * camera.zoom;
+            ctx.stroke();
+        }
     }
 }
 
@@ -472,9 +500,9 @@ class Entity {
 class Node {
     constructor(id, x, y, ownerId, type = 'medium') {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
-        if (type === 'small') { this.radius = 35; this.influenceRadius = 90; this.baseHp = 8; this.maxHp = 60; this.spawnInterval = 2.0; }
-        else if (type === 'large') { this.radius = 70; this.influenceRadius = 150; this.baseHp = 15; this.maxHp = 150; this.spawnInterval = 3.5; }
-        else { this.radius = 55; this.influenceRadius = 120; this.baseHp = 10; this.maxHp = 100; this.spawnInterval = 2.5; }
+        if (type === 'small') { this.radius = 35; this.influenceRadius = 90; this.baseHp = 8; this.maxHp = 60; this.spawnInterval = 1.7; }
+        else if (type === 'large') { this.radius = 70; this.influenceRadius = 150; this.baseHp = 15; this.maxHp = 150; this.spawnInterval = 3.0; }
+        else { this.radius = 55; this.influenceRadius = 120; this.baseHp = 10; this.maxHp = 100; this.spawnInterval = 2.1; }
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
     }
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
@@ -496,14 +524,15 @@ class Node {
         }
     }
     getTotalHp() { return Math.min(this.maxHp, this.baseHp + this.defendersInside); }
-    receiveAttack(attackerId, damage) {
+    receiveAttack(attackerId, damage, game) {
         this.hitFlash = 0.3;
+        if (game) game.spawnParticles(this.x, this.y, '#FF0000', 3, 'hit');
 
         // Consumir defensores físicos primero
         while (damage > 0 && this.defendingEntities && this.defendingEntities.length > 0) {
             const defender = this.defendingEntities.pop();
             if (defender && !defender.dead && !defender.dying) {
-                defender.die('sacrifice');
+                defender.die('sacrifice', null, game);
                 this.defendersInside = Math.max(0, this.defendersInside - 1);
                 damage--;
             }
@@ -515,12 +544,13 @@ class Node {
                 this.owner = attackerId;
                 this.baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
                 this.hasSpawnedThisCycle = false;
+                if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
                 return true;
             }
         }
         return false;
     }
-    update(dt, entities, globalSpawnTimer) {
+    update(dt, entities, globalSpawnTimer, game) {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.owner !== -1 && globalSpawnTimer.shouldSpawn && !this.hasSpawnedThisCycle) {
@@ -565,7 +595,31 @@ class Node {
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw, bh);
         ctx.fillStyle = baseHpPercent > 0.5 ? '#2E7D32' : baseHpPercent > 0.25 ? '#F57F17' : '#C62828'; ctx.fillRect(sx - bw / 2, sy + sr + 8 * camera.zoom, bw * baseHpPercent, bh);
         if (totalHpPercent > baseHpPercent) { ctx.fillStyle = 'rgba(76,175,80,0.6)'; ctx.fillRect(sx - bw / 2 + bw * baseHpPercent, sy + sr + 8 * camera.zoom, bw * (totalHpPercent - baseHpPercent), bh); }
-        if (this.defendersInside > 0) { ctx.font = `bold ${16 * camera.zoom}px Arial`; ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.textAlign = 'center'; ctx.fillText(`⚔${this.defendersInside}`, sx, sy + sr + 22 * camera.zoom); }
+        if (this.defendersInside > 0) {
+            ctx.font = `bold ${18 * camera.zoom}px Arial`;
+            ctx.textAlign = 'center';
+
+            const hpText = `${Math.ceil(this.baseHp)}`;
+            const defText = ` + ${this.defendersInside}`;
+            const fullText = hpText + defText;
+            const width = ctx.measureText(fullText).width;
+
+            // Draw HP part (Green/White based on health?) No, owner color or white? White/Gray base.
+            // Let's use: Green for Base, Cyan for Defenders.
+            const startX = sx - width / 2;
+
+            ctx.fillStyle = '#4CAF50'; // Green for Base HP
+            ctx.fillText(hpText, startX + ctx.measureText(hpText).width / 2, sy + sr + 24 * camera.zoom);
+
+            ctx.fillStyle = '#00B0FF'; // Blueish for Defender count
+            ctx.fillText(defText, startX + ctx.measureText(hpText).width + ctx.measureText(defText).width / 2, sy + sr + 24 * camera.zoom);
+        } else {
+            // Only Base HP
+            ctx.font = `bold ${18 * camera.zoom}px Arial`;
+            ctx.fillStyle = '#4CAF50';
+            ctx.textAlign = 'center';
+            ctx.fillText(Math.ceil(this.baseHp), sx, sy + sr + 24 * camera.zoom);
+        }
     }
     isPointInside(x, y, camera) { const sx = (this.x - camera.x) * camera.zoom, sy = (this.y - camera.y) * camera.zoom; return Math.sqrt((x - sx) ** 2 + (y - sy) ** 2) < this.radius * camera.zoom; }
 }
@@ -626,6 +680,33 @@ class GlobalSpawnTimer {
         }
         this.shouldSpawn = false;
         return false;
+    }
+}
+
+class Particle {
+    constructor(x, y, color, size, type) {
+        this.x = x; this.y = y; this.color = color; this.size = size; this.type = type;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * (type === 'explosion' ? 150 : 80);
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.life = 1.0;
+        this.maxLife = 1.0;
+    }
+    update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= dt;
+        return this.life > 0;
+    }
+    draw(ctx, camera) {
+        const screen = camera.worldToScreen(this.x, this.y);
+        ctx.globalAlpha = this.life / this.maxLife;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(screen.x, screen.y, this.size * camera.zoom, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
     }
 }
 
@@ -739,6 +820,7 @@ class Game {
         this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
 
         this.ai = new AIController(this, 1);
+        this.particles = [];
 
         this.createLevel();
         this.createInitialEntities();
@@ -990,12 +1072,14 @@ class Game {
         this.globalSpawnTimer.update(dt);
         if (this.ai) this.ai.update(dt);
 
+        this.particles = this.particles.filter(p => p.update(dt));
+
         this.nodes.forEach(node => {
-            const newEntity = node.update(dt, this.entities, this.globalSpawnTimer);
+            const newEntity = node.update(dt, this.entities, this.globalSpawnTimer, this);
             if (newEntity) this.entities.push(newEntity);
         });
 
-        this.entities.forEach(ent => ent.update(dt, this.entities, this.nodes, this.camera));
+        this.entities.forEach(ent => ent.update(dt, this.entities, this.nodes, this.camera, this));
 
         this.commandIndicators = this.commandIndicators.filter(indicator => indicator.update(dt));
         this.waypointLines = this.waypointLines.filter(line => line.update(dt));
@@ -1040,6 +1124,7 @@ class Game {
 
         this.nodes.forEach(node => node.draw(this.ctx, this.camera));
         this.entities.forEach(ent => ent.draw(this.ctx, this.camera));
+        this.particles.forEach(p => p.draw(this.ctx, this.camera));
 
         if (this.rallyMode && this.selectedNodes.length > 0) {
             this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
@@ -1088,6 +1173,12 @@ class Game {
 
     reset() {
         this.init();
+    }
+
+    spawnParticles(x, y, color, count, type) {
+        for (let i = 0; i < count; i++) {
+            this.particles.push(new Particle(x, y, color, Math.random() * 3 + 2, type));
+        }
     }
 }
 
