@@ -672,7 +672,7 @@ class Node {
         // Barra de vida
         const barWidth = screenRadius * 2;
         const barHeight = 5 * camera.zoom;
-        const hpPercent = this.hp / this.maxHp;
+        // hpPercent ya fue calculado arriba para el efecto crítico
         
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(screenX - barWidth / 2, screenY + screenRadius + 8 * camera.zoom, barWidth, barHeight);
