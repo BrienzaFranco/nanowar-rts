@@ -859,55 +859,18 @@ class Game {
         this.nodes.push(new Node(idCounter++, cx, cy, -1, 'large'));
 
         // Generate Random "Template" for consistency (Symmetric balance)
-        const templateNodes = [];
+        // Nodes in the "Sector 0" relative to center.
+        const sectorNeutrals = [];
         const satellites = 2 + Math.floor(Math.random() * 2); // 2-3 satellite neutrals per player
         for (let j = 0; j < satellites; j++) {
-            const dist = 100 + Math.random() * 200;
-            const angleOffset = (Math.random() - 0.5) * 1.0; // +/- radians
-            const type = Math.random() > 0.7 ? 'medium' : 'small';
-            templateNodes.push({ dist, angleOffset, type });
-        }
-
-        // Place Player Bases and Symmetric Neutrals
-        for (let i = 0; i < this.playerCount; i++) {
-            const angleBase = (i / this.playerCount) * Math.PI * 2 - Math.PI / 2;
-
-            // Home Base
-            const bx = cx + Math.cos(angleBase) * radius;
-            const by = cy + Math.sin(angleBase) * radius;
-            this.nodes.push(new Node(idCounter++, bx, by, i, 'large'));
-
-            // Symmetric Neutrals relative to Home Base or Center?
-            // Relative to Home Base connects them to player.
-            // Relative to Center with rotation is cleaner for "map sectors".
-            // Let's do relative to Home Base to give starting resources.
-            templateNodes.forEach(tmpl => {
-                const angle = angleBase + tmpl.angleOffset; // Rotate template
-                const nx = bx + Math.cos(angle + Math.PI) * tmpl.dist; // Towards center? or just offset?
-                // Let's put them between base and center
-                const tx = cx + Math.cos(angleBase + tmpl.angleOffset * 0.5) * (radius * 0.6 + Math.random() * 100);
-                // Wait, to be perfectly symmetric, I must use exact rotated coordinates from a "wedge".
-
-                // Better approach: Define wedge relative to CENTER
-                // Wedge center angle = angleBase.
-                // Template is polar offset (d, theta) from Center, rotated by angleBase.
-            });
-        }
-
-        // Let's retry the loop with proper wedge symmetry
-        // We generated templateNodes with { dist, angleOffset, type } relative to base... no.
-
-        // Clear and restart loop concept
-        // New Template: Nodes in the "Sector 0".
-        const sectorNeutrals = [];
-        for (let j = 0; j < 3; j++) {
-            // Random pos in sector
+            // Random pos in sector (wedge)
             const dist = radius * (0.3 + Math.random() * 0.5); // Between center and base
             const ang = (Math.random() - 0.5) * (Math.PI * 2 / this.playerCount) * 0.8;
             const type = Math.random() > 0.5 ? 'medium' : 'small';
             sectorNeutrals.push({ dist, ang, type });
         }
 
+        // Place Player Bases and Symmetric Neutrals
         for (let i = 0; i < this.playerCount; i++) {
             const sectorAngle = (i / this.playerCount) * Math.PI * 2 - Math.PI / 2;
 
