@@ -836,6 +836,7 @@ class Game {
 
         this.ai = null; // Removed single AI
         this.ais = [];
+        this.particles = [];
         this.playerCount = 4; // 4 Players (1 Human + 3 AI)
 
         this.createLevel();
