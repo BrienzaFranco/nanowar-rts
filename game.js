@@ -135,9 +135,9 @@ class Entity {
         this.radius = 5;
         this.vx = 0;
         this.vy = 0;
-        this.maxSpeed = 90;
-        this.acceleration = 180;
-        this.friction = 0.96;
+        this.maxSpeed = 70;
+        this.acceleration = 140;
+        this.friction = 0.97;
 
         this.hp = 1;
         this.damage = 1;
@@ -150,8 +150,8 @@ class Entity {
         this.currentTarget = null;
         this.absorbTarget = null;
 
-        this.cohesionRadius = 60;
-        this.cohesionForce = 80;
+        this.cohesionRadius = 30;
+        this.cohesionForce = 40;
     }
 
     addWaypoint(x, y) {
@@ -806,7 +806,7 @@ class Game {
 
         this.resize();
         this.camera = new Camera();
-        this.globalSpawnTimer = new GlobalSpawnTimer(3.5);
+        this.globalSpawnTimer = new GlobalSpawnTimer(2.5);
 
         this.setupEvents();
         this.init();
