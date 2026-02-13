@@ -608,7 +608,25 @@ class Node {
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
-        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = brightColor; ctx.fill(); ctx.strokeStyle = this.selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = this.selected ? 3 * camera.zoom : 1 * camera.zoom; ctx.stroke();
+        const maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100;
+        const fillPercent = Math.min(1, this.baseHp / maxHp);
+        
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
+        ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
+        ctx.fill();
+        
+        if (fillPercent > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(sx, sy, sr - 2 * camera.zoom, 0, Math.PI * 2);
+            ctx.clip();
+            const fillHeight = sr * 2 * fillPercent;
+            ctx.fillStyle = brightColor;
+            ctx.fillRect(sx - sr, sy + sr - fillHeight, sr * 2, fillHeight);
+            ctx.restore();
+        }
+        
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = this.selected ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)'; ctx.lineWidth = this.selected ? 3 * camera.zoom : 1 * camera.zoom; ctx.stroke();
         if (this.hitFlash > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,100,100,${this.hitFlash})`; ctx.lineWidth = 5 * camera.zoom; ctx.stroke(); }
         if (this.spawnEffect > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr * (1.3 + (0.5 - this.spawnEffect) * 0.6), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,255,255,${this.spawnEffect * 1.5})`; ctx.lineWidth = 3 * camera.zoom; ctx.stroke(); }
     }
