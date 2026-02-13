@@ -629,6 +629,77 @@ class GlobalSpawnTimer {
     }
 }
 
+class AIController {
+    constructor(game, playerId) {
+        this.game = game;
+        this.playerId = playerId; // 1 (Red)
+        this.timer = 0;
+        this.decisionInterval = 1.5; // Seconds between decisions
+    }
+
+    update(dt) {
+        this.timer += dt;
+        if (this.timer >= this.decisionInterval) {
+            this.timer = 0;
+            this.makeDecision();
+        }
+    }
+
+    makeDecision() {
+        const myNodes = this.game.nodes.filter(n => n.owner === this.playerId);
+        const availableNodes = this.game.nodes.filter(n => n.owner !== this.playerId);
+
+        if (myNodes.length === 0) return; // Dead
+
+        myNodes.forEach(sourceNode => {
+            // If we have enough defenders, attack!
+            if (sourceNode.defendersInside > 10 || (sourceNode.defendersInside > 5 && Math.random() < 0.3)) {
+                // Find closest target
+                let closest = null;
+                let minDist = Infinity;
+
+                for (let target of availableNodes) {
+                    const dx = target.x - sourceNode.x;
+                    const dy = target.y - sourceNode.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // Prioritize neutral nodes or weak enemies
+                    let score = dist;
+                    if (target.owner === -1) score *= 0.5; // Prefer neutrals
+                    else if (target.defendersInside < 5) score *= 0.7; // Prefer weak enemies
+
+                    if (score < minDist) {
+                        minDist = score;
+                        closest = target;
+                    }
+                }
+
+                if (closest) {
+                    this.attack(sourceNode, closest);
+                }
+            }
+        });
+    }
+
+    attack(sourceNode, targetNode) {
+        // Select available units in source node
+        const units = this.game.entities.filter(e =>
+            e.owner === this.playerId &&
+            !e.dead &&
+            !e.targetNode && // Don't redirect units already on mission? Actually, maybe redirect idle ones
+            Math.sqrt((e.x - sourceNode.x) ** 2 + (e.y - sourceNode.y) ** 2) <= sourceNode.influenceRadius
+        );
+
+        // Send 60% of them
+        const count = Math.ceil(units.length * 0.6);
+        const attackers = units.slice(0, count);
+
+        attackers.forEach(e => {
+            e.setTarget(targetNode.x, targetNode.y, targetNode);
+        });
+    }
+}
+
 class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -666,6 +737,8 @@ class Game {
         this.worldWidth = 2000;
         this.worldHeight = 1500;
         this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
+
+        this.ai = new AIController(this, 1);
 
         this.createLevel();
         this.createInitialEntities();
@@ -915,6 +988,7 @@ class Game {
 
     update(dt) {
         this.globalSpawnTimer.update(dt);
+        if (this.ai) this.ai.update(dt);
 
         this.nodes.forEach(node => {
             const newEntity = node.update(dt, this.entities, this.globalSpawnTimer);
