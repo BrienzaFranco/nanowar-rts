@@ -475,20 +475,33 @@ class Node {
     calculateDefenders(entities) {
         this.defendersInside = 0;
         this.defenderCounts = {};
+        this.defendingEntities = [];
         for (let e of entities) {
             if (e.dead || e.dying) continue;
             const dx = e.x - this.x, dy = e.y - this.y;
             if (Math.sqrt(dx * dx + dy * dy) <= this.influenceRadius) {
                 this.defenderCounts[e.owner] = (this.defenderCounts[e.owner] || 0) + 1;
-                if (e.owner === this.owner) this.defendersInside++;
+                if (e.owner === this.owner) {
+                    this.defendersInside++;
+                    this.defendingEntities.push(e);
+                }
             }
         }
     }
     getTotalHp() { return Math.min(this.maxHp, this.baseHp + this.defendersInside); }
     receiveAttack(attackerId, damage) {
         this.hitFlash = 0.3;
-        const defendersToKill = Math.min(this.defendersInside, damage);
-        if (defendersToKill > 0) { this.defendersInside -= defendersToKill; damage -= defendersToKill; }
+
+        // Consumir defensores físicos primero
+        while (damage > 0 && this.defendingEntities && this.defendingEntities.length > 0) {
+            const defender = this.defendingEntities.pop();
+            if (defender && !defender.dead && !defender.dying) {
+                defender.die('sacrifice');
+                this.defendersInside = Math.max(0, this.defendersInside - 1);
+                damage--;
+            }
+        }
+
         if (damage > 0) {
             this.baseHp -= damage;
             if (this.baseHp <= 0) {
@@ -519,8 +532,20 @@ class Node {
         let maxDefenders = 0, dominantOwner = -1;
         for (let owner in this.defenderCounts) { if (this.defenderCounts[owner] > maxDefenders) { maxDefenders = this.defenderCounts[owner]; dominantOwner = parseInt(owner); } }
         let areaColor;
-        if (dominantOwner === -1 || maxDefenders === 0) { const c = this.getColor().slice(1); areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(','); }
-        else { const c = PLAYER_COLORS[dominantOwner % PLAYER_COLORS.length].slice(1); areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(','); }
+        if (this.owner !== -1) {
+            // Si tiene dueño, color del dueño SIEMPRE
+            const c = PLAYER_COLORS[this.owner % PLAYER_COLORS.length].slice(1);
+            areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
+        } else {
+            // Neutral: color del dominante o gris
+            if (dominantOwner === -1 || maxDefenders === 0) {
+                const c = '#757575'.slice(1);
+                areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
+            } else {
+                const c = PLAYER_COLORS[dominantOwner % PLAYER_COLORS.length].slice(1);
+                areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
+            }
+        }
         ctx.beginPath(); ctx.arc(sx, sy, sir, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.1)`; ctx.fill(); ctx.strokeStyle = `rgba(${areaColor},0.4)`; ctx.lineWidth = 2 * camera.zoom; ctx.stroke();
         if (this.rallyPoint && this.owner !== -1) {
             const rx = (this.rallyPoint.x - camera.x) * camera.zoom, ry = (this.rallyPoint.y - camera.y) * camera.zoom;
