@@ -552,8 +552,9 @@ class Node {
         }
     }
     getTotalHp() { 
+        // HP = baseHp + stock bonus (defenders are for defense, not HP)
         const stockBonus = Math.floor(this.stock * 0.5);
-        return Math.min(this.maxHp, this.baseHp + this.defendersInside + stockBonus);
+        return Math.min(this.maxHp, this.baseHp + stockBonus);
     }
     receiveAttack(attackerId, damage, game) {
         this.hitFlash = 0.3;
@@ -566,7 +567,7 @@ class Node {
             this.baseHp -= damage;
             if (this.baseHp <= 0) {
                 this.owner = attackerId;
-                this.baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
+                this.baseHp = this.type === 'small' ? 4 : this.type === 'large' ? 12 : 7;
                 this.stock = 0;
                 this.hasSpawnedThisCycle = false;
                 if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
@@ -575,10 +576,10 @@ class Node {
             return false;
         }
 
-        // Para nodos con dueño, consumir defenders del área
+        // Para nodos con dueño, consumir defenders del área primero
         let remainingDefenders = [...(this.allAreaDefenders || [])];
         
-        // Ordenar: primero defenders del DUENIO del nodo (no del atacante)
+        // Ordenar: primero defenders del DUENIO del nodo
         remainingDefenders.sort((a, b) => {
             if (a.owner === this.owner) return -1;
             if (b.owner === this.owner) return 1;
@@ -684,14 +685,15 @@ class Node {
         const maxCapacity = this.maxStock;
         const maxHp = this.maxHp;
         let brightness = 1;
-        let totalFill = 0;
+        
+        // HP = baseHp + stock bonus
+        const stockBonus = Math.floor(this.stock * 0.5);
+        const totalHp = this.baseHp + stockBonus;
+        const fillPercent = Math.min(1, totalHp / maxHp);
         
         if (this.owner !== -1) {
-            totalFill = this.defendersInside + this.stock;
-            brightness = 1 + Math.min(totalFill * 0.08, 0.8);
+            brightness = 1 + Math.min(totalHp * 0.03, 0.8);
         } else {
-            // Nodos neutrales muestran su vida base
-            totalFill = this.baseHp;
             brightness = 1 + (this.baseHp / maxHp) * 0.5;
         }
         
@@ -699,8 +701,6 @@ class Node {
         const g = parseInt(baseColor.slice(3, 5), 16);
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
-        
-        const fillPercent = Math.min(1, totalFill / maxHp);
         
         // Draw fill from outside in
         const innerRadius = sr * 0.02;

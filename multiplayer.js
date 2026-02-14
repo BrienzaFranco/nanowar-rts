@@ -346,14 +346,6 @@ function initMultiplayer() {
     if (client) return;
     client = new MultiplayerClient();
     client.connect();
-    
-    // Create or join room automatically for demo
-    client.createRoom((response) => {
-        console.log('Room created:', response);
-    });
-}
-
-    });
 }
 
 // Auto init and UI
