@@ -1002,47 +1002,6 @@ class Game {
             this.nodes.push(new Node(200 + i, x, y, -1, Math.random() > 0.5 ? 'medium' : 'small'));
         }
     }
-            return true;
-        };
-
-        // Central cluster (galaxy core)
-        this.nodes.push(new Node(idCounter++, cx, cy, -1, 'large'));
-        for (let c = 0; c < 3; c++) {
-            for (let attempt = 0; attempt < 20; attempt++) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = 140 + Math.random() * 100;
-                const nx = cx + Math.cos(angle) * dist;
-                const ny = cy + Math.sin(angle) * dist;
-                const node = new Node(idCounter++, nx, ny, -1, 'small');
-                if (canPlace(node, 80)) { this.nodes.push(node); break; }
-            }
-        }
-
-        // Player clusters (galaxies)
-        for (let i = 0; i < this.playerCount; i++) {
-            const sectorAngle = (i / this.playerCount) * Math.PI * 2 - Math.PI / 2;
-            
-            // Base at outer edge
-            const bx = cx + Math.cos(sectorAngle) * baseRadius;
-            const by = cy + Math.sin(sectorAngle) * baseRadius;
-            this.nodes.push(new Node(idCounter++, bx, by, i, 'large'));
-
-            // Galaxy cluster around each player base
-            const clusterSize = 3 + Math.floor(Math.random() * 2);
-            for (let c = 0; c < clusterSize; c++) {
-                for (let attempt = 0; attempt < 20; attempt++) {
-                    const angle = sectorAngle + (Math.random() - 0.5) * 1.4;
-                    const dist = baseRadius * (0.4 + Math.random() * 0.4);
-                    const nx = cx + Math.cos(angle) * dist;
-                    const ny = cy + Math.sin(angle) * dist;
-                    const type = Math.random() > 0.4 ? 'medium' : 'small';
-                    const node = new Node(idCounter++, nx, ny, -1, type);
-                    const minD = type === 'small' ? 70 : type === 'large' ? 100 : 85;
-                    if (canPlace(node, minD)) { this.nodes.push(node); break; }
-                }
-            }
-        }
-    }
 
     createInitialEntities() {
         // Spawn actual units for all players
