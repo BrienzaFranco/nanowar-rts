@@ -75,14 +75,22 @@ class MultiplayerClient {
         });
 
         this.socket.on('gameState', (state) => {
+            if (!this.gameState) console.log("First gameState received!", state);
             this.gameState = state;
             this.lastStateTime = Date.now();
-            if (!this.running) this.start();
+            if (!this.running) {
+                console.log("Starting render loop from gameState");
+                this.start();
+            }
         });
 
         this.socket.on('gameStart', () => {
-            console.log('Server: Game Start');
+            console.log('Server: Game Start signal received');
             showGameScreen();
+        });
+
+        this.socket.on('playerJoined', (data) => {
+            console.log('Player joined room:', data);
         });
 
         this.socket.on('disconnect', () => {
@@ -273,6 +281,10 @@ class MultiplayerClient {
         const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;
+        
+        // Debug fill to ensure canvas is actually drawing something
+        ctx.fillStyle = '#ff00ff'; 
+        ctx.fillRect(0, 0, w, h);
         
         ctx.fillStyle = '#151515';
         ctx.fillRect(0, 0, w, h);
