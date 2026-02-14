@@ -722,7 +722,7 @@ class Node {
         ctx.fill();
         
         if (fillPercent > 0) {
-            const fillRadius = innerRadius + (outerRadius - innerRadius) * fillPercent;
+            const fillRadius = sr * fillPercent;
             ctx.beginPath(); ctx.arc(sx, sy, fillRadius, 0, Math.PI * 2); 
             ctx.fillStyle = brightColor; 
             ctx.fill();

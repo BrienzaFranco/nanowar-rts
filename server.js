@@ -90,13 +90,12 @@ class GameServer {
     setReady(socketId, ready) {
         this.playerReady[socketId] = ready;
         
-        // Check if all ready
+        // Check if all ready (Mínimo 2 jugadores)
         const allReady = this.playerSockets.length >= 2 && this.playerSockets.every(id => this.playerReady[id]);
         
-        io.to(this.roomId).emit('playerReady', {
-            socketId: socketId,
-            ready: ready,
-            allReady: allReady
+        // NUEVO: Avisar a todos que alguien cambió su estado para pintar la UI
+        io.to(this.roomId).emit('playerJoined', {
+            players: this.playerSockets.map((id, idx) => ({ id: idx, ready: this.playerReady[id] }))
         });
         
         if (allReady && !this.gameStarted) {

@@ -11,7 +11,7 @@ class MultiplayerClient {
         this.selectedEntities = [];
         this.particles = [];
         this.commandIndicators = [];
-        this.waypointLines = []; // Added waypoint lines
+        this.waypointLines = []; 
         this.waypointLinePoints = [];
         this.rightMouseDown = false;
         this.running = false;
@@ -66,12 +66,15 @@ class MultiplayerClient {
         this.socket.on('connect', () => {
             this.connected = true;
             this.socket.emit('getRooms');
-            this.start();
         });
 
         this.socket.on('roomList', (rooms) => {
             this.rooms = rooms;
             this.updateRoomListUI();
+        });
+
+        this.socket.on('playerJoined', (data) => {
+            this.updateLobbyUI(data.players);
         });
 
         this.socket.on('gameState', (state) => {
@@ -84,7 +87,11 @@ class MultiplayerClient {
         });
 
         this.socket.on('gameStart', () => showGameScreen());
-        this.socket.on('disconnect', () => { this.connected = false; });
+        
+        this.socket.on('disconnect', () => { 
+            this.connected = false;
+            console.log("Disconnected from server");
+        });
     }
 
     createRoom(callback) {
@@ -102,7 +109,6 @@ class MultiplayerClient {
             if (response.success) {
                 this.roomId = roomId;
                 this.playerId = response.playerId;
-                showGameScreen();
             }
             if (callback) callback(response);
         });
@@ -121,7 +127,32 @@ class MultiplayerClient {
                     <h3>Sala ${room.id.slice(-6)}</h3>
                     <span>${room.players}/${room.maxPlayers} jugadores</span>
                 </div>
-                <button class="btn-secondary" onclick="client && client.joinRoom('${room.id}')">Unirse</button>
+                <button class="btn-secondary join-btn" data-room="${room.id}">Unirse</button>
+            </div>
+        `).join('');
+
+        document.querySelectorAll('.join-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const roomId = e.target.getAttribute('data-room');
+                this.joinRoom(roomId, (res) => {
+                    if (res.success) {
+                        showLobbyScreen();
+                        this.updateLobbyUI(res.players);
+                    } else alert('Error al unirse');
+                });
+            });
+        });
+    }
+
+    updateLobbyUI(players) {
+        const lobbyEl = document.getElementById('lobby-players');
+        if (!lobbyEl) return;
+        
+        lobbyEl.innerHTML = players.map(p => `
+            <div class="player-item ${p.ready ? 'ready' : ''}">
+                <div class="player-color" style="background: ${PLAYER_COLORS[p.id % PLAYER_COLORS.length]}"></div>
+                <div class="player-name">Jugador ${p.id + 1}</div>
+                <div class="player-status">${p.ready ? 'LISTO' : 'Esperando...'}</div>
             </div>
         `).join('');
     }
@@ -148,14 +179,12 @@ class MultiplayerClient {
         const my = e.clientY - rect.top;
         const worldPos = this.screenToWorld(mx, my);
 
-        // Click en nodo
         const clickedNode = this.gameState.nodes.find(n => {
             const dx = worldPos.x - n.x, dy = worldPos.y - n.y;
             return Math.sqrt(dx*dx + dy*dy) < n.radius;
         });
 
         if (clickedNode) {
-            // Seleccionar todos los nodos del mismo dueño (si es el mío)
             if (clickedNode.owner === this.playerId) {
                 this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
                 this.selectedEntities = [];
@@ -164,7 +193,6 @@ class MultiplayerClient {
             return;
         }
 
-        // Click en entidad
         const clickedEntity = this.gameState.entities.find(ent => {
             const dx = worldPos.x - ent.x, dy = worldPos.y - ent.y;
             return Math.sqrt(dx*dx + dy*dy) < ent.radius + 5;
@@ -179,7 +207,6 @@ class MultiplayerClient {
             return;
         }
 
-        // Doble click en el vacío: seleccionar TODO lo propio
         this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
         this.selectedEntities = this.gameState.entities.filter(ent => ent.owner === this.playerId).map(ent => ent.id);
         this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
@@ -270,7 +297,6 @@ class MultiplayerClient {
 
             if (Math.sqrt(dx * dx + dy * dy) > 30) {
                 this.waypointLinePoints.push({ x: worldPos.x, y: worldPos.y });
-                // Enviar waypoint extra al servidor si se soporta, por ahora solo dibujamos
             }
         }
     }
@@ -281,7 +307,6 @@ class MultiplayerClient {
             if (this.waypointLinePoints.length > 1) {
                 this.waypointLines.push({ points: [...this.waypointLinePoints], life: 2.0 });
                 
-                // Enviar la ruta completa al servidor
                 let targetNode = null;
                 const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
                 for (const node of this.gameState.nodes) {
@@ -297,81 +322,6 @@ class MultiplayerClient {
                 });
             }
             this.waypointLinePoints = [];
-        }
-    }
-
-    onCanvasMouseDown(e) {
-        if (!this.gameState) return;
-        const rect = this.canvas.getBoundingClientRect();
-        const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        const world = this.screenToWorld(pos.x, pos.y);
-
-        if (e.button === 0) {
-            let clickedNode = null;
-            let clickedEntity = null;
-
-            for (const node of this.gameState.nodes) {
-                const dx = world.x - node.x, dy = world.y - node.y;
-                if (Math.sqrt(dx*dx + dy*dy) < node.radius) { clickedNode = node; break; }
-            }
-
-            if (clickedNode) {
-                if (e.shiftKey) {
-                    const idx = this.selectedNodes.indexOf(clickedNode.id);
-                    if (idx === -1) this.selectedNodes.push(clickedNode.id);
-                    else this.selectedNodes.splice(idx, 1);
-                } else {
-                    this.selectedNodes = [clickedNode.id];
-                }
-                if (clickedNode.owner === this.playerId) {
-                    const nodeUnits = this.gameState.entities.filter(e => {
-                        if (e.owner !== this.playerId) return false;
-                        const dx = e.x - clickedNode.x, dy = e.y - clickedNode.y;
-                        const sir = clickedNode.influenceRadius || clickedNode.radius * 3;
-                        return Math.sqrt(dx*dx + dy*dy) < sir;
-                    });
-                    this.selectedEntities = nodeUnits.map(e => e.id);
-                } else {
-                    this.selectedEntities = [];
-                }
-            } else {
-                for (const entity of this.gameState.entities) {
-                    const dx = world.x - entity.x, dy = world.y - entity.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < entity.radius + 5) { clickedEntity = entity; break; }
-                }
-                if (clickedEntity && clickedEntity.owner === this.playerId) {
-                    if (e.shiftKey) {
-                        const idx = this.selectedEntities.indexOf(clickedEntity.id);
-                        if (idx === -1) this.selectedEntities.push(clickedEntity.id);
-                        else this.selectedEntities.splice(idx, 1);
-                    } else {
-                        this.selectedEntities = [clickedEntity.id];
-                    }
-                    this.selectedNodes = [];
-                } else {
-                    this.selectedNodes = [];
-                    this.selectedEntities = [];
-                }
-            }
-            this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
-        } else if (e.button === 2) {
-            if (this.selectedEntities.length > 0 || this.selectedNodes.length > 0) {
-                let targetNode = null;
-                for (const node of this.gameState.nodes) {
-                    const dx = world.x - node.x, dy = world.y - node.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < node.radius) { targetNode = node; break; }
-                }
-                this.commandIndicators.push({ x: world.x, y: world.y, life: 1.0, type: targetNode ? 'attack' : 'move' });
-                this.sendAction({ type: 'command', target: world, targetNodeId: targetNode ? targetNode.id : null });
-            }
-        }
-    }
-
-    onCanvasMouseMove(e) {
-        if (!this.canvas) return;
-        if (e.buttons === 4 || (e.buttons === 1 && e.shiftKey)) {
-            this.camera.x -= e.movementX / this.camera.zoom;
-            this.camera.y -= e.movementY / this.camera.zoom;
         }
     }
 
@@ -416,12 +366,10 @@ class MultiplayerClient {
             if (this.gameState.nodes) { for (const node of this.gameState.nodes) this.drawNode(ctx, node, dt); }
             if (this.gameState.entities) { for (const entity of this.gameState.entities) this.drawEntity(ctx, entity, dt); }
             
-            // Draw waypoints being dragged
             if (this.rightMouseDown && this.waypointLinePoints.length > 1) {
                 this.drawWaypointLine(ctx, this.waypointLinePoints, 1.0);
             }
 
-            // Draw active waypoint lines
             this.waypointLines = this.waypointLines.filter(line => {
                 line.life -= dt;
                 if (line.life > 0) {
@@ -478,15 +426,6 @@ class MultiplayerClient {
         ctx.stroke();
         ctx.setLineDash([]);
     }
-                        ctx.beginPath(); ctx.arc(sx, sy, size * (1-ci.life), 0, Math.PI * 2); ctx.stroke();
-                    }
-                    return true;
-                }
-                return false;
-            });
-        }
-        this.drawUI(ctx, w, h);
-    }
 
     drawGrid(ctx, w, h) {
         const gridSize = 100 * this.camera.zoom;
@@ -501,47 +440,38 @@ class MultiplayerClient {
         const sr = node.radius * this.camera.zoom, sir = (node.influenceRadius || node.radius * 3) * this.camera.zoom;
         const color = node.owner === -1 ? '#757575' : PLAYER_COLORS[node.owner % PLAYER_COLORS.length];
         
-        // Aura
         ctx.beginPath(); ctx.arc(sx, sy, sir, 0, Math.PI * 2); ctx.fillStyle = hexToRgba(color, 0.05); ctx.fill();
         ctx.setLineDash([5, 5]); ctx.strokeStyle = hexToRgba(color, 0.1); ctx.stroke(); ctx.setLineDash([]);
         
-        // Rally Point
         if (node.rallyPoint && node.owner === this.playerId) {
             const rx = (node.rallyPoint.x - this.camera.x) * this.camera.zoom, ry = (node.rallyPoint.y - this.camera.y) * this.camera.zoom;
             ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry);
             ctx.strokeStyle = hexToRgba(color, 0.3); ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
         }
 
-        // Hit Flash
         if (node.hitFlash > 0) {
             ctx.beginPath(); ctx.arc(sx, sy, sr + 5*this.camera.zoom, 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(255, 100, 100, ${node.hitFlash})`; ctx.lineWidth = 4*this.camera.zoom; ctx.stroke();
         }
 
-        // Spawn Effect
         if (node.spawnEffect > 0) {
             ctx.beginPath(); ctx.arc(sx, sy, sr * (1 + (0.5 - node.spawnEffect)*2), 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(255, 255, 255, ${node.spawnEffect})`; ctx.lineWidth = 2*this.camera.zoom; ctx.stroke();
         }
 
-        // Node Body
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = '#1e1e1e'; ctx.fill();
         
-        // Fill (HP/Stock)
         const maxHp = node.maxHp || 40;
-        const totalFill = node.baseHp + Math.floor((node.stock || 0) * 0.5);
-        const fillPercent = Math.min(1, totalFill / maxHp);
         if (fillPercent > 0) {
-            ctx.beginPath(); ctx.arc(sx, sy, sr * fillPercent, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+            const fillRadius = sr * fillPercent;
+            ctx.beginPath(); ctx.arc(sx, sy, fillRadius, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
         }
         
-        // Spawn Progress Circle
         if (node.owner !== -1 && node.spawnProgress > 0) {
             ctx.beginPath(); ctx.arc(sx, sy, sr + 3*this.camera.zoom, -Math.PI/2, -Math.PI/2 + node.spawnProgress * Math.PI*2);
             ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2*this.camera.zoom; ctx.stroke();
         }
 
-        // Border
         const isSelected = this.selectedNodes.includes(node.id);
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2);
         ctx.strokeStyle = isSelected ? 'white' : hexToRgba(color, 0.5);
@@ -563,13 +493,9 @@ class MultiplayerClient {
             return;
         }
 
-        // Shadow
         ctx.beginPath(); ctx.arc(sx+1, sy+1, sr, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
-        
-        // Body
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
         
-        // Direction pointer
         if (Math.abs(entity.vx) > 0.1 || Math.abs(entity.vy) > 0.1) {
             const angle = Math.atan2(entity.vy, entity.vx);
             ctx.beginPath(); ctx.moveTo(sx, sy);
@@ -610,18 +536,51 @@ function hexToRgba(hex, alpha) {
 }
 
 let client = null;
-function showGameScreen() {
+
+function showLobbyScreen() {
     document.getElementById('menu-screen').style.display = 'none';
+    document.getElementById('lobby-screen').style.display = 'block';
+}
+
+function showGameScreen() {
+    document.getElementById('lobby-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'block';
     if (client) { client.tryInitCanvas(); client.resize(); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    client = new MultiplayerClient(); client.connect();
-    document.getElementById('create-room-btn').addEventListener('click', () => {
-        client.createRoom((res) => { if(res.success) showGameScreen(); });
+    const multiplayerBtn = document.getElementById('multiplayer-btn');
+    if (multiplayerBtn) {
+        multiplayerBtn.addEventListener('click', () => {
+            if (!client) { client = new MultiplayerClient(); client.connect(); }
+        });
+    }
+
+    const createBtn = document.getElementById('create-room-btn');
+    if (createBtn) {
+        createBtn.addEventListener('click', () => {
+            if (!client) return;
+            client.createRoom((response) => {
+                if (response.success) showLobbyScreen();
+            });
+        });
+    }
+
+    const refreshBtn = document.getElementById('refresh-rooms-btn');
+    if (refreshBtn) refreshBtn.addEventListener('click', () => {
+        if (client) client.socket.emit('getRooms');
     });
-    document.getElementById('refresh-rooms-btn').addEventListener('click', () => {
-        if (client.socket) client.socket.emit('getRooms');
-    });
+
+    const readyBtn = document.getElementById('ready-btn');
+    if (readyBtn) {
+        let isReady = false;
+        readyBtn.addEventListener('click', () => {
+            if (client && client.socket) {
+                isReady = !isReady;
+                client.socket.emit('setReady', isReady);
+                readyBtn.style.backgroundColor = isReady ? '#4CAF50' : '';
+                readyBtn.innerText = isReady ? 'ESPERANDO...' : 'LISTO';
+            }
+        });
+    }
 });
