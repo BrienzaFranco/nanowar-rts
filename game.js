@@ -560,12 +560,28 @@ class Node {
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
         if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
 
-        // Consumir defenders del área (cualquiera que esté defendiendo)
+        // Para nodos neutrales (owner = -1), no hay defenders que consumir
+        // Se va directo a dañar el nodo
+        if (this.owner === -1) {
+            this.baseHp -= damage;
+            if (this.baseHp <= 0) {
+                this.owner = attackerId;
+                this.baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
+                this.stock = 0;
+                this.hasSpawnedThisCycle = false;
+                if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
+                return true;
+            }
+            return false;
+        }
+
+        // Para nodos con dueño, consumir defenders del área
         let remainingDefenders = [...(this.allAreaDefenders || [])];
-        // Primero los del atacante para que pueda capturar
+        
+        // Ordenar: primero defenders del DUENIO del nodo (no del atacante)
         remainingDefenders.sort((a, b) => {
-            if (a.owner === attackerId) return -1;
-            if (b.owner === attackerId) return 1;
+            if (a.owner === this.owner) return -1;
+            if (b.owner === this.owner) return 1;
             return 0;
         });
         
