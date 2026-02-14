@@ -504,12 +504,13 @@ class Entity {
 class Node {
     constructor(id, x, y, ownerId, type = 'medium') {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
-        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 5; this.maxHp = 40; this.maxStock = 8; }
-        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 10; this.maxHp = 100; this.maxStock = 20; }
-        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 7; this.maxHp = 65; this.maxStock = 14; }
+        // Más variación: small más pequeño, large más grande
+        if (type === 'small') { this.radius = 18 + Math.random() * 10; this.influenceRadius = this.radius * 2.6; this.baseHp = 4; this.maxHp = 35; this.maxStock = Math.floor(this.radius * 0.35); }
+        else if (type === 'large') { this.radius = 55 + Math.random() * 15; this.influenceRadius = this.radius * 2.2; this.baseHp = 12; this.maxHp = 110; this.maxStock = Math.floor(this.radius * 0.4); }
+        else { this.radius = 32 + Math.random() * 12; this.influenceRadius = this.radius * 2.2; this.baseHp = 7; this.maxHp = 65; this.maxStock = Math.floor(this.radius * 0.4); }
         this.spawnEffect = 0;
         this.spawnTimer = 0;
-        this.spawnInterval = this.type === 'small' ? 4.0 : this.type === 'large' ? 7.0 : 5.0;
+        this.spawnInterval = 3.0 + (this.radius / 20); // Más grande = más lento
         this.spawnProgress = 0;
         this.stock = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
@@ -583,24 +584,8 @@ class Node {
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
         
-        // Absorber troupes propias que estén dentro del nodo (solo si hay espacio en stock)
-        if (this.owner !== -1 && game && this.stock < this.maxStock) {
-            const toAbsorb = [];
-            for (let e of entities) {
-                if (e.dead || e.dying || e.owner !== this.owner) continue;
-                const dx = e.x - this.x, dy = e.y - this.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist <= this.radius + e.radius + 10) {
-                    toAbsorb.push(e);
-                }
-            }
-            for (let e of toAbsorb) {
-                if (this.stock >= this.maxStock) break;
-                e.die('absorbed', null, game);
-                this.stock++;
-                game.spawnParticles(e.x, e.y, this.getColor(), 6, 'explosion');
-            }
-        }
+        // Absorber troupes propias que estén dentro del nodo SOLO si están sellendo atacando (no auto)
+        // Player debe enviar explicitamente troupes al nodo para hacer stock
         
         if (this.owner !== -1) {
             this.spawnTimer += dt;
@@ -658,9 +643,9 @@ class Node {
         // Animación de generación
         if (this.owner !== -1 && this.spawnProgress > 0) {
             ctx.beginPath();
-            ctx.arc(sx, sy, sr + 6 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + this.spawnProgress * Math.PI * 2);
-            ctx.strokeStyle = `rgba(255,255,255,${0.4 + this.spawnProgress * 0.4})`;
-            ctx.lineWidth = 3 * camera.zoom;
+            ctx.arc(sx, sy, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + this.spawnProgress * Math.PI * 2);
+            ctx.strokeStyle = `rgba(255,255,255,${0.5 + this.spawnProgress * 0.3})`;
+            ctx.lineWidth = 1.5 * camera.zoom;
             ctx.stroke();
         }
         if (this.rallyPoint && this.owner !== -1) {
