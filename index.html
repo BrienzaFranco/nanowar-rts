@@ -5,18 +5,201 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nanowar - Guerra de Nodos</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: #0a0a0a;
+            font-family: 'Courier New', monospace;
+        }
+        .screen {
+            background: #0a0a0a;
+        }
+        .menu-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 60px 20px;
+            text-align: center;
+        }
+        .game-title {
+            font-size: 72px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
+            background: none;
+            -webkit-text-fill-color: #4CAF50;
+            color: #4CAF50;
+            letter-spacing: 8px;
+        }
+        .game-subtitle {
+            font-size: 12px;
+            margin-bottom: 50px;
+            opacity: 0.5;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .player-input {
+            margin-bottom: 30px;
+        }
+        .player-input label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .player-input input {
+            padding: 14px 20px;
+            font-size: 14px;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 4px;
+            width: 100%;
+            max-width: 280px;
+            text-align: center;
+            background: rgba(20, 20, 25, 0.9);
+            color: #4CAF50;
+            font-family: 'Courier New', monospace;
+        }
+        .player-input input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
+        }
+        .player-input input::placeholder {
+            color: rgba(255,255,255,0.2);
+        }
+        .menu-buttons {
+            margin-bottom: 50px;
+        }
+        .btn-primary {
+            padding: 14px 40px;
+            font-size: 12px;
+            background: transparent;
+            color: #4CAF50;
+            border: 1px solid rgba(76, 175, 80, 0.4);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        .btn-primary:hover {
+            background: rgba(76, 175, 80, 0.15);
+            border-color: #4CAF50;
+            box-shadow: 0 0 30px rgba(76, 175, 80, 0.3);
+        }
+        .mode-selection {
+            margin-top: 40px;
+            padding: 30px;
+            background: rgba(20, 20, 25, 0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .mode-selection h2 {
+            margin-bottom: 25px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .mode-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn-mode {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 25px 35px;
+            background: rgba(20, 20, 25, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 160px;
+        }
+        .btn-mode:hover {
+            transform: translateY(-3px);
+            background: rgba(30, 30, 40, 0.9);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .btn-single:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 10px 40px rgba(76, 175, 80, 0.2);
+        }
+        .btn-multi:hover {
+            border-color: #2196F3;
+            box-shadow: 0 10px 40px rgba(33, 150, 243, 0.2);
+        }
+        .mode-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.8;
+        }
+        .mode-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .mode-desc {
+            font-size: 10px;
+            opacity: 0.5;
+        }
+        .rooms-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(20, 20, 25, 0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .rooms-section h2 {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        #refresh-rooms-btn {
+            margin-bottom: 15px;
+            padding: 8px 20px;
+            font-size: 10px;
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #refresh-rooms-btn:hover {
+            color: white;
+            border-color: rgba(255,255,255,0.3);
+        }
+        .no-rooms {
+            padding: 20px;
+            opacity: 0.3;
+            font-size: 11px;
+            font-style: italic;
+        }
+    </style>
 </head>
 <body>
     <div id="game-container">
-        <!-- Menú Principal -->
         <div id="menu-screen" class="screen">
             <div class="menu-container">
-                <h1 class="game-title">Nanowar</h1>
-                <p class="game-subtitle">Guerra de Nodos Multijugador</p>
+                <h1 class="game-title">NANOWAR</h1>
+                <p class="game-subtitle">Guerra de Nodos</p>
                 
                 <div class="player-input">
-                    <label for="player-name">Tu Nombre:</label>
-                    <input type="text" id="player-name" placeholder="Jugador" maxlength="20">
+                    <label for="player-name">Jugador</label>
+                    <input type="text" id="player-name" placeholder="Tu nombre" maxlength="20">
                 </div>
 
                 <div class="menu-buttons">
@@ -32,33 +215,32 @@
                 </div>
 
                 <div class="mode-selection">
-                    <h2>Selecciona Modo</h2>
+                    <h2>Seleccionar Modo</h2>
                     <div class="mode-buttons">
                         <a href="singleplayer.html" class="btn-mode btn-single">
-                            <span class="mode-icon">🎮</span>
+                            <span class="mode-icon">&#9679;</span>
                             <span class="mode-title">Singleplayer</span>
-                            <span class="mode-desc">Jugar vs IA</span>
+                            <span class="mode-desc">vs IA</span>
                         </a>
                         <button id="multiplayer-btn" class="btn-mode btn-multi" onclick="showMultiplayer()">
-                            <span class="mode-icon">🌐</span>
+                            <span class="mode-icon">&#9670;</span>
                             <span class="mode-title">Multiplayer</span>
-                            <span class="mode-desc">Jugar online</span>
+                            <span class="mode-desc">Online</span>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Diálogo Crear Sala -->
         <div id="create-room-dialog" class="dialog" style="display: none;">
             <div class="dialog-content">
                 <h3>Crear Nueva Sala</h3>
                 <div class="form-group">
-                    <label for="room-name">Nombre de la Sala:</label>
-                    <input type="text" id="room-name" placeholder="Sala de Juan" maxlength="30">
+                    <label for="room-name">Nombre de la Sala</label>
+                    <input type="text" id="room-name" placeholder="Sala" maxlength="30">
                 </div>
                 <div class="form-group">
-                    <label for="max-players">Jugadores Máximos:</label>
+                    <label for="max-players">Jugadores</label>
                     <select id="max-players">
                         <option value="2">2 jugadores</option>
                         <option value="3">3 jugadores</option>
@@ -72,52 +254,32 @@
             </div>
         </div>
 
-        <!-- Lobby -->
         <div id="lobby-screen" class="screen" style="display: none;">
             <div class="lobby-container">
                 <h2>Sala de Espera</h2>
-                <div id="lobby-players" class="players-list">
-                    <!-- Jugadores se cargan dinámicamente -->
-                </div>
+                <div id="lobby-players" class="players-list"></div>
                 <div class="lobby-actions">
-                    <button id="ready-btn" class="btn-primary">Estoy Listo</button>
+                    <button id="ready-btn" class="btn-primary">LISTO</button>
                     <button id="leave-lobby-btn" class="btn-secondary">Salir</button>
                 </div>
-                <p class="lobby-info">Esperando a que todos los jugadores estén listos...</p>
+                <p class="lobby-info">Esperando a jugadores...</p>
             </div>
         </div>
 
-        <!-- Pantalla de Juego -->
         <div id="game-screen" class="screen" style="display: none;">
-            <div id="ui">
-                <h1>Nanowar</h1>
-                <div id="score">
-                    <span id="player-nodes">Nodos: 0</span>
-                </div>
-                <div id="players-info">
-                    <!-- Info de jugadores se carga dinámicamente -->
-                </div>
-                <button id="leave-game-btn" class="btn-danger">Salir</button>
-            </div>
             <canvas id="game-canvas"></canvas>
-            <div id="instructions">
-                Click y arrastra desde un nodo tuyo a otro para enviar unidades
-            </div>
         </div>
     </div>
 
-    <!-- Socket.IO -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="multiplayer.js"></script>
     <script>
         function showMultiplayer() {
-            // Ocultar menú principal, mostrar sección de multiplayer
             document.querySelector('.mode-selection').style.display = 'none';
             document.querySelector('.rooms-section').style.display = 'block';
             document.querySelector('.menu-buttons').style.display = 'block';
         }
         
-        // Por defecto, ocultar secciones de multiplayer hasta que se seleccione
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelector('.rooms-section').style.display = 'none';
             document.querySelector('.menu-buttons').style.display = 'none';

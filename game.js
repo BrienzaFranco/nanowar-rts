@@ -135,9 +135,9 @@ class Entity {
         this.radius = 5;
         this.vx = 0;
         this.vy = 0;
-        this.maxSpeed = 70;
-        this.acceleration = 140;
-        this.friction = 0.97;
+        this.maxSpeed = 50;
+        this.acceleration = 100;
+        this.friction = 0.975;
 
         this.hp = 1;
         this.damage = 1;
@@ -454,9 +454,9 @@ class Entity {
 
         if (this.selected) {
             ctx.beginPath();
-            ctx.arc(screenX, screenY, screenRadius + 3 * camera.zoom, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.lineWidth = 1.5 * camera.zoom;
+            ctx.arc(screenX, screenY, screenRadius + 2 * camera.zoom, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 0.8 * camera.zoom;
             ctx.stroke();
         }
 
@@ -510,7 +510,7 @@ class Node {
         else { this.radius = 32 + Math.random() * 12; this.influenceRadius = this.radius * 2.2; this.baseHp = 7; this.maxHp = 65; this.maxStock = Math.floor(this.radius * 0.4); }
         this.spawnEffect = 0;
         this.spawnTimer = 0;
-        this.spawnInterval = 3.0 + (this.radius / 20); // Más grande = más lento
+        this.spawnInterval = 5.0 + (this.radius / 15); // Más grande = más lento
         this.spawnProgress = 0;
         this.stock = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;

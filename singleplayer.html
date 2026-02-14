@@ -6,55 +6,318 @@
     <title>Nanowar - Singleplayer</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .back-link {
+        body {
+            background: #0a0a0a;
+        }
+        #game-container {
+            background: #0a0a0a;
+        }
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 10;
+            background: rgba(20, 20, 25, 0.95);
+            padding: 12px 16px;
+            border-radius: 6px;
+            min-width: 180px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-family: 'Courier New', monospace;
+        }
+        #ui-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        #ui-top h1 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: bold;
+            color: #4CAF50;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        #ui-buttons {
+            display: flex;
+            gap: 6px;
+        }
+        .ui-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ui-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: white;
+        }
+        #score {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        #score span {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            justify-content: space-between;
+        }
+        #score span strong {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        #players-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .player-score {
+            display: flex;
+            align-items: center;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .player-score-color {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .player-score span {
+            flex: 1;
+        }
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 25, 0.95);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 10px 16px;
+            border-radius: 4px;
+            font-size: 10px;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 95%;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+        }
+        #instructions:hover {
+            background: rgba(30, 30, 40, 0.98);
+        }
+        #tutorial-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        #tutorial-overlay.visible {
+            display: flex;
+        }
+        #tutorial-content {
+            background: rgba(20, 20, 25, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 30px 40px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        #tutorial-content h2 {
+            color: #4CAF50;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        #tutorial-content h3 {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+            margin: 16px 0 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #tutorial-content p, #tutorial-content li {
+            font-size: 11px;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.65);
+            margin-bottom: 6px;
+        }
+        #tutorial-content ul {
+            padding-left: 20px;
+        }
+        #tutorial-content .close-btn {
             position: absolute;
             top: 20px;
             right: 20px;
-            z-index: 20;
-            padding: 10px 20px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background 0.3s;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 24px;
+            cursor: pointer;
         }
-        .back-link:hover {
-            background: rgba(0,0,0,0.9);
+        #tutorial-content .close-btn:hover {
+            color: white;
+        }
+        #info-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        #info-overlay.visible {
+            display: flex;
+        }
+        #info-content {
+            background: rgba(20, 20, 25, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 30px 40px;
+            max-width: 500px;
+            font-family: 'Courier New', monospace;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        #info-content h2 {
+            color: #4CAF50;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        #info-content .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        #info-content .stat-label {
+            color: rgba(255, 255, 255, 0.5);
+        }
+        #info-content .stat-value {
+            color: rgba(255, 255, 255, 0.9);
         }
     </style>
 </head>
 <body>
-    <a href="index.html" class="back-link">← Volver al Menú</a>
-    
     <div id="game-container">
         <div id="ui">
-            <h1>Nanowar</h1>
-            <div id="score">
-                <span id="player-nodes">Nodos: 1</span>
-                <span id="enemy-nodes">Enemigo: 1</span>
+            <div id="ui-top">
+                <h1>NANOWAR</h1>
+                <div id="ui-buttons">
+                    <button class="ui-btn" id="info-btn" title="Info">i</button>
+                    <button class="ui-btn" id="help-btn" title="Ayuda">?</button>
+                </div>
             </div>
-            <button id="reset-btn" class="btn-primary">Reiniciar</button>
+            <div id="score">
+                <span>TUS NODOS: <strong id="player-nodes">0</strong></span>
+                <span>ENEMIGOS: <strong id="enemy-nodes">0</strong></span>
+            </div>
+            <div id="players-info"></div>
+            <button id="reset-btn" class="ui-btn" style="width: 100%; padding: 8px;">REINICIAR</button>
         </div>
         <canvas id="game-canvas"></canvas>
-        <div id="instructions" onclick="this.style.display='none'" style="cursor: pointer; animation: fadeOut 0.5s ease-in 3s forwards;">
-            <strong>RALLY POINT:</strong> Selecciona nodos + T + Click | <strong>STOP:</strong> Tecla S | <strong>WAYPOINTS:</strong> Hold Click Der traza línea<br>
-            <strong>NODOS:</strong> Chicos (rápidos, poca vida) | Grandes (lentos, mucha vida) | Mapa asimétrico con ventajas diferentes<br>
-            <strong>Seleccionar:</strong> Click izq | <strong>Shift+Click:</strong> Agregar | <strong>Zoom:</strong> Rueda | <strong>Pan:</strong> Space | <strong>Zoom inicial:</strong> Ver todo<br>
-            <small style="display: block; margin-top: 8px; opacity: 0.7;">Click para cerrar • Se oculta automáticamente en 3 segundos</small>
+        <div id="instructions" onclick="this.style.display='none'">
+            <strong>RALLY:</strong> Selecciona + T + Click | <strong>STOP:</strong> S | <strong>LINEA:</strong> Click Der<br>
+            <strong>DOUBLE CLICK:</strong> Seleccionar todo | <strong>ZOOM:</strong> Rueda | <strong>PAN:</strong> Space<br>
+            <small style="opacity: 0.5;">Click para cerrar</small>
         </div>
-        <style>
-            @keyframes fadeOut {
-                to {
-                    opacity: 0;
-                    visibility: hidden;
-                }
-            }
-            #instructions:hover {
-                opacity: 1 !important;
-                animation: none !important;
-            }
-        </style>
     </div>
+
+    <div id="tutorial-overlay">
+        <div id="tutorial-content">
+            <button class="close-btn" onclick="closeTutorial()">&times;</button>
+            <h2>COMO JUGAR</h2>
+            
+            <h3>Objetivo</h3>
+            <p>Captura todos los nodos del mapa. Gana quien controle más nodos.</p>
+            
+            <h3>Controls</h3>
+            <ul>
+                <li><strong>Click izquierdo:</strong> Seleccionar nodo/tropa</li>
+                <li><strong>Click derecho:</strong> Mover tropas al destino</li>
+                <li><strong>Doble click:</strong> Seleccionar todos los nodos/tropas del jugador</li>
+                <li><strong>T + Click:</strong> Configurar Rally Point</li>
+                <li><strong>S:</strong> Detener tropas seleccionadas</li>
+                <li><strong>Click derecho sostenido:</strong> Crear línea de waypoints</li>
+                <li><strong>Rueda mouse:</strong> Zoom</li>
+                <li><strong>Space + arrastrar:</strong> Mover cámara</li>
+            </ul>
+            
+            <h3>Nodos</h3>
+            <ul>
+                <li><strong>Pequeños:</strong> Rápidos, poca vida, spawnean rápido</li>
+                <li><strong>Grandes:</strong> Lentos, mucha vida, spawnean lento</li>
+                <li><strong>Stock:</strong> Envía troupes a tus nodos para boost de producción</li>
+                <li><strong>Defensa:</strong> Tropas en el área protegen el nodo</li>
+            </ul>
+            
+            <h3>Estrategia</h3>
+            <p>Expande rápido capturando nodos neutros. Defiende tus nodos con troupes. Invierte troupes en stock para mayor producción (cuidado: se pierden al ser capturado).</p>
+        </div>
+    </div>
+
+    <div id="info-overlay">
+        <div id="info-content">
+            <h2>ESTADISTICAS</h2>
+            <div id="info-stats"></div>
+        </div>
+    </div>
+
+    <script>
+        function showTutorial() {
+            document.getElementById('tutorial-overlay').classList.add('visible');
+        }
+        function closeTutorial() {
+            document.getElementById('tutorial-overlay').classList.remove('visible');
+        }
+        function showInfo() {
+            document.getElementById('info-overlay').classList.add('visible');
+        }
+        function closeInfo() {
+            document.getElementById('info-overlay').classList.remove('visible');
+        }
+        document.getElementById('help-btn').addEventListener('click', showTutorial);
+        document.getElementById('info-btn').addEventListener('click', showInfo);
+        document.getElementById('info-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeInfo();
+        });
+        document.getElementById('tutorial-overlay').addEventListener('click', function(e) {
+            if (e.target === this) closeTutorial();
+        });
+    </script>
     <script src="game.js"></script>
 </body>
 </html>
