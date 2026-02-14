@@ -702,19 +702,23 @@ class Node {
         
         const fillPercent = Math.min(1, totalFill / maxHp);
         
+        // Draw fill from outside in
+        const innerRadius = sr * 0.02;
+        const outerRadius = sr - innerRadius;
+        
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
         ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
         ctx.fill();
         
         if (fillPercent > 0) {
-            const fillRadius = sr * fillPercent;
+            const fillRadius = innerRadius + (outerRadius - innerRadius) * fillPercent;
             ctx.beginPath(); ctx.arc(sx, sy, fillRadius, 0, Math.PI * 2); 
             ctx.fillStyle = brightColor; 
             ctx.fill();
         }
         
         const borderColorStr = this.selected ? 'rgba(255,255,255,0.9)' : `rgba(${borderColor},0.7)`;
-        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = borderColorStr; ctx.lineWidth = this.selected ? 3 * camera.zoom : 2 * camera.zoom; ctx.stroke();
+        ctx.beginPath(); ctx.arc(sx, sy, sr - 1, 0, Math.PI * 2); ctx.strokeStyle = borderColorStr; ctx.lineWidth = this.selected ? 3 * camera.zoom : 2 * camera.zoom; ctx.stroke();
         if (this.hitFlash > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,100,100,${this.hitFlash})`; ctx.lineWidth = 5 * camera.zoom; ctx.stroke(); }
         if (this.spawnEffect > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr * (1.3 + (0.5 - this.spawnEffect) * 0.6), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,255,255,${this.spawnEffect * 1.5})`; ctx.lineWidth = 3 * camera.zoom; ctx.stroke(); }
     }
