@@ -713,23 +713,24 @@ class Node {
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
-        // Draw fill from outside in
-        const innerRadius = sr * 0.02;
-        const outerRadius = sr - innerRadius;
+        // Draw fill - full circle coverage
+        const fillRadius = sr * fillPercent;
         
-        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
-        ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
-        ctx.fill();
-        
+        // Draw the colored fill filling the entire circle
         if (fillPercent > 0) {
-            const fillRadius = sr * fillPercent;
-            ctx.beginPath(); ctx.arc(sx, sy, fillRadius, 0, Math.PI * 2); 
+            ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
             ctx.fillStyle = brightColor; 
+            ctx.fill();
+        } else {
+            // Empty node - dark background
+            ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
+            ctx.fillStyle = 'rgba(30,30,30,0.95)'; 
             ctx.fill();
         }
         
-        const borderColorStr = this.selected ? 'rgba(255,255,255,0.9)' : `rgba(${borderColor},0.7)`;
-        ctx.beginPath(); ctx.arc(sx, sy, sr - 1, 0, Math.PI * 2); ctx.strokeStyle = borderColorStr; ctx.lineWidth = this.selected ? 3 * camera.zoom : 2 * camera.zoom; ctx.stroke();
+        // Selection/owner border only
+        const borderColorStr = this.selected ? 'rgba(255,255,255,0.9)' : `rgba(${borderColor},0.5)`;
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = borderColorStr; ctx.lineWidth = this.selected ? 3 * camera.zoom : 1.5 * camera.zoom; ctx.stroke();
         if (this.hitFlash > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,100,100,${this.hitFlash})`; ctx.lineWidth = 5 * camera.zoom; ctx.stroke(); }
         if (this.spawnEffect > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr * (1.3 + (0.5 - this.spawnEffect) * 0.6), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255,255,255,${this.spawnEffect * 1.5})`; ctx.lineWidth = 3 * camera.zoom; ctx.stroke(); }
     }
@@ -951,7 +952,7 @@ class Game {
 
         this.ais = [];
         this.particles = [];
-        this.playerCount = 4; 
+        this.playerCount = humanPlayerIds.length; 
 
         this.createLevel();
         this.createInitialEntities();
@@ -969,33 +970,68 @@ class Game {
         this.nodes = [];
         let idCounter = 0;
 
-        // 1. One initial node for each player in corners
+        // Dynamic player starting positions based on player count
         const margin = 250;
-        const playerStarts = [
-            { x: margin, y: this.worldHeight - margin }, // P0
-            { x: this.worldWidth - margin, y: margin }, // P1
-            { x: margin, y: margin }, // P2
-            { x: this.worldWidth - margin, y: this.worldHeight - margin } // P3
-        ];
+        let playerStarts = [];
+        
+        if (this.playerCount === 1) {
+            playerStarts = [{ x: centerX, y: centerY }];
+        } else if (this.playerCount === 2) {
+            playerStarts = [
+                { x: margin, y: centerY },
+                { x: this.worldWidth - margin, y: centerY }
+            ];
+        } else if (this.playerCount === 3) {
+            playerStarts = [
+                { x: margin, y: this.worldHeight - margin },
+                { x: this.worldWidth - margin, y: this.worldHeight - margin },
+                { x: centerX, y: margin }
+            ];
+        } else {
+            playerStarts = [
+                { x: margin, y: this.worldHeight - margin },
+                { x: this.worldWidth - margin, y: margin },
+                { x: margin, y: margin },
+                { x: this.worldWidth - margin, y: this.worldHeight - margin }
+            ];
+        }
 
         for (let i = 0; i < this.playerCount; i++) {
             this.nodes.push(new Node(idCounter++, playerStarts[i].x, playerStarts[i].y, i, 'large'));
         }
 
-        // 2. Random scattered neutral nodes
-        const neutralCount = 12 + Math.floor(Math.random() * 6);
+        // Better map generation for multiplayer - more strategic nodes
+        const neutralCount = 8 + Math.floor(this.playerCount * 2) + Math.floor(Math.random() * 4);
         const canPlace = (x, y, r) => {
             for (let n of this.nodes) {
                 const dist = Math.sqrt((x - n.x)**2 + (y - n.y)**2);
-                if (dist < r + n.radius + 80) return false;
+                if (dist < r + n.radius + 100) return false;
             }
             return true;
         };
 
+        // Create central nodes for conflict
+        const centralNodes = [
+            { x: centerX, y: centerY },
+            { x: centerX - 200, y: centerY - 150 },
+            { x: centerX + 200, y: centerY + 150 },
+            { x: centerX + 200, y: centerY - 150 },
+            { x: centerX - 200, y: centerY + 150 }
+        ];
+        
+        centralNodes.slice(0, Math.min(3, this.playerCount + 1)).forEach(pos => {
+            const type = Math.random() > 0.5 ? 'medium' : 'large';
+            const tempNode = { x: pos.x, y: pos.y, radius: type === 'large' ? 60 : 35 };
+            if (canPlace(pos.x, pos.y, tempNode.radius)) {
+                this.nodes.push(new Node(idCounter++, pos.x, pos.y, -1, type));
+            }
+        });
+
+        // Fill rest with random nodes
         for (let i = 0; i < neutralCount; i++) {
             for (let attempt = 0; attempt < 50; attempt++) {
-                const x = 200 + Math.random() * (this.worldWidth - 400);
-                const y = 200 + Math.random() * (this.worldHeight - 400);
+                const x = 150 + Math.random() * (this.worldWidth - 300);
+                const y = 150 + Math.random() * (this.worldHeight - 300);
                 const type = Math.random() > 0.7 ? 'large' : Math.random() > 0.3 ? 'medium' : 'small';
                 const tempNode = { x, y, radius: type === 'large' ? 60 : type === 'medium' ? 35 : 20 };
                 

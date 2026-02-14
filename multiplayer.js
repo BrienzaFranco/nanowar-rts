@@ -16,6 +16,7 @@ class MultiplayerClient {
         
         this.rightMouseDown = false;
         this.isDragging = false;
+        this.rallyMode = false;
         this.mouseDownPos = { x: 0, y: 0 };
         this.mousePos = { x: 0, y: 0 };
         
@@ -177,7 +178,16 @@ class MultiplayerClient {
         document.addEventListener('mouseup', (e) => { if (this.canvas) this.onMouseUp(e); });
         document.addEventListener('dblclick', (e) => { if (this.canvas && e.target === this.canvas) this.onDoubleClick(e); });
         document.addEventListener('wheel', (e) => { if (this.canvas && e.target === this.canvas) this.onWheel(e); }, { passive: false });
-        document.addEventListener('keydown', (e) => { if (e.key === 's' || e.key === 'S') this.sendAction({ type: 'stop' }); });
+        document.addEventListener('keydown', (e) => { 
+            if (e.key === 's' || e.key === 'S') this.sendAction({ type: 'stop' }); 
+            if (e.key === 't' || e.key === 'T') { 
+                if (this.selectedNodes.length > 0) this.rallyMode = true; 
+            }
+            if (e.key === 'Escape') { 
+                this.clearSelection(); 
+                this.rallyMode = false; 
+            }
+        });
         document.addEventListener('contextmenu', (e) => { if (this.canvas && e.target === this.canvas) e.preventDefault(); });
     }
 
@@ -188,6 +198,18 @@ class MultiplayerClient {
         this.mouseDownPos = { ...pos };
         this.mousePos = { ...pos };
         const world = this.screenToWorld(pos.x, pos.y);
+
+        // Handle rally point setting (T key mode)
+        if (this.rallyMode && this.selectedNodes.length > 0 && e.button === 0) {
+            this.selectedNodes.forEach(nodeId => {
+                const node = this.gameState.nodes.find(n => n.id === nodeId);
+                if (node) {
+                    this.sendAction({ type: 'setRally', nodeId: nodeId, rallyX: world.x, rallyY: world.y });
+                }
+            });
+            this.rallyMode = false;
+            return;
+        }
 
         if (e.button === 0) {
             this.isDragging = true;

@@ -175,6 +175,12 @@ class GameServer {
                     }
                 });
                 break;
+            case 'setRally':
+                const rallyNode = this.game.nodes.find(n => n.id === action.nodeId);
+                if (rallyNode && rallyNode.owner === playerIdx) {
+                    rallyNode.setRallyPoint(action.rallyX, action.rallyY);
+                }
+                break;
         }
     }
 }
