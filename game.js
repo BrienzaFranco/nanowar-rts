@@ -343,18 +343,18 @@ class Entity {
                 }
                 
                 if (node.owner === this.owner) {
+                    // Absorber troupe propia para stock
+                    if (node.stock < node.maxStock && !this.dying) {
+                        node.stock++;
+                        this.die('absorbed', node, game);
+                        return;
+                    }
+                    // Si stock lleno, simplemente quedarse quieto
                     if (this.targetNode === node) {
                         this.stop();
                         this.targetNode = null;
-                        return;
                     }
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-                    const pushDistance = (node.radius + this.radius) - dist + 2;
-                    this.x -= nx * pushDistance;
-                    this.y -= ny * pushDistance;
-                    this.vx -= nx * 80;
-                    this.vy -= ny * 80;
+                    return;
                 } else {
                     if (!this.dying) {
                         node.receiveAttack(this.owner, this.damage, game);
