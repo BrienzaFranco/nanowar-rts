@@ -682,6 +682,7 @@ class Node {
         }
         const baseColor = this.getColor();
         const maxCapacity = this.maxStock;
+        const maxHp = this.maxHp;
         let brightness = 1;
         let totalFill = 0;
         
@@ -691,7 +692,6 @@ class Node {
         } else {
             // Nodos neutrales muestran su vida base
             totalFill = this.baseHp;
-            const maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100;
             brightness = 1 + (this.baseHp / maxHp) * 0.5;
         }
         
@@ -700,13 +700,7 @@ class Node {
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
-        let fillPercent;
-        if (this.owner === -1) {
-            const maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100;
-            fillPercent = Math.min(1, this.baseHp / maxHp);
-        } else {
-            fillPercent = Math.min(1, totalFill / maxCapacity);
-        }
+        const fillPercent = Math.min(1, totalFill / maxHp);
         
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
         ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
