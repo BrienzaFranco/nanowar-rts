@@ -672,16 +672,28 @@ class Node {
         const baseColor = this.getColor();
         const maxCapacity = this.maxStock;
         let brightness = 1;
+        let totalFill = 0;
+        
         if (this.owner !== -1) {
-            const totalFill = this.defendersInside + this.stock;
+            totalFill = this.defendersInside + this.stock;
             brightness = 1 + Math.min(totalFill * 0.08, 0.8);
+        } else {
+            // Para nodos neutrales, mostrar troupes que defienden desde el área
+            let areaDefenders = 0;
+            for (let owner in this.defenderCounts) {
+                if (parseInt(owner) !== -1) {
+                    areaDefenders = Math.max(areaDefenders, this.defenderCounts[owner]);
+                }
+            }
+            totalFill = areaDefenders;
+            brightness = 1 + Math.min(areaDefenders * 0.1, 0.7);
         }
+        
         const r = parseInt(baseColor.slice(1, 3), 16);
         const g = parseInt(baseColor.slice(3, 5), 16);
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
-        const totalFill = this.defendersInside + this.stock;
         const fillPercent = Math.min(1, totalFill / maxCapacity);
         
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
@@ -931,12 +943,28 @@ class Game {
         const cy = this.worldHeight / 2;
         const baseRadius = Math.min(this.worldWidth, this.worldHeight) * 0.42;
 
+        const minDist = (n1, n2) => {
+            const dx = n1.x - n2.x, dy = n1.y - n2.y;
+            return Math.sqrt(dx*dx + dy*dy);
+        };
+        const canPlace = (node, minDistance) => {
+            for (let n of this.nodes) {
+                if (minDist(node, n) < minDistance + n.radius + node.radius) return false;
+            }
+            return true;
+        };
+
         // Central cluster (galaxy core)
         this.nodes.push(new Node(idCounter++, cx, cy, -1, 'large'));
-        for (let c = 0; c < 2; c++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 120 + Math.random() * 80;
-            this.nodes.push(new Node(idCounter++, cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist, -1, 'small'));
+        for (let c = 0; c < 3; c++) {
+            for (let attempt = 0; attempt < 20; attempt++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 140 + Math.random() * 100;
+                const nx = cx + Math.cos(angle) * dist;
+                const ny = cy + Math.sin(angle) * dist;
+                const node = new Node(idCounter++, nx, ny, -1, 'small');
+                if (canPlace(node, 80)) { this.nodes.push(node); break; }
+            }
         }
 
         // Player clusters (galaxies)
@@ -949,14 +977,18 @@ class Game {
             this.nodes.push(new Node(idCounter++, bx, by, i, 'large'));
 
             // Galaxy cluster around each player base
-            const clusterSize = 2 + Math.floor(Math.random() * 2);
+            const clusterSize = 3 + Math.floor(Math.random() * 2);
             for (let c = 0; c < clusterSize; c++) {
-                const angle = sectorAngle + (Math.random() - 0.5) * 1.2;
-                const dist = baseRadius * (0.45 + Math.random() * 0.35);
-                const nx = cx + Math.cos(angle) * dist;
-                const ny = cy + Math.sin(angle) * dist;
-                const type = Math.random() > 0.4 ? 'medium' : 'small';
-                this.nodes.push(new Node(idCounter++, nx, ny, -1, type));
+                for (let attempt = 0; attempt < 20; attempt++) {
+                    const angle = sectorAngle + (Math.random() - 0.5) * 1.4;
+                    const dist = baseRadius * (0.4 + Math.random() * 0.4);
+                    const nx = cx + Math.cos(angle) * dist;
+                    const ny = cy + Math.sin(angle) * dist;
+                    const type = Math.random() > 0.4 ? 'medium' : 'small';
+                    const node = new Node(idCounter++, nx, ny, -1, type);
+                    const minD = type === 'small' ? 70 : type === 'large' ? 100 : 85;
+                    if (canPlace(node, minD)) { this.nodes.push(node); break; }
+                }
             }
         }
     }
