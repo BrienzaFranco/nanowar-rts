@@ -522,19 +522,17 @@ class Node {
         this.stockDefenders = 0;
         this.defenderCounts = {};
         this.defendingEntities = [];
-        this.areaDefenders = [];
-        this.enemyAreaDefenders = [];
+        this.allAreaDefenders = [];
         for (let e of entities) {
             if (e.dead || e.dying) continue;
             const dx = e.x - this.x, dy = e.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            // Área de influencia para defender el nodo
+            // Área de influencia - todos los que están cerca
             if (dist <= this.influenceRadius) {
                 this.defenderCounts[e.owner] = (this.defenderCounts[e.owner] || 0) + 1;
+                this.allAreaDefenders.push(e);
                 if (e.owner === this.owner) {
                     this.areaDefenders.push(e);
-                } else if (this.owner !== -1) {
-                    this.enemyAreaDefenders.push(e);
                 }
             }
             // Dentro del nodo para stock
@@ -556,8 +554,15 @@ class Node {
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
         if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
 
-        // Consumir defenders propios del área primero cuando ataca el enemigo
-        let remainingDefenders = [...this.areaDefenders];
+        // Consumir defenders del área (cualquiera que esté defendiendo)
+        let remainingDefenders = [...(this.allAreaDefenders || [])];
+        // Primero los del atacante para que pueda capturar
+        remainingDefenders.sort((a, b) => {
+            if (a.owner === attackerId) return -1;
+            if (b.owner === attackerId) return 1;
+            return 0;
+        });
+        
         while (damage > 0 && remainingDefenders.length > 0) {
             const defender = remainingDefenders.pop();
             if (defender && !defender.dead && !defender.dying) {
