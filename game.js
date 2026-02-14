@@ -965,20 +965,43 @@ class Game {
     }
 
     createLevel() {
-        this.nodes = [];
-        let idCounter = 1;
-        const cx = this.worldWidth / 2;
-        const cy = this.worldHeight / 2;
-        const baseRadius = Math.min(this.worldWidth, this.worldHeight) * 0.42;
+        const centerX = this.worldWidth / 2, centerY = this.worldHeight / 2;
 
-        const minDist = (n1, n2) => {
-            const dx = n1.x - n2.x, dy = n1.y - n2.y;
-            return Math.sqrt(dx*dx + dy*dy);
-        };
-        const canPlace = (node, minDistance) => {
-            for (let n of this.nodes) {
-                if (minDist(node, n) < minDistance + n.radius + node.radius) return false;
-            }
+        // Limpiar nodos existentes
+        this.nodes = [];
+
+        // Jugador 0 - Esquina Inferior Izquierda (Verde)
+        this.nodes.push(new Node(0, 200, this.worldHeight - 200, 0, 'large'));
+        this.nodes.push(new Node(1, 450, this.worldHeight - 250, 0, 'medium'));
+
+        // Jugador 1 - Esquina Superior Derecha (Rojo)
+        this.nodes.push(new Node(2, this.worldWidth - 200, 200, 1, 'large'));
+        this.nodes.push(new Node(3, this.worldWidth - 450, 250, 1, 'medium'));
+
+        // Jugador 2 - Esquina Superior Izquierda (Azul)
+        this.nodes.push(new Node(4, 200, 200, 2, 'large'));
+        this.nodes.push(new Node(5, 450, 250, 2, 'medium'));
+
+        // Jugador 3 - Esquina Inferior Derecha (Naranja)
+        this.nodes.push(new Node(6, this.worldWidth - 200, this.worldHeight - 200, 3, 'large'));
+        this.nodes.push(new Node(7, this.worldWidth - 450, this.worldHeight - 250, 3, 'medium'));
+
+        // Nodos Neutrales Centrales
+        this.nodes.push(new Node(100, centerX, centerY, -1, 'large'));
+        this.nodes.push(new Node(101, centerX - 300, centerY, -1, 'medium'));
+        this.nodes.push(new Node(102, centerX + 300, centerY, -1, 'medium'));
+        this.nodes.push(new Node(103, centerX, centerY - 300, -1, 'medium'));
+        this.nodes.push(new Node(104, centerX, centerY + 300, -1, 'medium'));
+
+        // Más nodos neutrales dispersos
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const dist = 600;
+            const x = centerX + Math.cos(angle) * dist;
+            const y = centerY + Math.sin(angle) * dist;
+            this.nodes.push(new Node(200 + i, x, y, -1, Math.random() > 0.5 ? 'medium' : 'small'));
+        }
+    }
             return true;
         };
 

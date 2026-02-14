@@ -102,6 +102,13 @@ class GameServer {
         const idx = this.playerSockets.indexOf(socketId);
         if (idx !== -1) {
             this.playerSockets.splice(idx, 1);
+            delete this.playerReady[socketId];
+            delete this.playerSelections[socketId];
+
+            // Avisar a los que quedan que alguien se fue para actualizar el Lobby
+            io.to(this.roomId).emit('playerJoined', {
+                players: this.playerSockets.map((id, idx) => ({ id: idx, ready: this.playerReady[id] }))
+            });
         }
     }
 
