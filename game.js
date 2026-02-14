@@ -519,6 +519,7 @@ class Node {
         this.spawnProgress = 0;
         this.stock = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
+        this.areaDefenders = []; this.allAreaDefenders = [];
     }
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
     setRallyPoint(x, y) { this.rallyPoint = { x, y }; }
