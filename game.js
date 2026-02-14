@@ -608,7 +608,11 @@ class Node {
             const defenderBonus = Math.min(this.defendersInside, 10);
             const stockBonus = Math.floor(this.stock * 0.3);
             const effectiveDefenders = baseDefenders + defenderBonus + stockBonus;
-            const spawnThreshold = this.spawnInterval / effectiveDefenders;
+            
+            // Más vida = más lento el spawn (maximo más lento)
+            const totalHp = this.getTotalHp();
+            const hpPenalty = Math.min(totalHp / this.maxHp, 1) * 0.7;
+            const spawnThreshold = (this.spawnInterval / effectiveDefenders) * (1 + hpPenalty);
             
             if (this.spawnTimer >= spawnThreshold) {
                 this.spawnTimer = 0;
@@ -678,15 +682,10 @@ class Node {
             totalFill = this.defendersInside + this.stock;
             brightness = 1 + Math.min(totalFill * 0.08, 0.8);
         } else {
-            // Para nodos neutrales, mostrar troupes que defienden desde el área
-            let areaDefenders = 0;
-            for (let owner in this.defenderCounts) {
-                if (parseInt(owner) !== -1) {
-                    areaDefenders = Math.max(areaDefenders, this.defenderCounts[owner]);
-                }
-            }
-            totalFill = areaDefenders;
-            brightness = 1 + Math.min(areaDefenders * 0.1, 0.7);
+            // Nodos neutrales muestran su vida base
+            totalFill = this.baseHp;
+            const maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100;
+            brightness = 1 + (this.baseHp / maxHp) * 0.5;
         }
         
         const r = parseInt(baseColor.slice(1, 3), 16);
@@ -694,7 +693,13 @@ class Node {
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
-        const fillPercent = Math.min(1, totalFill / maxCapacity);
+        let fillPercent;
+        if (this.owner === -1) {
+            const maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100;
+            fillPercent = Math.min(1, this.baseHp / maxHp);
+        } else {
+            fillPercent = Math.min(1, totalFill / maxCapacity);
+        }
         
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
         ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
