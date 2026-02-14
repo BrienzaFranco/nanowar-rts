@@ -368,28 +368,6 @@ class Entity {
                     return;
                 }
             }
-                
-                if (node.owner === this.owner) {
-                    // Absorber troupe propia para stock
-                    if (node.stock < node.maxStock && !this.dying) {
-                        node.stock++;
-                        this.die('absorbed', node, game);
-                        return;
-                    }
-                    // Si stock lleno, simplemente quedarse quieto
-                    if (this.targetNode === node) {
-                        this.stop();
-                        this.targetNode = null;
-                    }
-                    return;
-                } else {
-                    if (!this.dying) {
-                        node.receiveAttack(this.owner, this.damage, game);
-                        this.die('attack', node, game);
-                    }
-                }
-                return;
-            }
         }
     }
 
