@@ -357,14 +357,19 @@ class Entity {
                     }
                     return;
                 } else {
-                    // Atacar nodo
+                    // Atacar nodo pero NO morir - ataques continuos
                     if (!this.dying) {
                         // Calcular damage: 1 por troupe + bonus por defenders
                         const nodeDefenders = (node.allAreaDefenders || []).filter(e => e.owner === node.owner).length;
                         const damage = 1 + Math.floor(nodeDefenders * 0.3);
                         
                         node.receiveAttack(this.owner, damage, game);
-                        this.die('attack', node, game);
+                        // No muere, sigue atacando
+                        // Empujar un poco para no重叠
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        this.x -= nx * 2;
+                        this.y -= ny * 2;
                     }
                     return;
                 }
