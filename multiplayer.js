@@ -55,6 +55,8 @@ class MultiplayerClient {
             if (response.success) {
                 this.roomId = response.roomId;
                 this.playerId = response.playerId;
+                // Request room updated list
+                this.socket.emit('getRooms');
             }
             if (callback) callback(response);
         });
@@ -374,7 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             client.createRoom((response) => {
                 if (response.success) {
-                    showGameScreen();
+                    // Wait for room list to update, then go to game
+                    setTimeout(() => showGameScreen(), 500);
                 }
             });
         });
