@@ -107,6 +107,21 @@ class GameServer {
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
+    // Enviar lista de rooms disponibles
+    socket.emit('roomList', Array.from(rooms.values()).map(r => ({
+        id: r.roomId,
+        players: r.playerSockets.length,
+        maxPlayers: 4
+    })));
+
+    socket.on('getRooms', () => {
+        socket.emit('roomList', Array.from(rooms.values()).map(r => ({
+            id: r.roomId,
+            players: r.playerSockets.length,
+            maxPlayers: 4
+        })));
+    });
+
     socket.on('createRoom', (data, callback) => {
         const roomId = 'room_' + Date.now();
         const gameServer = new GameServer(roomId);
@@ -115,6 +130,13 @@ io.on('connection', (socket) => {
         const playerId = gameServer.addPlayer(socket);
         socket.roomId = roomId;
         socket.playerId = playerId;
+        
+        // Broadcast rooms update
+        io.emit('roomList', Array.from(rooms.values()).map(r => ({
+            id: r.roomId,
+            players: r.playerSockets.length,
+            maxPlayers: 4
+        })));
         
         callback({ success: true, roomId, playerId });
     });

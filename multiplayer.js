@@ -30,6 +30,13 @@ class MultiplayerClient {
         
         this.socket.on('connect', () => {
             console.log('Connected');
+            // Request rooms list
+            this.socket.emit('getRooms');
+        });
+
+        this.socket.on('roomList', (rooms) => {
+            this.rooms = rooms;
+            this.updateRoomListUI();
         });
 
         this.socket.on('gameState', (state) => {
@@ -61,6 +68,26 @@ class MultiplayerClient {
             }
             if (callback) callback(response);
         });
+    }
+
+    updateRoomListUI() {
+        const roomListEl = document.getElementById('room-list');
+        if (!roomListEl || !this.rooms) return;
+        
+        if (this.rooms.length === 0) {
+            roomListEl.innerHTML = '<p class="no-rooms">No hay salas disponibles</p>';
+            return;
+        }
+        
+        roomListEl.innerHTML = this.rooms.map(room => `
+            <div class="room-item" onclick="joinRoom('${room.id}')">
+                <div class="room-info">
+                    <h3>Sala ${room.id.slice(-6)}</h3>
+                    <span>${room.players}/${room.maxPlayers} jugadores</span>
+                </div>
+                <button class="btn-secondary">Unirse</button>
+            </div>
+        `).join('');
     }
 
     sendAction(action) {
