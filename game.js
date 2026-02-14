@@ -1049,7 +1049,7 @@ class Game {
             // Find base(s) for player i
             const myNodes = this.nodes.filter(n => n.owner === i);
             myNodes.forEach(node => {
-                const count = node.type === 'large' ? 12 : 8;
+                const count = node.type === 'large' ? 20 : 15;
                 for (let k = 0; k < count; k++) {
                     const angle = (k / count) * Math.PI * 2;
                     const dist = 70 + Math.random() * 40;
