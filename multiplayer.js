@@ -11,6 +11,9 @@ class MultiplayerClient {
         this.selectedEntities = [];
         this.particles = [];
         this.commandIndicators = [];
+        this.waypointLines = []; // Added waypoint lines
+        this.waypointLinePoints = [];
+        this.rightMouseDown = false;
         this.running = false;
         this.connected = false;
         this.lastStateTime = 0;
@@ -131,9 +134,155 @@ class MultiplayerClient {
     setupEvents() {
         document.addEventListener('mousedown', (e) => { if (this.canvas && e.target === this.canvas) this.onCanvasMouseDown(e); });
         document.addEventListener('mousemove', (e) => { if (this.canvas) this.onCanvasMouseMove(e); });
+        document.addEventListener('mouseup', (e) => { if (this.canvas) this.onCanvasMouseUp(e); });
+        document.addEventListener('dblclick', (e) => { if (this.canvas && e.target === this.canvas) this.onCanvasDoubleClick(e); });
         document.addEventListener('wheel', (e) => { if (this.canvas && e.target === this.canvas) this.onCanvasWheel(e); }, { passive: false });
         document.addEventListener('keydown', (e) => { if (e.key === 's' || e.key === 'S') this.sendAction({ type: 'stop' }); });
         document.addEventListener('contextmenu', (e) => { if (this.canvas && e.target === this.canvas) e.preventDefault(); });
+    }
+
+    onCanvasDoubleClick(e) {
+        if (!this.gameState) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const worldPos = this.screenToWorld(mx, my);
+
+        // Click en nodo
+        const clickedNode = this.gameState.nodes.find(n => {
+            const dx = worldPos.x - n.x, dy = worldPos.y - n.y;
+            return Math.sqrt(dx*dx + dy*dy) < n.radius;
+        });
+
+        if (clickedNode) {
+            // Seleccionar todos los nodos del mismo dueño (si es el mío)
+            if (clickedNode.owner === this.playerId) {
+                this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
+                this.selectedEntities = [];
+            }
+            this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
+            return;
+        }
+
+        // Click en entidad
+        const clickedEntity = this.gameState.entities.find(ent => {
+            const dx = worldPos.x - ent.x, dy = worldPos.y - ent.y;
+            return Math.sqrt(dx*dx + dy*dy) < ent.radius + 5;
+        });
+
+        if (clickedEntity) {
+            if (clickedEntity.owner === this.playerId) {
+                this.selectedEntities = this.gameState.entities.filter(ent => ent.owner === this.playerId).map(ent => ent.id);
+                this.selectedNodes = [];
+            }
+            this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
+            return;
+        }
+
+        // Doble click en el vacío: seleccionar TODO lo propio
+        this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
+        this.selectedEntities = this.gameState.entities.filter(ent => ent.owner === this.playerId).map(ent => ent.id);
+        this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
+    }
+
+    onCanvasMouseDown(e) {
+        if (!this.gameState) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const world = this.screenToWorld(pos.x, pos.y);
+
+        if (e.button === 0) {
+            let clickedNode = null;
+            let clickedEntity = null;
+
+            for (const node of this.gameState.nodes) {
+                const dx = world.x - node.x, dy = world.y - node.y;
+                if (Math.sqrt(dx*dx + dy*dy) < node.radius) { clickedNode = node; break; }
+            }
+
+            if (clickedNode) {
+                if (e.shiftKey) {
+                    const idx = this.selectedNodes.indexOf(clickedNode.id);
+                    if (idx === -1) this.selectedNodes.push(clickedNode.id);
+                    else this.selectedNodes.splice(idx, 1);
+                } else {
+                    this.selectedNodes = [clickedNode.id];
+                }
+                if (clickedNode.owner === this.playerId) {
+                    const nodeUnits = this.gameState.entities.filter(ent => {
+                        if (ent.owner !== this.playerId) return false;
+                        const dx = ent.x - clickedNode.x, dy = ent.y - clickedNode.y;
+                        const sir = clickedNode.influenceRadius || clickedNode.radius * 3;
+                        return Math.sqrt(dx*dx + dy*dy) < sir;
+                    });
+                    this.selectedEntities = nodeUnits.map(ent => ent.id);
+                } else {
+                    this.selectedEntities = [];
+                }
+            } else {
+                for (const entity of this.gameState.entities) {
+                    const dx = world.x - entity.x, dy = world.y - entity.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < entity.radius + 5) { clickedEntity = entity; break; }
+                }
+                if (clickedEntity && clickedEntity.owner === this.playerId) {
+                    if (e.shiftKey) {
+                        const idx = this.selectedEntities.indexOf(clickedEntity.id);
+                        if (idx === -1) this.selectedEntities.push(clickedEntity.id);
+                        else this.selectedEntities.splice(idx, 1);
+                    } else {
+                        this.selectedEntities = [clickedEntity.id];
+                    }
+                    this.selectedNodes = [];
+                } else {
+                    this.selectedNodes = [];
+                    this.selectedEntities = [];
+                }
+            }
+            this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
+        } else if (e.button === 2) {
+            this.rightMouseDown = true;
+            this.waypointLinePoints = [{ x: world.x, y: world.y }];
+            
+            if (this.selectedEntities.length > 0 || this.selectedNodes.length > 0) {
+                let targetNode = null;
+                for (const node of this.gameState.nodes) {
+                    const dx = world.x - node.x, dy = world.y - node.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < node.radius) { targetNode = node; break; }
+                }
+                this.commandIndicators.push({ x: world.x, y: world.y, life: 1.0, type: targetNode ? 'attack' : 'move' });
+                this.sendAction({ type: 'command', target: world, targetNodeId: targetNode ? targetNode.id : null });
+            }
+        }
+    }
+
+    onCanvasMouseMove(e) {
+        if (!this.canvas) return;
+        if (e.buttons === 4 || (e.buttons === 1 && e.shiftKey)) {
+            this.camera.x -= e.movementX / this.camera.zoom;
+            this.camera.y -= e.movementY / this.camera.zoom;
+        }
+
+        if (this.rightMouseDown && (this.selectedEntities.length > 0 || this.selectedNodes.length > 0)) {
+            const rect = this.canvas.getBoundingClientRect();
+            const worldPos = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+            const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
+            const dx = worldPos.x - lastPoint.x, dy = worldPos.y - lastPoint.y;
+
+            if (Math.sqrt(dx * dx + dy * dy) > 30) {
+                this.waypointLinePoints.push({ x: worldPos.x, y: worldPos.y });
+                // Enviar waypoint extra al servidor si se soporta, por ahora solo dibujamos
+            }
+        }
+    }
+
+    onCanvasMouseUp(e) {
+        if (e.button === 2) {
+            this.rightMouseDown = false;
+            if (this.waypointLinePoints.length > 1) {
+                this.waypointLines.push({ points: [...this.waypointLinePoints], life: 2.0 });
+            }
+            this.waypointLinePoints = [];
+        }
     }
 
     onCanvasMouseDown(e) {
@@ -252,6 +401,21 @@ class MultiplayerClient {
             if (this.gameState.nodes) { for (const node of this.gameState.nodes) this.drawNode(ctx, node, dt); }
             if (this.gameState.entities) { for (const entity of this.gameState.entities) this.drawEntity(ctx, entity, dt); }
             
+            // Draw waypoints being dragged
+            if (this.rightMouseDown && this.waypointLinePoints.length > 1) {
+                this.drawWaypointLine(ctx, this.waypointLinePoints, 1.0);
+            }
+
+            // Draw active waypoint lines
+            this.waypointLines = this.waypointLines.filter(line => {
+                line.life -= dt;
+                if (line.life > 0) {
+                    this.drawWaypointLine(ctx, line.points, line.life / 2.0);
+                    return true;
+                }
+                return false;
+            });
+
             this.particles = this.particles.filter(p => {
                 p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
                 if (p.life > 0) {
@@ -274,6 +438,31 @@ class MultiplayerClient {
                     if (ci.type === 'attack') {
                         ctx.beginPath(); ctx.moveTo(sx-size, sy-size); ctx.lineTo(sx+size, sy+size); ctx.moveTo(sx+size, sy-size); ctx.lineTo(sx-size, sy+size); ctx.stroke();
                     } else {
+                        ctx.beginPath(); ctx.arc(sx, sy, size * (1-ci.life), 0, Math.PI * 2); ctx.stroke();
+                    }
+                    return true;
+                }
+                return false;
+            });
+        }
+        this.drawUI(ctx, w, h);
+    }
+
+    drawWaypointLine(ctx, points, alpha) {
+        if (points.length < 2) return;
+        const color = PLAYER_COLORS[this.playerId % PLAYER_COLORS.length];
+        ctx.strokeStyle = hexToRgba(color, alpha * 0.5);
+        ctx.lineWidth = 3 * this.camera.zoom;
+        ctx.setLineDash([8 * this.camera.zoom, 6 * this.camera.zoom]);
+        ctx.beginPath();
+        const start = points[0];
+        ctx.moveTo((start.x - this.camera.x) * this.camera.zoom, (start.y - this.camera.y) * this.camera.zoom);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo((points[i].x - this.camera.x) * this.camera.zoom, (points[i].y - this.camera.y) * this.camera.zoom);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
                         ctx.beginPath(); ctx.arc(sx, sy, size * (1-ci.life), 0, Math.PI * 2); ctx.stroke();
                     }
                     return true;
