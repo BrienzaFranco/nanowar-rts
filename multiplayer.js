@@ -9,6 +9,7 @@ class MultiplayerClient {
         this.gameState = null;
         this.selectedNodes = [];
         this.selectedEntities = [];
+        this.particles = []; // Partículas locales
         this.running = false;
         this.connected = false;
         this.lastStateTime = 0;
@@ -78,6 +79,14 @@ class MultiplayerClient {
             if (!this.gameState) console.log("First gameState received!", state);
             this.gameState = state;
             this.lastStateTime = Date.now();
+            
+            // Sincronizar efectos (partículas) desde el servidor
+            if (state.events) {
+                state.events.forEach(ev => {
+                    this.spawnLocalParticles(ev.x, ev.y, ev.color, 5, ev.type);
+                });
+            }
+
             if (!this.running) {
                 console.log("Starting render loop from gameState");
                 this.start();
@@ -284,6 +293,22 @@ class MultiplayerClient {
         };
     }
 
+    spawnLocalParticles(x, y, color, count, type) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * (type === 'explosion' ? 100 : 50);
+            this.particles.push({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                color,
+                life: 0.6,
+                maxLife: 0.6,
+                type
+            });
+        }
+    }
+
     start() {
         if (this.running) return;
         this.running = true;
@@ -300,6 +325,7 @@ class MultiplayerClient {
         const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;
+        const dt = 1/60; // Asumimos 60fps para las partículas
         
         // Debug fill to ensure canvas is actually drawing something
         ctx.fillStyle = '#ff00ff'; 
@@ -317,6 +343,26 @@ class MultiplayerClient {
             if (this.gameState.entities) {
                 for (const entity of this.gameState.entities) this.drawEntity(ctx, entity);
             }
+            
+            // Dibujar y actualizar partículas
+            this.particles = this.particles.filter(p => {
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+                
+                if (p.life > 0) {
+                    const sx = (p.x - this.camera.x) * this.camera.zoom;
+                    const sy = (p.y - this.camera.y) * this.camera.zoom;
+                    ctx.globalAlpha = p.life / p.maxLife;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 2 * this.camera.zoom, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                    return true;
+                }
+                return false;
+            });
         } else {
             ctx.fillStyle = 'white';
             ctx.textAlign = 'center';

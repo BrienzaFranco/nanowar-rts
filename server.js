@@ -43,7 +43,18 @@ class GameServer {
             const dt = Math.min((now - lastTime) / 1000, 0.05);
             lastTime = now;
             this.game.update(dt);
-            io.to(this.roomId).emit('gameState', this.game.getState());
+            const state = this.game.getState();
+            
+            // Add events/particles from game to state for clients
+            if (this.game.particles && this.game.particles.length > 0) {
+                state.events = this.game.particles.map(p => ({
+                    x: p.x, y: p.y, color: p.color, type: p.type
+                }));
+                // Clear particles on server after sending to avoid accumulation
+                this.game.particles = [];
+            }
+            
+            io.to(this.roomId).emit('gameState', state);
             setTimeout(loop, 1000 / 60);
         };
         this.gameStarted = true;
