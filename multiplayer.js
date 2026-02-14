@@ -1,4 +1,4 @@
-// Nanowar Multiplayer Client
+// Nanowar Multiplayer Client v4.4.0
 const PLAYER_COLORS = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
 
 class MultiplayerClient {
@@ -37,6 +37,7 @@ class MultiplayerClient {
         if (this.canvas && !this.ctx) {
             this.ctx = this.canvas.getContext('2d');
             this.resize();
+            console.log("Canvas initialized");
         }
         return !!this.ctx;
     }
@@ -64,9 +65,11 @@ class MultiplayerClient {
 
     connect() {
         if (this.socket) return;
+        console.log("Connecting to server...");
         this.socket = io({ transports: ['websocket', 'polling'] });
         
         this.socket.on('connect', () => {
+            console.log("Connected to server");
             this.connected = true;
             this.socket.emit('getRooms');
         });
@@ -77,6 +80,7 @@ class MultiplayerClient {
         });
 
         this.socket.on('playerJoined', (data) => {
+            console.log("Room update:", data);
             this.updateLobbyUI(data.players);
         });
 
@@ -89,7 +93,10 @@ class MultiplayerClient {
             if (!this.running) this.start();
         });
 
-        this.socket.on('gameStart', () => showGameScreen());
+        this.socket.on('gameStart', () => {
+            console.log("Game Start signal received!");
+            showGameScreen();
+        });
         
         this.socket.on('disconnect', () => { 
             this.connected = false;
@@ -102,6 +109,7 @@ class MultiplayerClient {
             if (response.success) {
                 this.roomId = response.roomId;
                 this.playerId = response.playerId;
+                console.log("Room created:", this.roomId, "Player:", this.playerId);
             }
             if (callback) callback(response);
         });
@@ -112,6 +120,7 @@ class MultiplayerClient {
             if (response.success) {
                 this.roomId = roomId;
                 this.playerId = response.playerId;
+                console.log("Joined room:", this.roomId, "Player:", this.playerId);
             }
             if (callback) callback(response);
         });
@@ -135,26 +144,26 @@ class MultiplayerClient {
         `).join('');
 
         document.querySelectorAll('.join-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const roomId = e.target.getAttribute('data-room');
-                this.joinRoom(roomId, (res) => {
+            btn.onclick = (e) => {
+                const rId = e.target.getAttribute('data-room');
+                this.joinRoom(rId, (res) => {
                     if (res.success) {
                         showLobbyScreen();
                         this.updateLobbyUI(res.players);
-                    } else alert('Error al unirse');
+                    } else alert('Error al unirse: ' + res.error);
                 });
-            });
+            };
         });
     }
 
     updateLobbyUI(players) {
         const lobbyEl = document.getElementById('lobby-players');
-        if (!lobbyEl) return;
+        if (!lobbyEl || !players) return;
         
         lobbyEl.innerHTML = players.map(p => `
             <div class="player-item ${p.ready ? 'ready' : ''}">
                 <div class="player-color" style="background: ${PLAYER_COLORS[p.id % PLAYER_COLORS.length]}"></div>
-                <div class="player-name">Jugador ${p.id + 1}</div>
+                <div class="player-name">Jugador ${p.id + 1} ${p.id === this.playerId ? '(TÚ)' : ''}</div>
                 <div class="player-status">${p.ready ? 'LISTO' : 'Esperando...'}</div>
             </div>
         `).join('');
@@ -178,9 +187,7 @@ class MultiplayerClient {
     onCanvasDoubleClick(e) {
         if (!this.gameState) return;
         const rect = this.canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        const worldPos = this.screenToWorld(mx, my);
+        const worldPos = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
 
         const clickedNode = this.gameState.nodes.find(n => {
             const dx = worldPos.x - n.x, dy = worldPos.y - n.y;
@@ -255,7 +262,6 @@ class MultiplayerClient {
             const worldPos = this.screenToWorld(this.mousePos.x, this.mousePos.y);
             const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
             const dx = worldPos.x - lastPoint.x, dy = worldPos.y - lastPoint.y;
-
             if (Math.sqrt(dx * dx + dy * dy) > 30) {
                 this.waypointLinePoints.push({ x: worldPos.x, y: worldPos.y });
             }
@@ -268,34 +274,22 @@ class MultiplayerClient {
             const dx = Math.abs(this.mousePos.x - this.mouseDownPos.x);
             const dy = Math.abs(this.mousePos.y - this.mouseDownPos.y);
 
-            if (dx < 5 && dy < 5) {
-                // Click simple
+            if (dx < 10 && dy < 10) {
                 const world = this.screenToWorld(this.mouseDownPos.x, this.mouseDownPos.y);
                 this.handleSimpleSelection(world, e.shiftKey);
             } else {
-                // Selección por caja
                 this.handleBoxSelection(e.shiftKey);
             }
         } else if (e.button === 2) {
             this.rightMouseDown = false;
             if (this.waypointLinePoints.length > 1) {
                 this.waypointLines.push({ points: [...this.waypointLinePoints], life: 2.0 });
-                
                 let targetNode = null;
                 const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
                 for (const node of this.gameState.nodes) {
-                    const dx = lastPoint.x - node.x, dy = lastPoint.y - node.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < node.radius) { targetNode = node; break; }
+                    if (Math.sqrt((lastPoint.x - node.x)**2 + (lastPoint.y - node.y)**2) < node.radius) { targetNode = node; break; }
                 }
-
-                this.sendAction({ 
-                    type: 'command', 
-                    target: lastPoint,
-                    waypoints: [...this.waypointLinePoints],
-                    targetNodeId: targetNode ? targetNode.id : null 
-                });
-            } else {
-                // Click derecho simple (ya enviado en mouseDown, pero por si acaso o para indicadores)
+                this.sendAction({ type: 'command', target: lastPoint, waypoints: [...this.waypointLinePoints], targetNodeId: targetNode ? targetNode.id : null });
             }
             this.waypointLinePoints = [];
         }
@@ -303,11 +297,8 @@ class MultiplayerClient {
 
     handleSimpleSelection(world, isShift) {
         let clickedNode = null;
-        let clickedEntity = null;
-
         for (const node of this.gameState.nodes) {
-            const dx = world.x - node.x, dy = world.y - node.y;
-            if (Math.sqrt(dx*dx + dy*dy) < node.radius) { clickedNode = node; break; }
+            if (Math.sqrt((world.x - node.x)**2 + (world.y - node.y)**2) < node.radius) { clickedNode = node; break; }
         }
 
         if (clickedNode) {
@@ -319,20 +310,17 @@ class MultiplayerClient {
                 this.selectedNodes = [clickedNode.id];
             }
             if (clickedNode.owner === this.playerId) {
-                const nodeUnits = this.gameState.entities.filter(ent => {
-                    if (ent.owner !== this.playerId) return false;
-                    const dx = ent.x - clickedNode.x, dy = ent.y - clickedNode.y;
-                    const sir = clickedNode.influenceRadius || clickedNode.radius * 3;
-                    return Math.sqrt(dx*dx + dy*dy) < sir;
-                });
-                this.selectedEntities = nodeUnits.map(ent => ent.id);
+                const sir = clickedNode.influenceRadius || clickedNode.radius * 3;
+                this.selectedEntities = this.gameState.entities
+                    .filter(ent => ent.owner === this.playerId && Math.sqrt((ent.x - clickedNode.x)**2 + (ent.y - clickedNode.y)**2) < sir)
+                    .map(ent => ent.id);
             } else {
                 this.selectedEntities = [];
             }
         } else {
-            for (const entity of this.gameState.entities) {
-                const dx = world.x - entity.x, dy = world.y - entity.y;
-                if (Math.sqrt(dx*dx + dy*dy) < entity.radius + 5) { clickedEntity = entity; break; }
+            let clickedEntity = null;
+            for (const ent of this.gameState.entities) {
+                if (Math.sqrt((world.x - ent.x)**2 + (world.y - ent.y)**2) < ent.radius + 5) { clickedEntity = ent; break; }
             }
             if (clickedEntity && clickedEntity.owner === this.playerId) {
                 if (isShift) {
@@ -343,11 +331,9 @@ class MultiplayerClient {
                     this.selectedEntities = [clickedEntity.id];
                 }
                 this.selectedNodes = [];
-            } else {
-                if (!isShift) {
-                    this.selectedNodes = [];
-                    this.selectedEntities = [];
-                }
+            } else if (!isShift) {
+                this.selectedNodes = [];
+                this.selectedEntities = [];
             }
         }
         this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
@@ -359,43 +345,35 @@ class MultiplayerClient {
         const xMin = Math.min(p1.x, p2.x), xMax = Math.max(p1.x, p2.x);
         const yMin = Math.min(p1.y, p2.y), yMax = Math.max(p1.y, p2.y);
 
-        const newlySelectedEntities = this.gameState.entities
+        const boxEnts = this.gameState.entities
             .filter(ent => ent.owner === this.playerId && ent.x >= xMin && ent.x <= xMax && ent.y >= yMin && ent.y <= yMax)
             .map(ent => ent.id);
 
         if (isShift) {
-            newlySelectedEntities.forEach(id => {
-                if (!this.selectedEntities.includes(id)) this.selectedEntities.push(id);
-            });
+            boxEnts.forEach(id => { if (!this.selectedEntities.includes(id)) this.selectedEntities.push(id); });
         } else {
-            this.selectedEntities = newlySelectedEntities;
+            this.selectedEntities = boxEnts;
             this.selectedNodes = [];
         }
-
         this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
     }
 
     onCanvasWheel(e) {
         e.preventDefault();
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left, mouseY = e.clientY - rect.top;
-        const worldBefore = this.screenToWorld(mouseX, mouseY);
-        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        this.camera.zoom = Math.max(0.1, Math.min(5, this.camera.zoom * zoomFactor));
-        const worldAfter = this.screenToWorld(mouseX, mouseY);
+        const worldBefore = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+        this.camera.zoom = Math.max(0.1, Math.min(5, this.camera.zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+        const worldAfter = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
         this.camera.x += worldBefore.x - worldAfter.x;
         this.camera.y += worldBefore.y - worldAfter.y;
     }
 
-    screenToWorld(sx, sy) {
-        return { x: sx / this.camera.zoom + this.camera.x, y: sy / this.camera.zoom + this.camera.y };
-    }
+    screenToWorld(sx, sy) { return { x: sx / this.camera.zoom + this.camera.x, y: sy / this.camera.zoom + this.camera.y }; }
 
     spawnLocalParticles(x, y, color, count, type) {
         for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = Math.random() * (type === 'explosion' ? 120 : 60);
-            this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color, life: 0.8, maxLife: 0.8, type });
+            const angle = Math.random() * Math.PI * 2, speed = Math.random() * (type === 'explosion' ? 120 : 60);
+            this.particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color, life: 0.8, maxLife: 0.8 });
         }
     }
 
@@ -411,39 +389,23 @@ class MultiplayerClient {
         const ctx = this.ctx, w = this.canvas.width, h = this.canvas.height, dt = 1/60;
         ctx.fillStyle = '#151515'; ctx.fillRect(0, 0, w, h);
         this.drawGrid(ctx, w, h);
-        
         if (this.gameState) {
-            if (this.gameState.nodes) { for (const node of this.gameState.nodes) this.drawNode(ctx, node, dt); }
-            if (this.gameState.entities) { for (const entity of this.gameState.entities) this.drawEntity(ctx, entity, dt); }
-            
-            // Dibujar caja de selección
+            if (this.gameState.nodes) for (const n of this.gameState.nodes) this.drawNode(ctx, n, dt);
+            if (this.gameState.entities) for (const e of this.gameState.entities) this.drawEntity(ctx, e, dt);
             if (this.isDragging && !this.rightMouseDown) {
-                const x = Math.min(this.mouseDownPos.x, this.mousePos.x);
-                const y = Math.min(this.mouseDownPos.y, this.mousePos.y);
-                const w = Math.abs(this.mousePos.x - this.mouseDownPos.x);
-                const h = Math.abs(this.mousePos.y - this.mouseDownPos.y);
-                if (w > 5 || h > 5) {
-                    ctx.strokeStyle = 'rgba(76, 175, 80, 0.8)';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(x, y, w, h);
-                    ctx.fillStyle = 'rgba(76, 175, 80, 0.1)';
-                    ctx.fillRect(x, y, w, h);
+                const x = Math.min(this.mouseDownPos.x, this.mousePos.x), y = Math.min(this.mouseDownPos.y, this.mousePos.y);
+                const boxW = Math.abs(this.mousePos.x - this.mouseDownPos.x), boxH = Math.abs(this.mousePos.y - this.mouseDownPos.y);
+                if (boxW > 5 || boxH > 5) {
+                    ctx.strokeStyle = 'rgba(76, 175, 80, 0.8)'; ctx.lineWidth = 2; ctx.strokeRect(x, y, boxW, boxH);
+                    ctx.fillStyle = 'rgba(76, 175, 80, 0.1)'; ctx.fillRect(x, y, boxW, boxH);
                 }
             }
-
-            if (this.rightMouseDown && this.waypointLinePoints.length > 1) {
-                this.drawWaypointLine(ctx, this.waypointLinePoints, 1.0);
-            }
-
+            if (this.rightMouseDown && this.waypointLinePoints.length > 1) this.drawWaypointLine(ctx, this.waypointLinePoints, 1.0);
             this.waypointLines = this.waypointLines.filter(line => {
                 line.life -= dt;
-                if (line.life > 0) {
-                    this.drawWaypointLine(ctx, line.points, line.life / 2.0);
-                    return true;
-                }
+                if (line.life > 0) { this.drawWaypointLine(ctx, line.points, line.life / 2.0); return true; }
                 return false;
             });
-
             this.particles = this.particles.filter(p => {
                 p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
                 if (p.life > 0) {
@@ -454,42 +416,20 @@ class MultiplayerClient {
                 }
                 return false;
             });
-
             this.commandIndicators = this.commandIndicators.filter(ci => {
                 ci.life -= dt;
                 if (ci.life > 0) {
                     const sx = (ci.x - this.camera.x) * this.camera.zoom, sy = (ci.y - this.camera.y) * this.camera.zoom;
-                    const alpha = ci.life;
-                    ctx.strokeStyle = ci.type === 'attack' ? `rgba(255,100,100,${alpha})` : `rgba(100,200,255,${alpha})`;
-                    ctx.lineWidth = 2 * this.camera.zoom;
-                    const size = 10 * this.camera.zoom;
-                    if (ci.type === 'attack') {
-                        ctx.beginPath(); ctx.moveTo(sx-size, sy-size); ctx.lineTo(sx+size, sy+size); ctx.moveTo(sx+size, sy-size); ctx.lineTo(sx-size, sy+size); ctx.stroke();
-                    } else {
-                        ctx.beginPath(); ctx.arc(sx, sy, size * (1-ci.life), 0, Math.PI * 2); ctx.stroke();
-                    }
+                    ctx.strokeStyle = ci.type === 'attack' ? `rgba(255,100,100,${ci.life})` : `rgba(100,200,255,${ci.life})`;
+                    ctx.lineWidth = 2 * this.camera.zoom; const size = 10 * this.camera.zoom;
+                    if (ci.type === 'attack') { ctx.beginPath(); ctx.moveTo(sx-size, sy-size); ctx.lineTo(sx+size, sy+size); ctx.moveTo(sx+size, sy-size); ctx.lineTo(sx-size, sy+size); ctx.stroke(); }
+                    else { ctx.beginPath(); ctx.arc(sx, sy, size * (1-ci.life), 0, Math.PI * 2); ctx.stroke(); }
                     return true;
                 }
                 return false;
             });
         }
         this.drawUI(ctx, w, h);
-    }
-
-    drawWaypointLine(ctx, points, alpha) {
-        if (points.length < 2) return;
-        const color = PLAYER_COLORS[this.playerId % PLAYER_COLORS.length];
-        ctx.strokeStyle = hexToRgba(color, alpha * 0.5);
-        ctx.lineWidth = 3 * this.camera.zoom;
-        ctx.setLineDash([8 * this.camera.zoom, 6 * this.camera.zoom]);
-        ctx.beginPath();
-        const start = points[0];
-        ctx.moveTo((start.x - this.camera.x) * this.camera.zoom, (start.y - this.camera.y) * this.camera.zoom);
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo((points[i].x - this.camera.x) * this.camera.zoom, (points[i].y - this.camera.y) * this.camera.zoom);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
     }
 
     drawGrid(ctx, w, h) {
@@ -504,76 +444,38 @@ class MultiplayerClient {
         const sx = (node.x - this.camera.x) * this.camera.zoom, sy = (node.y - this.camera.y) * this.camera.zoom;
         const sr = node.radius * this.camera.zoom, sir = (node.influenceRadius || node.radius * 3) * this.camera.zoom;
         const color = node.owner === -1 ? '#757575' : PLAYER_COLORS[node.owner % PLAYER_COLORS.length];
-        
         ctx.beginPath(); ctx.arc(sx, sy, sir, 0, Math.PI * 2); ctx.fillStyle = hexToRgba(color, 0.05); ctx.fill();
         ctx.setLineDash([5, 5]); ctx.strokeStyle = hexToRgba(color, 0.1); ctx.stroke(); ctx.setLineDash([]);
-        
         if (node.rallyPoint && node.owner === this.playerId) {
             const rx = (node.rallyPoint.x - this.camera.x) * this.camera.zoom, ry = (node.rallyPoint.y - this.camera.y) * this.camera.zoom;
-            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry);
-            ctx.strokeStyle = hexToRgba(color, 0.3); ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(rx, ry); ctx.strokeStyle = hexToRgba(color, 0.3); ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
         }
-
-        if (node.hitFlash > 0) {
-            ctx.beginPath(); ctx.arc(sx, sy, sr + 5*this.camera.zoom, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(255, 100, 100, ${node.hitFlash})`; ctx.lineWidth = 4*this.camera.zoom; ctx.stroke();
-        }
-
-        if (node.spawnEffect > 0) {
-            ctx.beginPath(); ctx.arc(sx, sy, sr * (1 + (0.5 - node.spawnEffect)*2), 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${node.spawnEffect})`; ctx.lineWidth = 2*this.camera.zoom; ctx.stroke();
-        }
-
+        if (node.hitFlash > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr + 5*this.camera.zoom, 0, Math.PI * 2); ctx.strokeStyle = `rgba(255, 100, 100, ${node.hitFlash})`; ctx.lineWidth = 4*this.camera.zoom; ctx.stroke(); }
+        if (node.spawnEffect > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr * (1 + (0.5 - node.spawnEffect)*2), 0, Math.PI * 2); ctx.strokeStyle = `rgba(255, 255, 255, ${node.spawnEffect})`; ctx.lineWidth = 2*this.camera.zoom; ctx.stroke(); }
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = '#1e1e1e'; ctx.fill();
-        
         const maxHp = node.maxHp || (node.type === 'small' ? 12 : node.type === 'large' ? 35 : 22);
-        const totalFill = node.baseHp + Math.floor((node.stock || 0) * 0.5);
-        const fillPercent = Math.min(1, totalFill / maxHp);
-        if (fillPercent > 0) {
-            const fillRadius = sr * fillPercent;
-            ctx.beginPath(); ctx.arc(sx, sy, fillRadius, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
-        }
-        
-        if (node.owner !== -1 && node.spawnProgress > 0) {
-            ctx.beginPath(); ctx.arc(sx, sy, sr + 3*this.camera.zoom, -Math.PI/2, -Math.PI/2 + node.spawnProgress * Math.PI*2);
-            ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2*this.camera.zoom; ctx.stroke();
-        }
-
+        const fillPercent = Math.min(1, (node.baseHp + Math.floor((node.stock || 0) * 0.5)) / maxHp);
+        if (fillPercent > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr * fillPercent, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); }
+        if (node.owner !== -1 && node.spawnProgress > 0) { ctx.beginPath(); ctx.arc(sx, sy, sr + 3*this.camera.zoom, -Math.PI/2, -Math.PI/2 + node.spawnProgress * Math.PI*2); ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2*this.camera.zoom; ctx.stroke(); }
         const isSelected = this.selectedNodes.includes(node.id);
-        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2);
-        ctx.strokeStyle = isSelected ? 'white' : hexToRgba(color, 0.5);
-        ctx.lineWidth = isSelected ? 3 : 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.strokeStyle = isSelected ? 'white' : hexToRgba(color, 0.5); ctx.lineWidth = isSelected ? 3 : 2; ctx.stroke();
     }
 
     drawEntity(ctx, entity, dt) {
         if (entity.dying && entity.deathTime > 0.4) return;
         const sx = (entity.x - this.camera.x) * this.camera.zoom, sy = (entity.y - this.camera.y) * this.camera.zoom;
-        const sr = entity.radius * this.camera.zoom;
-        const color = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
-        
+        const sr = entity.radius * this.camera.zoom, color = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
         if (entity.dying) {
-            const p = entity.deathTime / 0.4;
-            ctx.globalAlpha = 1 - p;
-            ctx.beginPath(); ctx.arc(sx, sy, sr * (1+p*2), 0, Math.PI * 2);
-            ctx.fillStyle = entity.deathType === 'attack' ? '#f00' : color; ctx.fill();
-            ctx.globalAlpha = 1.0;
-            return;
+            const p = entity.deathTime / 0.4; ctx.globalAlpha = 1 - p; ctx.beginPath(); ctx.arc(sx, sy, sr * (1+p*2), 0, Math.PI * 2);
+            ctx.fillStyle = entity.deathType === 'attack' ? '#f00' : color; ctx.fill(); ctx.globalAlpha = 1.0; return;
         }
-
         ctx.beginPath(); ctx.arc(sx+1, sy+1, sr, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
-        
         if (Math.abs(entity.vx) > 0.1 || Math.abs(entity.vy) > 0.1) {
-            const angle = Math.atan2(entity.vy, entity.vx);
-            ctx.beginPath(); ctx.moveTo(sx, sy);
-            ctx.lineTo(sx + Math.cos(angle) * sr * 1.5, sy + Math.sin(angle) * sr * 1.5);
-            ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+            const angle = Math.atan2(entity.vy, entity.vx); ctx.beginPath(); ctx.moveTo(sx, sy);
+            ctx.lineTo(sx + Math.cos(angle) * sr * 1.5, sy + Math.sin(angle) * sr * 1.5); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.stroke();
         }
-
-        if (this.selectedEntities.includes(entity.id)) {
-            ctx.beginPath(); ctx.arc(sx, sy, sr + 2, 0, Math.PI * 2);
-            ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke();
-        }
+        if (this.selectedEntities.includes(entity.id)) { ctx.beginPath(); ctx.arc(sx, sy, sr + 2, 0, Math.PI * 2); ctx.strokeStyle = 'white'; ctx.lineWidth = 1; ctx.stroke(); }
     }
 
     drawUI(ctx, w, h) {
@@ -584,16 +486,23 @@ class MultiplayerClient {
         ctx.fillText(`Sala: ${this.roomId ? this.roomId.slice(-6) : '-'}`, 20, 45);
         ctx.fillText(`Unidades: ${this.gameState?.entities?.filter(e => e.owner === this.playerId).length || 0}`, 20, 65);
         ctx.fillText(`Seleccionados: ${this.selectedNodes.length} nodos, ${this.selectedEntities.length} unidades`, 20, 85);
-        
         ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillText('Click Izq: Seleccionar | Click Der: Mover/Atacar', w - 20, h - 40);
+        ctx.fillText('Click Izq Arrastrar: Caja Selección | Click Der: Mover', w - 20, h - 40);
         ctx.fillText('Shift+Click: Multi-select | Ruedita: Zoom', w - 20, h - 20);
-        
         if (this.lastStateTime > 0) {
-            const lag = Date.now() - this.lastStateTime;
-            ctx.textAlign = 'right'; ctx.fillStyle = lag > 500 ? '#f44336' : 'rgba(255, 255, 255, 0.5)';
-            ctx.fillText(`Ping: ${lag}ms`, w - 20, 30);
+            const lag = Date.now() - this.lastStateTime; ctx.textAlign = 'right';
+            ctx.fillStyle = lag > 500 ? '#f44336' : 'rgba(255, 255, 255, 0.5)'; ctx.fillText(`Ping: ${lag}ms`, w - 20, 30);
         }
+    }
+
+    drawWaypointLine(ctx, points, alpha) {
+        if (points.length < 2) return;
+        const color = PLAYER_COLORS[this.playerId % PLAYER_COLORS.length];
+        ctx.strokeStyle = hexToRgba(color, alpha * 0.5); ctx.lineWidth = 3 * this.camera.zoom;
+        ctx.setLineDash([8 * this.camera.zoom, 6 * this.camera.zoom]); ctx.beginPath();
+        ctx.moveTo((points[0].x - this.camera.x) * this.camera.zoom, (points[0].y - this.camera.y) * this.camera.zoom);
+        for (let i = 1; i < points.length; i++) ctx.lineTo((points[i].x - this.camera.x) * this.camera.zoom, (points[i].y - this.camera.y) * this.camera.zoom);
+        ctx.stroke(); ctx.setLineDash([]);
     }
 }
 
@@ -603,51 +512,26 @@ function hexToRgba(hex, alpha) {
 }
 
 let client = null;
-
-function showLobbyScreen() {
-    document.getElementById('menu-screen').style.display = 'none';
-    document.getElementById('lobby-screen').style.display = 'block';
-}
-
-function showGameScreen() {
-    document.getElementById('lobby-screen').style.display = 'none';
-    document.getElementById('game-screen').style.display = 'block';
-    if (client) { client.tryInitCanvas(); client.resize(); }
-}
+function showLobbyScreen() { document.getElementById('menu-screen').style.display = 'none'; document.getElementById('lobby-screen').style.display = 'block'; }
+function showGameScreen() { document.getElementById('lobby-screen').style.display = 'none'; document.getElementById('game-screen').style.display = 'block'; if (client) { client.tryInitCanvas(); client.resize(); } }
 
 document.addEventListener('DOMContentLoaded', () => {
     const multiplayerBtn = document.getElementById('multiplayer-btn');
-    if (multiplayerBtn) {
-        multiplayerBtn.addEventListener('click', () => {
-            if (!client) { client = new MultiplayerClient(); client.connect(); }
-        });
-    }
-
+    if (multiplayerBtn) { multiplayerBtn.onclick = () => { if (!client) { client = new MultiplayerClient(); client.connect(); } }; }
     const createBtn = document.getElementById('create-room-btn');
-    if (createBtn) {
-        createBtn.addEventListener('click', () => {
-            if (!client) return;
-            client.createRoom((response) => {
-                if (response.success) showLobbyScreen();
-            });
-        });
-    }
-
+    if (createBtn) { createBtn.onclick = () => { if (!client) return; client.createRoom((response) => { if (response.success) showLobbyScreen(); }); }; }
     const refreshBtn = document.getElementById('refresh-rooms-btn');
-    if (refreshBtn) refreshBtn.addEventListener('click', () => {
-        if (client) client.socket.emit('getRooms');
-    });
-
+    if (refreshBtn) refreshBtn.onclick = () => { if (client) client.socket.emit('getRooms'); };
     const readyBtn = document.getElementById('ready-btn');
     if (readyBtn) {
         let isReady = false;
-        readyBtn.addEventListener('click', () => {
+        readyBtn.onclick = () => {
             if (client && client.socket) {
                 isReady = !isReady;
                 client.socket.emit('setReady', isReady);
                 readyBtn.style.backgroundColor = isReady ? '#4CAF50' : '';
                 readyBtn.innerText = isReady ? 'ESPERANDO...' : 'LISTO';
             }
-        });
+        };
     }
 });
