@@ -1379,11 +1379,14 @@ class Game {
                 radius: n.radius, influenceRadius: n.influenceRadius,
                 baseHp: n.baseHp, maxHp: n.maxHp, stock: n.stock,
                 maxStock: n.maxStock, spawnProgress: n.spawnProgress || 0,
-                selected: n.selected
+                rallyPoint: n.rallyPoint,
+                hitFlash: n.hitFlash || 0,
+                spawnEffect: n.spawnEffect || 0
             })),
             entities: this.entities.filter(e => !e.dead).map(e => ({
                 id: e.id, x: e.x, y: e.y, owner: e.owner, radius: e.radius,
-                selected: e.selected
+                vx: e.vx, vy: e.vy,
+                dying: e.dying, deathType: e.deathType, deathTime: e.deathTime
             })),
             playerCount: this.playerCount
         };
