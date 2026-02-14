@@ -57,7 +57,7 @@ class GameServer {
             }
             
             io.to(this.roomId).emit('gameState', state);
-            setTimeout(loop, 1000 / 60);
+            setTimeout(loop, 1000 / 30);
         };
         this.gameStarted = true;
         loop();
