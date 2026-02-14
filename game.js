@@ -509,7 +509,7 @@ class Node {
         else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 7; this.maxHp = 65; this.maxStock = 14; }
         this.spawnEffect = 0;
         this.spawnTimer = 0;
-        this.spawnInterval = this.type === 'small' ? 2.5 : this.type === 'large' ? 4.5 : 3.5;
+        this.spawnInterval = this.type === 'small' ? 4.0 : this.type === 'large' ? 7.0 : 5.0;
         this.spawnProgress = 0;
         this.stock = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
