@@ -280,6 +280,21 @@ class MultiplayerClient {
             this.rightMouseDown = false;
             if (this.waypointLinePoints.length > 1) {
                 this.waypointLines.push({ points: [...this.waypointLinePoints], life: 2.0 });
+                
+                // Enviar la ruta completa al servidor
+                let targetNode = null;
+                const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
+                for (const node of this.gameState.nodes) {
+                    const dx = lastPoint.x - node.x, dy = lastPoint.y - node.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < node.radius) { targetNode = node; break; }
+                }
+
+                this.sendAction({ 
+                    type: 'command', 
+                    target: lastPoint,
+                    waypoints: [...this.waypointLinePoints],
+                    targetNodeId: targetNode ? targetNode.id : null 
+                });
             }
             this.waypointLinePoints = [];
         }

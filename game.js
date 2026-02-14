@@ -922,7 +922,7 @@ class Game {
         this.init();
     }
 
-    init() {
+    init(humanPlayerIds = [0]) {
         this.nodes = [];
         this.entities = [];
         this.selectedEntities = [];
@@ -949,17 +949,18 @@ class Game {
             this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
         }
 
-        this.ai = null; // Removed single AI
         this.ais = [];
         this.particles = [];
-        this.playerCount = 4; // 4 Players (1 Human + 3 AI)
+        this.playerCount = 4; 
 
         this.createLevel();
         this.createInitialEntities();
 
-        // Init AIs for players 1, 2, 3
-        for (let i = 1; i < this.playerCount; i++) {
-            this.ais.push(new AIController(this, i));
+        // Only create AIs for players that are NOT human
+        for (let i = 0; i < this.playerCount; i++) {
+            if (!humanPlayerIds.includes(i)) {
+                this.ais.push(new AIController(this, i));
+            }
         }
     }
 

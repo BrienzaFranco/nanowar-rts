@@ -34,7 +34,9 @@ class GameServer {
 
     start() {
         this.game = new Game(null);
-        this.game.playerCount = this.playerSockets.length;
+        // Identify which indices are human players
+        const humanIds = this.playerSockets.map((_, idx) => idx);
+        this.game.init(humanIds);
         
         let lastTime = Date.now();
         const loop = () => {
@@ -126,6 +128,7 @@ class GameServer {
                 break;
             case 'command':
                 const target = action.target;
+                const waypoints = action.waypoints; // Support for multiple points
                 const targetNode = action.targetNodeId ? 
                     this.game.nodes.find(n => n.id === action.targetNodeId) : null;
                 
@@ -133,7 +136,13 @@ class GameServer {
                 const selectedEnts = this.game.entities.filter(e => selection.entityIds.includes(e.id));
                 selectedEnts.forEach(ent => {
                     if (ent.owner === playerIdx) {
-                        ent.setTarget(target.x, target.y, targetNode);
+                        if (waypoints && waypoints.length > 0) {
+                            ent.waypoints = [...waypoints];
+                            ent.currentTarget = null;
+                            ent.targetNode = targetNode;
+                        } else {
+                            ent.setTarget(target.x, target.y, targetNode);
+                        }
                     }
                 });
 
@@ -146,7 +155,13 @@ class GameServer {
                                 const dx = ent.x - node.x, dy = ent.y - node.y;
                                 const dist = Math.sqrt(dx*dx + dy*dy);
                                 if (dist <= node.influenceRadius) {
-                                    ent.setTarget(target.x, target.y, targetNode);
+                                    if (waypoints && waypoints.length > 0) {
+                                        ent.waypoints = [...waypoints];
+                                        ent.currentTarget = null;
+                                        ent.targetNode = targetNode;
+                                    } else {
+                                        ent.setTarget(target.x, target.y, targetNode);
+                                    }
                                 }
                             }
                         });
