@@ -274,10 +274,15 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="multiplayer.js"></script>
     <script>
-        function showMultiplayer() {
+        function startMultiplayer() {
             document.querySelector('.mode-selection').style.display = 'none';
             document.querySelector('.rooms-section').style.display = 'block';
             document.querySelector('.menu-buttons').style.display = 'block';
+            
+            // Iniciar conexión
+            if (window.initMultiplayer) {
+                window.initMultiplayer();
+            }
         }
         
         document.addEventListener('DOMContentLoaded', function() {
