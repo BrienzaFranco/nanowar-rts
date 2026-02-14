@@ -522,6 +522,7 @@ class Node {
         this.defenderCounts = {};
         this.defendingEntities = [];
         this.areaDefenders = [];
+        this.enemyAreaDefenders = [];
         for (let e of entities) {
             if (e.dead || e.dying) continue;
             const dx = e.x - this.x, dy = e.y - this.y;
@@ -531,6 +532,8 @@ class Node {
                 this.defenderCounts[e.owner] = (this.defenderCounts[e.owner] || 0) + 1;
                 if (e.owner === this.owner) {
                     this.areaDefenders.push(e);
+                } else if (this.owner !== -1) {
+                    this.enemyAreaDefenders.push(e);
                 }
             }
             // Dentro del nodo para stock
@@ -552,7 +555,7 @@ class Node {
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
         if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
 
-        // Consumir defensores del área primero (influencia)
+        // Consumir defenders propios del área primero cuando ataca el enemigo
         let remainingDefenders = [...this.areaDefenders];
         while (damage > 0 && remainingDefenders.length > 0) {
             const defender = remainingDefenders.pop();
@@ -587,7 +590,7 @@ class Node {
                 if (e.dead || e.dying || e.owner !== this.owner) continue;
                 const dx = e.x - this.x, dy = e.y - this.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist <= this.radius * 0.8) {
+                if (dist <= this.radius + e.radius + 10) {
                     toAbsorb.push(e);
                 }
             }
