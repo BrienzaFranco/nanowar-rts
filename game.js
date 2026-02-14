@@ -600,6 +600,7 @@ class Node {
                 this.baseHp = this.type === 'small' ? 4 : this.type === 'large' ? 12 : 7;
                 this.stock = 3; // Un poco de stock inicial al capturar
                 this.hasSpawnedThisCycle = false;
+                this.rallyPoint = null; // Reset rally point on capture
                 if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
                 return true;
             }
@@ -613,6 +614,7 @@ class Node {
             this.baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
             this.stock = 3;
             this.hasSpawnedThisCycle = false;
+            this.rallyPoint = null; // Reset rally point on capture
             if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
             return true;
         }
