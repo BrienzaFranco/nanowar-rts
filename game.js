@@ -336,11 +336,38 @@ class Entity {
             const dy = node.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < node.radius + this.radius) {
+            if (dist < node.radius + node.radius + 10) {
                 // Update defenders before attacking
                 if (game && game.entities) {
                     node.calculateDefenders(game.entities);
                 }
+                
+                if (node.owner === this.owner) {
+                    // Absorber troupe propia para stock
+                    if (node.stock < node.maxStock && !this.dying) {
+                        node.stock++;
+                        this.die('absorbed', node, game);
+                        return;
+                    }
+                    // Si stock lleno, simplemente quedarse quieto
+                    if (this.targetNode === node) {
+                        this.stop();
+                        this.targetNode = null;
+                    }
+                    return;
+                } else {
+                    // Atacar nodo
+                    if (!this.dying) {
+                        // Calcular damage: 1 por troupe + bonus por defenders
+                        const nodeDefenders = (node.allAreaDefenders || []).filter(e => e.owner === node.owner).length;
+                        const damage = 1 + Math.floor(nodeDefenders * 0.3);
+                        
+                        const captured = node.receiveAttack(this.owner, damage, game);
+                        this.die('attack', node, game);
+                    }
+                    return;
+                }
+            }
                 
                 if (node.owner === this.owner) {
                     // Absorber troupe propia para stock
