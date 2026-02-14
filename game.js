@@ -504,13 +504,14 @@ class Entity {
 class Node {
     constructor(id, x, y, ownerId, type = 'medium') {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
-        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 8; this.maxHp = 60; }
-        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 15; this.maxHp = 150; }
-        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 10; this.maxHp = 100; }
+        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 8; this.maxHp = 60; this.maxStock = 20; }
+        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 15; this.maxHp = 150; this.maxStock = 50; }
+        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 10; this.maxHp = 100; this.maxStock = 35; }
         this.spawnEffect = 0;
         this.spawnTimer = 0;
         this.spawnInterval = this.type === 'small' ? 3.5 : this.type === 'large' ? 6.0 : 4.5;
         this.spawnProgress = 0;
+        this.stock = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
     }
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
@@ -533,7 +534,10 @@ class Node {
             }
         }
     }
-    getTotalHp() { return Math.min(this.maxHp, this.baseHp + this.defendersInside); }
+    getTotalHp() { 
+        const stockBonus = Math.floor(this.stock * 0.5);
+        return Math.min(this.maxHp, this.baseHp + this.defendersInside + stockBonus);
+    }
     receiveAttack(attackerId, damage, game) {
         this.hitFlash = 0.3;
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
@@ -554,6 +558,7 @@ class Node {
             if (this.baseHp <= 0) {
                 this.owner = attackerId;
                 this.baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
+                this.stock = 0;
                 this.hasSpawnedThisCycle = false;
                 if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
                 return true;
@@ -566,15 +571,17 @@ class Node {
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
         
-        // Absorber troupes propias que estén dentro del nodo
-        if (this.owner !== -1 && game) {
+        // Absorber troupes propias que estén dentro del nodo (solo si hay espacio en stock)
+        if (this.owner !== -1 && game && this.stock < this.maxStock) {
             for (let e of entities) {
                 if (e.dead || e.dying || e.owner !== this.owner) continue;
                 const dx = e.x - this.x, dy = e.y - this.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist < this.radius * 0.7) {
                     e.die('absorbed', null, game);
-                    game.spawnParticles(e.x, e.y, this.getColor(), 4, 'explosion');
+                    this.stock++;
+                    game.spawnParticles(e.x, e.y, this.getColor(), 6, 'explosion');
+                    if (this.stock >= this.maxStock) break;
                 }
             }
         }
@@ -583,7 +590,8 @@ class Node {
             this.spawnTimer += dt;
             const baseDefenders = 1;
             const defenderBonus = Math.min(this.defendersInside, 10);
-            const effectiveDefenders = baseDefenders + defenderBonus;
+            const stockBonus = Math.floor(this.stock * 0.3);
+            const effectiveDefenders = baseDefenders + defenderBonus + stockBonus;
             const spawnThreshold = this.spawnInterval / effectiveDefenders;
             
             if (this.spawnTimer >= spawnThreshold) {
@@ -646,17 +654,19 @@ class Node {
             ctx.beginPath(); ctx.arc(rx, ry, 5 * camera.zoom, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.6)`; ctx.fill();
         }
         const baseColor = this.getColor();
-        const maxCapacity = this.type === 'small' ? 5 : this.type === 'large' ? 12 : 8;
+        const maxCapacity = this.maxStock;
         let brightness = 1;
-        if (this.owner !== -1 && this.defendersInside > 0) {
-            brightness = 1 + Math.min(this.defendersInside * 0.12, 0.7);
+        if (this.owner !== -1) {
+            const totalFill = this.defendersInside + this.stock;
+            brightness = 1 + Math.min(totalFill * 0.08, 0.8);
         }
         const r = parseInt(baseColor.slice(1, 3), 16);
         const g = parseInt(baseColor.slice(3, 5), 16);
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
-        const fillPercent = Math.min(1, this.defendersInside / maxCapacity);
+        const totalFill = this.defendersInside + this.stock;
+        const fillPercent = Math.min(1, totalFill / maxCapacity);
         
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
         ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
