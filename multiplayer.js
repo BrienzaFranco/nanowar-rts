@@ -461,7 +461,6 @@ class MultiplayerClient {
 
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); ctx.fillStyle = '#1e1e1e'; ctx.fill();
         
-        const maxHp = node.maxHp || 40;
         const maxHp = node.maxHp || (node.type === 'small' ? 12 : node.type === 'large' ? 35 : 22);
         const totalFill = node.baseHp + Math.floor((node.stock || 0) * 0.5);
         const fillPercent = Math.min(1, totalFill / maxHp);
