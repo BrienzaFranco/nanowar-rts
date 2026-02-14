@@ -2,8 +2,6 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
-const fs = require('fs');
-const vm = require('vm');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,38 +14,10 @@ const io = socketIo(server, {
 
 app.use(express.static(path.join(__dirname)));
 
-// Load game.js in server context
-const gameCode = fs.readFileSync(path.join(__dirname, 'game.js'), 'utf8');
-const gameCodeServer = gameCode
-    .replace('window.onload = () => {', 'if (false) { //')
-    .replace('game.start();', '// game.start()')
-    .replace('};', '}');  // Close the if
-
-const sandbox = { 
-    console: console, 
-    setTimeout: setTimeout, 
-    clearTimeout: clearTimeout,
-    Math: Math,
-    Date: Date,
-    performance: { now: () => Date.now() },
-    requestAnimationFrame: (fn) => setTimeout(fn, 16),
-    document: { 
-        getElementById: () => null, 
-        addEventListener: () => {},
-        body: {}
-    },
-    window: {},
-    Object: Object,
-    Array: Array,
-    parseInt: parseInt,
-    parseFloat: parseFloat,
-    isNaN: isNaN,
-    JSON: JSON
-};
-vm.createContext(sandbox);
-vm.runInContext(gameCodeServer, sandbox);
-
-const Game = sandbox.Game;
+// Cargar clases del juego dinámicamente
+const gameClasses = require('./game.js');
+const Game = gameClasses.Game;
+const PLAYER_COLORS = gameClasses.PLAYER_COLORS;
 
 const rooms = new Map();
 
@@ -61,13 +31,17 @@ class GameServer {
     start() {
         this.game = new Game(null);
         this.game.playerCount = Math.max(2, this.playerSockets.length);
-        this.game.serverStart((state) => {
-            this.broadcast(state);
-        });
-    }
-
-    broadcast(state) {
-        io.to(this.roomId).emit('gameState', state);
+        
+        let lastTime = Date.now();
+        const loop = () => {
+            const now = Date.now();
+            const dt = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
+            this.game.update(dt);
+            io.to(this.roomId).emit('gameState', this.game.getState());
+            setTimeout(loop, 1000 / 60);
+        };
+        loop();
     }
 
     addPlayer(socket) {
