@@ -870,15 +870,20 @@ class AIController {
 }
 
 class Game {
-    constructor(canvasId) {
-        this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
+    constructor(canvasId = null) {
+        if (canvasId) {
+            this.canvas = document.getElementById(canvasId);
+            this.ctx = this.canvas.getContext('2d');
+            this.resize();
+            this.camera = new Camera();
+            this.setupEvents();
+        } else {
+            this.canvas = null;
+            this.ctx = null;
+            this.camera = null;
+        }
 
-        this.resize();
-        this.camera = new Camera();
         this.globalSpawnTimer = new GlobalSpawnTimer(2.5);
-
-        this.setupEvents();
         this.init();
     }
 
@@ -1005,6 +1010,7 @@ class Game {
     }
 
     setupEvents() {
+        if (!this.canvas) return;
         this.canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); return false; });
         this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
@@ -1303,6 +1309,7 @@ class Game {
     }
 
     start() {
+        if (!this.canvas) return;
         let lastTime = performance.now();
         const loop = (now) => {
             const dt = Math.min((now - lastTime) / 1000, 0.05);
@@ -1312,6 +1319,35 @@ class Game {
             requestAnimationFrame(loop);
         };
         requestAnimationFrame(loop);
+    }
+
+    serverStart(onStateUpdate) {
+        let lastTime = Date.now();
+        const loop = () => {
+            const now = Date.now();
+            const dt = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
+            this.update(dt);
+            if (onStateUpdate) onStateUpdate(this.getState());
+            setTimeout(loop, 1000 / 60);
+        };
+        loop();
+    }
+
+    getState() {
+        return {
+            nodes: this.nodes.map(n => ({
+                id: n.id, x: n.x, y: n.y, owner: n.owner, type: n.type,
+                radius: n.radius, baseHp: n.baseHp, stock: n.stock,
+                maxStock: n.maxStock, spawnProgress: n.spawnProgress || 0,
+                selected: n.selected
+            })),
+            entities: this.entities.filter(e => !e.dead).map(e => ({
+                id: e.id, x: e.x, y: e.y, owner: e.owner, radius: e.radius,
+                selected: e.selected
+            })),
+            playerCount: this.playerCount
+        };
     }
 
     reset() {
