@@ -1366,7 +1366,9 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { Game, PLAYER_COLORS };
 }
 
-window.onload = () => {
-    const game = new Game('game-canvas');
-    game.start();
-};
+if (typeof window !== 'undefined') {
+    window.onload = () => {
+        const game = new Game('game-canvas');
+        game.start();
+    };
+}
