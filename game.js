@@ -510,12 +510,12 @@ class Node {
     constructor(id, x, y, ownerId, type = 'medium') {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
         // Más variación: small más pequeño, large más grande
-        if (type === 'small') { this.radius = 18 + Math.random() * 10; this.influenceRadius = this.radius * 4; this.baseHp = 4; this.maxHp = 25; this.maxStock = Math.floor(this.radius * 0.5); }
-        else if (type === 'large') { this.radius = 55 + Math.random() * 15; this.influenceRadius = this.radius * 3; this.baseHp = 12; this.maxHp = 80; this.maxStock = Math.floor(this.radius * 0.6); }
-        else { this.radius = 32 + Math.random() * 12; this.influenceRadius = this.radius * 3.5; this.baseHp = 7; this.maxHp = 50; this.maxStock = Math.floor(this.radius * 0.5); }
+        if (type === 'small') { this.radius = 18 + Math.random() * 10; this.influenceRadius = this.radius * 4; this.baseHp = 4; this.maxHp = 20; this.maxStock = Math.floor(this.radius * 0.5); }
+        else if (type === 'large') { this.radius = 55 + Math.random() * 15; this.influenceRadius = this.radius * 3; this.baseHp = 12; this.maxHp = 60; this.maxStock = Math.floor(this.radius * 0.6); }
+        else { this.radius = 32 + Math.random() * 12; this.influenceRadius = this.radius * 3.5; this.baseHp = 7; this.maxHp = 40; this.maxStock = Math.floor(this.radius * 0.5); }
         this.spawnEffect = 0;
         this.spawnTimer = 0;
-        this.spawnInterval = 4.0 + (this.radius / 20); // Más grande = más lento
+        this.spawnInterval = 5.0 + (this.radius / 15); // Más grande = más lento
         this.spawnProgress = 0;
         this.stock = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
