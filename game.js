@@ -141,6 +141,7 @@ class Entity {
 
         this.hp = 1;
         this.damage = 1;
+        this.attackCooldown = 0;
         this.selected = false;
         this.dead = false;
         this.dying = false;
@@ -180,6 +181,9 @@ class Entity {
             }
             return;
         }
+
+        // Reducir cooldown de ataque
+        if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         this.processWaypoints();
         this.handleCollisionsAndCohesion(entities, nodes);
@@ -357,14 +361,15 @@ class Entity {
                     }
                     return;
                 } else {
-                    // Atacar nodo pero NO morir - ataques continuos
-                    if (!this.dying) {
+                    // Atacar nodo pero NO morir - ataques continuos con cooldown
+                    if (!this.dying && this.attackCooldown <= 0) {
                         // Calcular damage: 1 por troupe + bonus por defenders
                         const nodeDefenders = (node.allAreaDefenders || []).filter(e => e.owner === node.owner).length;
                         const damage = 1 + Math.floor(nodeDefenders * 0.3);
                         
                         node.receiveAttack(this.owner, damage, game);
-                        // No muere, sigue atacando
+                        this.attackCooldown = 0.5; // 0.5 segundos entre ataques
+                        
                         // Empujar un poco para no重叠
                         const nx = dx / dist;
                         const ny = dy / dist;

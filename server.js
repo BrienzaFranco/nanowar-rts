@@ -22,18 +22,22 @@ const PLAYER_COLORS = gameClasses.PLAYER_COLORS;
 const rooms = new Map();
 
 class GameServer {
-    constructor(roomId) {
+    constructor(roomId, maxPlayers = 4) {
         this.roomId = roomId;
+        this.maxPlayers = maxPlayers;
         this.game = null;
         this.playerSockets = [];
+        this.playerReady = {};
+        this.gameStarted = false;
     }
 
     start() {
         this.game = new Game(null);
-        this.game.playerCount = Math.max(2, this.playerSockets.length);
+        this.game.playerCount = this.playerSockets.length;
         
         let lastTime = Date.now();
         const loop = () => {
+            if (!this.gameStarted) return;
             const now = Date.now();
             const dt = Math.min((now - lastTime) / 1000, 0.05);
             lastTime = now;
@@ -41,19 +45,43 @@ class GameServer {
             io.to(this.roomId).emit('gameState', this.game.getState());
             setTimeout(loop, 1000 / 60);
         };
+        this.gameStarted = true;
         loop();
     }
 
     addPlayer(socket) {
         const playerId = this.playerSockets.length;
+        if (playerId >= this.maxPlayers) return -1;
+        
         this.playerSockets.push(socket.id);
+        this.playerReady[socket.id] = false;
         socket.join(this.roomId);
         
-        if (!this.game) {
-            this.start();
-        }
+        // Notificar a todos
+        io.to(this.roomId).emit('playerJoined', {
+            playerId: playerId,
+            players: this.playerSockets.map((id, idx) => ({ id: idx, ready: this.playerReady[id] }))
+        });
 
         return playerId;
+    }
+
+    setReady(socketId, ready) {
+        this.playerReady[socketId] = ready;
+        
+        // Check if all ready
+        const allReady = this.playerSockets.length >= 2 && this.playerSockets.every(id => this.playerReady[id]);
+        
+        io.to(this.roomId).emit('playerReady', {
+            socketId: socketId,
+            ready: ready,
+            allReady: allReady
+        });
+        
+        if (allReady && !this.gameStarted) {
+            this.start();
+            io.to(this.roomId).emit('gameStart');
+        }
     }
 
     removePlayer(socketId) {
@@ -151,10 +179,26 @@ io.on('connection', (socket) => {
         }
 
         const playerId = gameServer.addPlayer(socket);
+        if (playerId === -1) {
+            callback({ success: false, error: 'Room full' });
+            return;
+        }
+        
         socket.roomId = roomId;
         socket.playerId = playerId;
 
-        callback({ success: true, playerId });
+        callback({ 
+            success: true, 
+            playerId: playerId,
+            players: gameServer.playerSockets.map((id, idx) => ({ id: idx, ready: gameServer.playerReady[id] }))
+        });
+    });
+
+    socket.on('setReady', (ready) => {
+        const gameServer = rooms.get(socket.roomId);
+        if (gameServer) {
+            gameServer.setReady(socket.id, ready);
+        }
     });
 
     socket.on('gameAction', (action) => {

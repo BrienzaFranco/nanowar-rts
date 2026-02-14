@@ -205,8 +205,18 @@ class MultiplayerClient {
 
     onWheel(e) {
         e.preventDefault();
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        const worldBefore = this.screenToWorld(mouseX, mouseY);
+        
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
         this.camera.zoom = Math.max(0.2, Math.min(3, this.camera.zoom * zoomFactor));
+        
+        const worldAfter = this.screenToWorld(mouseX, mouseY);
+        this.camera.x += worldBefore.x - worldAfter.x;
+        this.camera.y += worldBefore.y - worldAfter.y;
     }
 
     render() {
