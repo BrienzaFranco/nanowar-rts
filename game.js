@@ -336,7 +336,8 @@ class Entity {
             const dy = node.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < node.radius + node.radius + 10) {
+            // Only trigger when ENTERING the node (not area)
+            if (dist < node.radius + this.radius) {
                 // Update defenders before attacking
                 if (game && game.entities) {
                     node.calculateDefenders(game.entities);
@@ -362,7 +363,7 @@ class Entity {
                         const nodeDefenders = (node.allAreaDefenders || []).filter(e => e.owner === node.owner).length;
                         const damage = 1 + Math.floor(nodeDefenders * 0.3);
                         
-                        const captured = node.receiveAttack(this.owner, damage, game);
+                        node.receiveAttack(this.owner, damage, game);
                         this.die('attack', node, game);
                     }
                     return;
