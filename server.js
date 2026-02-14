@@ -72,12 +72,6 @@ class GameServer {
         this.playerSelections[socket.id] = { nodeIds: [], entityIds: [] };
         socket.join(this.roomId);
         
-        // Auto-start when 2+ players
-        if (this.playerSockets.length >= 2 && !this.gameStarted) {
-            this.start();
-            io.to(this.roomId).emit('gameStart');
-        }
-        
         // Notificar a todos
         io.to(this.roomId).emit('playerJoined', {
             playerId: playerId,

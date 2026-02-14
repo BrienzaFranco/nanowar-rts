@@ -14,6 +14,9 @@ class MultiplayerClient {
         this.waypointLines = []; 
         this.waypointLinePoints = [];
         this.rightMouseDown = false;
+        this.mouseDownPos = { x: 0, y: 0 };
+        this.mousePos = { x: 0, y: 0 };
+        this.isDragging = false;
         this.running = false;
         this.connected = false;
         this.lastStateTime = 0;
@@ -216,56 +219,12 @@ class MultiplayerClient {
         if (!this.gameState) return;
         const rect = this.canvas.getBoundingClientRect();
         const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        this.mouseDownPos = { ...pos };
+        this.mousePos = { ...pos };
         const world = this.screenToWorld(pos.x, pos.y);
 
         if (e.button === 0) {
-            let clickedNode = null;
-            let clickedEntity = null;
-
-            for (const node of this.gameState.nodes) {
-                const dx = world.x - node.x, dy = world.y - node.y;
-                if (Math.sqrt(dx*dx + dy*dy) < node.radius) { clickedNode = node; break; }
-            }
-
-            if (clickedNode) {
-                if (e.shiftKey) {
-                    const idx = this.selectedNodes.indexOf(clickedNode.id);
-                    if (idx === -1) this.selectedNodes.push(clickedNode.id);
-                    else this.selectedNodes.splice(idx, 1);
-                } else {
-                    this.selectedNodes = [clickedNode.id];
-                }
-                if (clickedNode.owner === this.playerId) {
-                    const nodeUnits = this.gameState.entities.filter(ent => {
-                        if (ent.owner !== this.playerId) return false;
-                        const dx = ent.x - clickedNode.x, dy = ent.y - clickedNode.y;
-                        const sir = clickedNode.influenceRadius || clickedNode.radius * 3;
-                        return Math.sqrt(dx*dx + dy*dy) < sir;
-                    });
-                    this.selectedEntities = nodeUnits.map(ent => ent.id);
-                } else {
-                    this.selectedEntities = [];
-                }
-            } else {
-                for (const entity of this.gameState.entities) {
-                    const dx = world.x - entity.x, dy = world.y - entity.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < entity.radius + 5) { clickedEntity = entity; break; }
-                }
-                if (clickedEntity && clickedEntity.owner === this.playerId) {
-                    if (e.shiftKey) {
-                        const idx = this.selectedEntities.indexOf(clickedEntity.id);
-                        if (idx === -1) this.selectedEntities.push(clickedEntity.id);
-                        else this.selectedEntities.splice(idx, 1);
-                    } else {
-                        this.selectedEntities = [clickedEntity.id];
-                    }
-                    this.selectedNodes = [];
-                } else {
-                    this.selectedNodes = [];
-                    this.selectedEntities = [];
-                }
-            }
-            this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
+            this.isDragging = true;
         } else if (e.button === 2) {
             this.rightMouseDown = true;
             this.waypointLinePoints = [{ x: world.x, y: world.y }];
@@ -284,14 +243,16 @@ class MultiplayerClient {
 
     onCanvasMouseMove(e) {
         if (!this.canvas) return;
+        const rect = this.canvas.getBoundingClientRect();
+        this.mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
         if (e.buttons === 4 || (e.buttons === 1 && e.shiftKey)) {
             this.camera.x -= e.movementX / this.camera.zoom;
             this.camera.y -= e.movementY / this.camera.zoom;
         }
 
         if (this.rightMouseDown && (this.selectedEntities.length > 0 || this.selectedNodes.length > 0)) {
-            const rect = this.canvas.getBoundingClientRect();
-            const worldPos = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+            const worldPos = this.screenToWorld(this.mousePos.x, this.mousePos.y);
             const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
             const dx = worldPos.x - lastPoint.x, dy = worldPos.y - lastPoint.y;
 
@@ -302,7 +263,20 @@ class MultiplayerClient {
     }
 
     onCanvasMouseUp(e) {
-        if (e.button === 2) {
+        if (e.button === 0) {
+            this.isDragging = false;
+            const dx = Math.abs(this.mousePos.x - this.mouseDownPos.x);
+            const dy = Math.abs(this.mousePos.y - this.mouseDownPos.y);
+
+            if (dx < 5 && dy < 5) {
+                // Click simple
+                const world = this.screenToWorld(this.mouseDownPos.x, this.mouseDownPos.y);
+                this.handleSimpleSelection(world, e.shiftKey);
+            } else {
+                // Selección por caja
+                this.handleBoxSelection(e.shiftKey);
+            }
+        } else if (e.button === 2) {
             this.rightMouseDown = false;
             if (this.waypointLinePoints.length > 1) {
                 this.waypointLines.push({ points: [...this.waypointLinePoints], life: 2.0 });
@@ -320,9 +294,85 @@ class MultiplayerClient {
                     waypoints: [...this.waypointLinePoints],
                     targetNodeId: targetNode ? targetNode.id : null 
                 });
+            } else {
+                // Click derecho simple (ya enviado en mouseDown, pero por si acaso o para indicadores)
             }
             this.waypointLinePoints = [];
         }
+    }
+
+    handleSimpleSelection(world, isShift) {
+        let clickedNode = null;
+        let clickedEntity = null;
+
+        for (const node of this.gameState.nodes) {
+            const dx = world.x - node.x, dy = world.y - node.y;
+            if (Math.sqrt(dx*dx + dy*dy) < node.radius) { clickedNode = node; break; }
+        }
+
+        if (clickedNode) {
+            if (isShift) {
+                const idx = this.selectedNodes.indexOf(clickedNode.id);
+                if (idx === -1) this.selectedNodes.push(clickedNode.id);
+                else this.selectedNodes.splice(idx, 1);
+            } else {
+                this.selectedNodes = [clickedNode.id];
+            }
+            if (clickedNode.owner === this.playerId) {
+                const nodeUnits = this.gameState.entities.filter(ent => {
+                    if (ent.owner !== this.playerId) return false;
+                    const dx = ent.x - clickedNode.x, dy = ent.y - clickedNode.y;
+                    const sir = clickedNode.influenceRadius || clickedNode.radius * 3;
+                    return Math.sqrt(dx*dx + dy*dy) < sir;
+                });
+                this.selectedEntities = nodeUnits.map(ent => ent.id);
+            } else {
+                this.selectedEntities = [];
+            }
+        } else {
+            for (const entity of this.gameState.entities) {
+                const dx = world.x - entity.x, dy = world.y - entity.y;
+                if (Math.sqrt(dx*dx + dy*dy) < entity.radius + 5) { clickedEntity = entity; break; }
+            }
+            if (clickedEntity && clickedEntity.owner === this.playerId) {
+                if (isShift) {
+                    const idx = this.selectedEntities.indexOf(clickedEntity.id);
+                    if (idx === -1) this.selectedEntities.push(clickedEntity.id);
+                    else this.selectedEntities.splice(idx, 1);
+                } else {
+                    this.selectedEntities = [clickedEntity.id];
+                }
+                this.selectedNodes = [];
+            } else {
+                if (!isShift) {
+                    this.selectedNodes = [];
+                    this.selectedEntities = [];
+                }
+            }
+        }
+        this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
+    }
+
+    handleBoxSelection(isShift) {
+        const p1 = this.screenToWorld(this.mouseDownPos.x, this.mouseDownPos.y);
+        const p2 = this.screenToWorld(this.mousePos.x, this.mousePos.y);
+        const xMin = Math.min(p1.x, p2.x), xMax = Math.max(p1.x, p2.x);
+        const yMin = Math.min(p1.y, p2.y), yMax = Math.max(p1.y, p2.y);
+
+        const newlySelectedEntities = this.gameState.entities
+            .filter(ent => ent.owner === this.playerId && ent.x >= xMin && ent.x <= xMax && ent.y >= yMin && ent.y <= yMax)
+            .map(ent => ent.id);
+
+        if (isShift) {
+            newlySelectedEntities.forEach(id => {
+                if (!this.selectedEntities.includes(id)) this.selectedEntities.push(id);
+            });
+        } else {
+            this.selectedEntities = newlySelectedEntities;
+            this.selectedNodes = [];
+        }
+
+        this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
     }
 
     onCanvasWheel(e) {
@@ -366,6 +416,21 @@ class MultiplayerClient {
             if (this.gameState.nodes) { for (const node of this.gameState.nodes) this.drawNode(ctx, node, dt); }
             if (this.gameState.entities) { for (const entity of this.gameState.entities) this.drawEntity(ctx, entity, dt); }
             
+            // Dibujar caja de selección
+            if (this.isDragging && !this.rightMouseDown) {
+                const x = Math.min(this.mouseDownPos.x, this.mousePos.x);
+                const y = Math.min(this.mouseDownPos.y, this.mousePos.y);
+                const w = Math.abs(this.mousePos.x - this.mouseDownPos.x);
+                const h = Math.abs(this.mousePos.y - this.mouseDownPos.y);
+                if (w > 5 || h > 5) {
+                    ctx.strokeStyle = 'rgba(76, 175, 80, 0.8)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, w, h);
+                    ctx.fillStyle = 'rgba(76, 175, 80, 0.1)';
+                    ctx.fillRect(x, y, w, h);
+                }
+            }
+
             if (this.rightMouseDown && this.waypointLinePoints.length > 1) {
                 this.drawWaypointLine(ctx, this.waypointLinePoints, 1.0);
             }
