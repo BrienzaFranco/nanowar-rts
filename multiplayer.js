@@ -193,7 +193,20 @@ class MultiplayerClient {
                 } else {
                     this.selectedNodes = [clickedNode.id];
                 }
-                this.selectedEntities = [];
+                
+                // Si seleccionamos un nodo propio, seleccionamos automáticamente sus unidades cercanas
+                if (clickedNode.owner === this.playerId) {
+                    const nodeUnits = this.gameState.entities.filter(e => {
+                        if (e.owner !== this.playerId) return false;
+                        const dx = e.x - clickedNode.x;
+                        const dy = e.y - clickedNode.y;
+                        const sir = clickedNode.influenceRadius || clickedNode.radius * 3;
+                        return Math.sqrt(dx*dx + dy*dy) < sir;
+                    });
+                    this.selectedEntities = nodeUnits.map(e => e.id);
+                } else {
+                    this.selectedEntities = [];
+                }
             } else {
                 for (const entity of this.gameState.entities) {
                     const dx = world.x - entity.x;
@@ -404,7 +417,15 @@ class MultiplayerClient {
         
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.fillText(`Sala: ${this.roomId ? this.roomId.slice(-6) : '-'}`, 20, 45);
-        ctx.fillText(`Unidades: ${this.gameState?.entities?.length || 0}`, 20, 65);
+        ctx.fillText(`Unidades: ${this.gameState?.entities?.filter(e => e.owner === this.playerId).length || 0}`, 20, 65);
+        ctx.fillText(`Seleccionados: ${this.selectedNodes.length} nodos, ${this.selectedEntities.length} unidades`, 20, 85);
+        
+        // Controles info
+        ctx.textAlign = 'right';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillText('Click Izq: Seleccionar Nodo/Unidad', w - 20, h - 60);
+        ctx.fillText('Click Der: Mover/Atacar con seleccionados', w - 20, h - 40);
+        ctx.fillText('Shift+Click Izq: Seleccionar varios | Ruedita: Zoom', w - 20, h - 20);
         
         if (this.lastStateTime > 0) {
             const lag = Date.now() - this.lastStateTime;
