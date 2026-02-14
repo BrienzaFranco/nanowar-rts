@@ -29,6 +29,7 @@ class GameServer {
         this.playerSockets = [];
         this.playerReady = {};
         this.gameStarted = false;
+        this.playerSelections = {}; // socketId -> { nodeIds: [], entityIds: [] }
     }
 
     start() {
@@ -55,7 +56,14 @@ class GameServer {
         
         this.playerSockets.push(socket.id);
         this.playerReady[socket.id] = false;
+        this.playerSelections[socket.id] = { nodeIds: [], entityIds: [] };
         socket.join(this.roomId);
+        
+        // Auto-start when 2+ players
+        if (this.playerSockets.length >= 2 && !this.gameStarted) {
+            this.start();
+            io.to(this.roomId).emit('gameStart');
+        }
         
         // Notificar a todos
         io.to(this.roomId).emit('playerJoined', {
@@ -97,28 +105,37 @@ class GameServer {
         const playerIdx = this.playerSockets.indexOf(socketId);
         if (playerIdx === -1) return;
 
+        const selection = this.playerSelections[socketId] || { nodeIds: [], entityIds: [] };
+
         switch (action.type) {
             case 'select':
-                this.game.selectedNodes = this.game.nodes.filter(n => 
-                    action.nodeIds && action.nodeIds.includes(n.id)
-                );
-                this.game.selectedEntities = this.game.entities.filter(e =>
-                    action.entityIds && action.entityIds.includes(e.id)
-                );
+                selection.nodeIds = action.nodeIds || [];
+                selection.entityIds = action.entityIds || [];
+                this.playerSelections[socketId] = selection;
                 break;
             case 'command':
                 const target = action.target;
-                this.game.selectedEntities.forEach(ent => {
-                    ent.setTarget(target.x, target.y);
+                const targetNode = action.targetNodeId ? 
+                    this.game.nodes.find(n => n.id === action.targetNodeId) : null;
+                
+                // Unidades seleccionadas directamente
+                const selectedEnts = this.game.entities.filter(e => selection.entityIds.includes(e.id));
+                selectedEnts.forEach(ent => {
+                    if (ent.owner === playerIdx) {
+                        ent.setTarget(target.x, target.y, targetNode);
+                    }
                 });
-                this.game.selectedNodes.forEach(node => {
+
+                // Unidades en nodos seleccionados
+                const selectedNodes = this.game.nodes.filter(n => selection.nodeIds.includes(n.id));
+                selectedNodes.forEach(node => {
                     if (node.owner === playerIdx) {
                         this.game.entities.forEach(ent => {
                             if (ent.owner === playerIdx) {
                                 const dx = ent.x - node.x, dy = ent.y - node.y;
                                 const dist = Math.sqrt(dx*dx + dy*dy);
                                 if (dist <= node.influenceRadius) {
-                                    ent.setTarget(target.x, target.y);
+                                    ent.setTarget(target.x, target.y, targetNode);
                                 }
                             }
                         });
@@ -126,7 +143,11 @@ class GameServer {
                 });
                 break;
             case 'stop':
-                this.game.selectedEntities.forEach(ent => ent.stop());
+                this.game.entities.forEach(ent => {
+                    if (ent.owner === playerIdx && selection.entityIds.includes(ent.id)) {
+                        ent.stop();
+                    }
+                });
                 break;
         }
     }

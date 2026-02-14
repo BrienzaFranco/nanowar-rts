@@ -340,43 +340,58 @@ class Entity {
             const dy = node.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            // Only trigger when ENTERING the node (not area)
-            if (dist < node.radius + this.radius) {
-                // Update defenders before attacking
+            // Touch range = node radius + cell radius
+            const touchRange = node.radius + this.radius;
+            
+            // Only interact when touching the node
+            if (dist <= touchRange) {
                 if (game && game.entities) {
                     node.calculateDefenders(game.entities);
                 }
                 
-                if (node.owner === this.owner) {
-                    // Absorber troupe propia para stock
+                // NODO PROPIO - agregar al stock
+                if (node.owner === this.owner && node.owner !== -1) {
                     if (node.stock < node.maxStock && !this.dying) {
                         node.stock++;
                         this.die('absorbed', node, game);
                         return;
                     }
-                    // Si stock lleno, simplemente quedarse quieto
                     if (this.targetNode === node) {
                         this.stop();
                         this.targetNode = null;
                     }
                     return;
-                } else {
-                    // Atacar nodo pero NO morir - ataques continuos con cooldown
+                }
+                
+                // NODO NEUTRAL O ENEMIGO
+                if (node.owner !== this.owner) {
                     if (!this.dying && this.attackCooldown <= 0) {
-                        // Calcular damage: 1 por troupe + bonus por defenders
-                        const nodeDefenders = (node.allAreaDefenders || []).filter(e => e.owner === node.owner).length;
-                        const damage = 1 + Math.floor(nodeDefenders * 0.3);
+                        const allDefenders = node.allAreaDefenders || [];
                         
-                        node.receiveAttack(this.owner, damage, game);
-                        this.attackCooldown = 0.5; // 0.5 segundos entre ataques
+                        // 1. Prioridad: Matar defensores del DUEÑO del nodo
+                        const ownerDefenders = allDefenders.filter(e => e.owner === node.owner && !e.dead && !e.dying);
                         
-                        // Empujar un poco para no重叠
-                        const nx = dx / dist;
-                        const ny = dy / dist;
-                        this.x -= nx * 2;
-                        this.y -= ny * 2;
+                        if (ownerDefenders.length > 0) {
+                            const target = ownerDefenders[0];
+                            target.die('sacrifice', null, game);
+                            this.die('attack', node, game); // 1-for-1 consumption
+                            return;
+                        }
+
+                        // 2. Prioridad: Matar defensores de OTROS jugadores (atacantes rivales)
+                        const rivalDefenders = allDefenders.filter(e => e.owner !== this.owner && e.owner !== node.owner && !e.dead && !e.dying);
+                        if (rivalDefenders.length > 0) {
+                            const target = rivalDefenders[0];
+                            target.die('sacrifice', null, game);
+                            this.die('attack', node, game); // 1-for-1 consumption
+                            return;
+                        }
+
+                        // 3. Prioridad: Dañar el nodo si no hay nadie más
+                        node.receiveAttack(this.owner, 1, game);
+                        this.die('attack', node, game);
+                        return;
                     }
-                    return;
                 }
             }
         }
@@ -577,14 +592,13 @@ class Node {
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
         if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
 
-        // Para nodos neutrales (owner = -1), no hay defenders que consumir
-        // Se va directo a dañar el nodo
+        // Nodos neutrales: solo HP, al llegar a 0 se captura
         if (this.owner === -1) {
             this.baseHp -= damage;
             if (this.baseHp <= 0) {
                 this.owner = attackerId;
                 this.baseHp = this.type === 'small' ? 4 : this.type === 'large' ? 12 : 7;
-                this.stock = 0;
+                this.stock = 3; // Un poco de stock inicial al capturar
                 this.hasSpawnedThisCycle = false;
                 if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
                 return true;
@@ -592,34 +606,15 @@ class Node {
             return false;
         }
 
-        // Para nodos con dueño, consumir defenders del área primero
-        let remainingDefenders = [...(this.allAreaDefenders || [])];
-        
-        // Ordenar: primero defenders del DUENIO del nodo
-        remainingDefenders.sort((a, b) => {
-            if (a.owner === this.owner) return -1;
-            if (b.owner === this.owner) return 1;
-            return 0;
-        });
-        
-        while (damage > 0 && remainingDefenders.length > 0) {
-            const defender = remainingDefenders.pop();
-            if (defender && !defender.dead && !defender.dying) {
-                defender.die('sacrifice', null, game);
-                damage--;
-            }
-        }
-
-        if (damage > 0) {
-            this.baseHp -= damage;
-            if (this.baseHp <= 0) {
-                this.owner = attackerId;
-                this.baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
-                this.stock = 0;
-                this.hasSpawnedThisCycle = false;
-                if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
-                return true;
-            }
+        // Nodos con dueño: daño directo al HP (los defenders ya se matan en checkNodeProximity)
+        this.baseHp -= damage;
+        if (this.baseHp <= 0) {
+            this.owner = attackerId;
+            this.baseHp = this.type === 'small' ? 8 : this.type === 'large' ? 15 : 10;
+            this.stock = 3;
+            this.hasSpawnedThisCycle = false;
+            if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
+            return true;
         }
         return false;
     }
@@ -1381,7 +1376,8 @@ class Game {
         return {
             nodes: this.nodes.map(n => ({
                 id: n.id, x: n.x, y: n.y, owner: n.owner, type: n.type,
-                radius: n.radius, baseHp: n.baseHp, stock: n.stock,
+                radius: n.radius, influenceRadius: n.influenceRadius,
+                baseHp: n.baseHp, maxHp: n.maxHp, stock: n.stock,
                 maxStock: n.maxStock, spawnProgress: n.spawnProgress || 0,
                 selected: n.selected
             })),
