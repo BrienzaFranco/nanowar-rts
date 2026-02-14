@@ -204,19 +204,25 @@ class MultiplayerClient {
                     }
                 }
 
-                if (clickedEntity) {
-                    if (e.shiftKey) {
-                        const idx = this.selectedEntities.indexOf(clickedEntity.id);
-                        if (idx === -1) this.selectedEntities.push(clickedEntity.id);
-                        else this.selectedEntities.splice(idx, 1);
-                    } else {
-                        this.selectedEntities = [clickedEntity.id];
-                    }
-                    this.selectedNodes = [];
+            if (clickedEntity) {
+                if (e.shiftKey) {
+                    const idx = this.selectedEntities.indexOf(clickedEntity.id);
+                    if (idx === -1) this.selectedEntities.push(clickedEntity.id);
+                    else this.selectedEntities.splice(idx, 1);
                 } else {
-                    this.selectedNodes = [];
-                    this.selectedEntities = [];
+                    // Only select your own units if clicking directly, or allow any for info?
+                    // For gameplay, usually better to only select yours.
+                    if (clickedEntity.owner === this.playerId) {
+                        this.selectedEntities = [clickedEntity.id];
+                    } else {
+                        this.selectedEntities = [];
+                    }
                 }
+                this.selectedNodes = [];
+            } else {
+                this.selectedNodes = [];
+                this.selectedEntities = [];
+            }
             }
 
             this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
@@ -391,8 +397,14 @@ class MultiplayerClient {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.font = '12px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`Sala: ${this.roomId ? this.roomId.slice(-6) : '-'} | Jugador ${this.playerId ?? '-'}`, 20, 30);
-        ctx.fillText(`Unidades: ${this.gameState?.entities?.length || 0}`, 20, 50);
+        
+        const playerColor = this.playerId !== null ? PLAYER_COLORS[this.playerId % PLAYER_COLORS.length] : '#fff';
+        ctx.fillStyle = playerColor;
+        ctx.fillText(`TÚ: JUGADOR ${this.playerId ?? '-'}`, 20, 25);
+        
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillText(`Sala: ${this.roomId ? this.roomId.slice(-6) : '-'}`, 20, 45);
+        ctx.fillText(`Unidades: ${this.gameState?.entities?.length || 0}`, 20, 65);
         
         if (this.lastStateTime > 0) {
             const lag = Date.now() - this.lastStateTime;
