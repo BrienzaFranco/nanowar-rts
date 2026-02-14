@@ -871,16 +871,15 @@ class AIController {
 
 class Game {
     constructor(canvasId = null) {
+        this.camera = new Camera();
         if (canvasId) {
             this.canvas = document.getElementById(canvasId);
             this.ctx = this.canvas.getContext('2d');
             this.resize();
-            this.camera = new Camera();
             this.setupEvents();
         } else {
             this.canvas = null;
             this.ctx = null;
-            this.camera = null;
         }
 
         this.globalSpawnTimer = new GlobalSpawnTimer(2.5);
@@ -910,7 +909,9 @@ class Game {
 
         this.worldWidth = 2400;
         this.worldHeight = 1800;
-        this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
+        if (this.canvas) {
+            this.camera.zoomToFit(this.worldWidth, this.worldHeight, this.canvas.width, this.canvas.height);
+        }
 
         this.ai = null; // Removed single AI
         this.ais = [];
@@ -1005,6 +1006,7 @@ class Game {
     }
 
     resize() {
+        if (!this.canvas) return;
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
     }
