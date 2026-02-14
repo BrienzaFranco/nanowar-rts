@@ -337,6 +337,11 @@ class Entity {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist < node.radius + this.radius) {
+                // Update defenders before attacking
+                if (game && game.entities) {
+                    node.calculateDefenders(game.entities);
+                }
+                
                 if (node.owner === this.owner) {
                     if (this.targetNode === node) {
                         this.stop();
