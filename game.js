@@ -504,12 +504,12 @@ class Entity {
 class Node {
     constructor(id, x, y, ownerId, type = 'medium') {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
-        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 8; this.maxHp = 60; this.maxStock = 20; }
-        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 15; this.maxHp = 150; this.maxStock = 50; }
-        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 10; this.maxHp = 100; this.maxStock = 35; }
+        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 5; this.maxHp = 40; this.maxStock = 8; }
+        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 10; this.maxHp = 100; this.maxStock = 20; }
+        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 7; this.maxHp = 65; this.maxStock = 14; }
         this.spawnEffect = 0;
         this.spawnTimer = 0;
-        this.spawnInterval = this.type === 'small' ? 3.5 : this.type === 'large' ? 6.0 : 4.5;
+        this.spawnInterval = this.type === 'small' ? 2.5 : this.type === 'large' ? 4.5 : 3.5;
         this.spawnProgress = 0;
         this.stock = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
@@ -641,15 +641,10 @@ class Node {
             areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
             borderColor = areaColor;
         } else {
-            if (dominantOwner === -1 || maxDefenders === 0) {
-                const c = '#757575'.slice(1);
-                areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
-                borderColor = areaColor;
-            } else {
-                const c = PLAYER_COLORS[dominantOwner % PLAYER_COLORS.length].slice(1);
-                areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
-                borderColor = areaColor;
-            }
+            // Nodos neutrales siempre grises
+            const c = '#757575'.slice(1);
+            areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
+            borderColor = areaColor;
         }
         // Aura punteada
         ctx.beginPath(); ctx.arc(sx, sy, sir, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.08)`; ctx.fill();
