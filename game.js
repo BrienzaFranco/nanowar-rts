@@ -522,7 +522,9 @@ class Node {
         for (let e of entities) {
             if (e.dead || e.dying) continue;
             const dx = e.x - this.x, dy = e.y - this.y;
-            if (Math.sqrt(dx * dx + dy * dy) <= this.influenceRadius) {
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Solo cuentan si están DENTRO del nodo (para "suicidar" troupes)
+            if (dist <= this.radius + e.radius + 5) {
                 this.defenderCounts[e.owner] = (this.defenderCounts[e.owner] || 0) + 1;
                 if (e.owner === this.owner) {
                     this.defendersInside++;
@@ -563,6 +565,19 @@ class Node {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
+        
+        // Absorber troupes propias que estén dentro del nodo
+        if (this.owner !== -1 && game) {
+            for (let e of entities) {
+                if (e.dead || e.dying || e.owner !== this.owner) continue;
+                const dx = e.x - this.x, dy = e.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < this.radius * 0.7) {
+                    e.die('absorbed', null, game);
+                    game.spawnParticles(e.x, e.y, this.getColor(), 4, 'explosion');
+                }
+            }
+        }
         
         if (this.owner !== -1) {
             this.spawnTimer += dt;
