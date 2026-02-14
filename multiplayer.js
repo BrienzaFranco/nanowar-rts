@@ -65,6 +65,7 @@ class MultiplayerClient {
             if (response.success) {
                 this.roomId = roomId;
                 this.playerId = response.playerId;
+                showGameScreen();
             }
             if (callback) callback(response);
         });
@@ -80,12 +81,12 @@ class MultiplayerClient {
         }
         
         roomListEl.innerHTML = this.rooms.map(room => `
-            <div class="room-item" onclick="joinRoom('${room.id}')">
+            <div class="room-item">
                 <div class="room-info">
                     <h3>Sala ${room.id.slice(-6)}</h3>
                     <span>${room.players}/${room.maxPlayers} jugadores</span>
                 </div>
-                <button class="btn-secondary">Unirse</button>
+                <button class="btn-secondary" onclick="client && client.joinRoom('${room.id}')">Unirse</button>
             </div>
         `).join('');
     }
@@ -350,12 +351,46 @@ function initMultiplayer() {
     });
 }
 
-// Auto init
+    });
+}
+
+// Auto init and UI
 document.addEventListener('DOMContentLoaded', () => {
+    // Botón multiplayer
     const multiplayerBtn = document.getElementById('multiplayer-btn');
     if (multiplayerBtn) {
         multiplayerBtn.addEventListener('click', () => {
             setTimeout(initMultiplayer, 100);
         });
     }
+
+    // Botón crear sala
+    const createBtn = document.getElementById('create-room-btn');
+    if (createBtn) {
+        createBtn.addEventListener('click', () => {
+            if (!client) {
+                client = new MultiplayerClient();
+                client.connect();
+            }
+            client.createRoom((response) => {
+                if (response.success) {
+                    showGameScreen();
+                }
+            });
+        });
+    }
+
+    // Botón actualizar salas
+    const refreshBtn = document.getElementById('refresh-rooms-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            if (client) client.socket.emit('getRooms');
+        });
+    }
 });
+
+function showGameScreen() {
+    document.getElementById('menu-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+    if (client) client.resize();
+}
