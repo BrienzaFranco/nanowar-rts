@@ -966,40 +966,44 @@ class Game {
 
     createLevel() {
         const centerX = this.worldWidth / 2, centerY = this.worldHeight / 2;
-
-        // Limpiar nodos existentes
         this.nodes = [];
+        let idCounter = 0;
 
-        // Jugador 0 - Esquina Inferior Izquierda (Verde)
-        this.nodes.push(new Node(0, 200, this.worldHeight - 200, 0, 'large'));
-        this.nodes.push(new Node(1, 450, this.worldHeight - 250, 0, 'medium'));
+        // 1. One initial node for each player in corners
+        const margin = 250;
+        const playerStarts = [
+            { x: margin, y: this.worldHeight - margin }, // P0
+            { x: this.worldWidth - margin, y: margin }, // P1
+            { x: margin, y: margin }, // P2
+            { x: this.worldWidth - margin, y: this.worldHeight - margin } // P3
+        ];
 
-        // Jugador 1 - Esquina Superior Derecha (Rojo)
-        this.nodes.push(new Node(2, this.worldWidth - 200, 200, 1, 'large'));
-        this.nodes.push(new Node(3, this.worldWidth - 450, 250, 1, 'medium'));
+        for (let i = 0; i < this.playerCount; i++) {
+            this.nodes.push(new Node(idCounter++, playerStarts[i].x, playerStarts[i].y, i, 'large'));
+        }
 
-        // Jugador 2 - Esquina Superior Izquierda (Azul)
-        this.nodes.push(new Node(4, 200, 200, 2, 'large'));
-        this.nodes.push(new Node(5, 450, 250, 2, 'medium'));
+        // 2. Random scattered neutral nodes
+        const neutralCount = 12 + Math.floor(Math.random() * 6);
+        const canPlace = (x, y, r) => {
+            for (let n of this.nodes) {
+                const dist = Math.sqrt((x - n.x)**2 + (y - n.y)**2);
+                if (dist < r + n.radius + 80) return false;
+            }
+            return true;
+        };
 
-        // Jugador 3 - Esquina Inferior Derecha (Naranja)
-        this.nodes.push(new Node(6, this.worldWidth - 200, this.worldHeight - 200, 3, 'large'));
-        this.nodes.push(new Node(7, this.worldWidth - 450, this.worldHeight - 250, 3, 'medium'));
-
-        // Nodos Neutrales Centrales
-        this.nodes.push(new Node(100, centerX, centerY, -1, 'large'));
-        this.nodes.push(new Node(101, centerX - 300, centerY, -1, 'medium'));
-        this.nodes.push(new Node(102, centerX + 300, centerY, -1, 'medium'));
-        this.nodes.push(new Node(103, centerX, centerY - 300, -1, 'medium'));
-        this.nodes.push(new Node(104, centerX, centerY + 300, -1, 'medium'));
-
-        // Más nodos neutrales dispersos
-        for (let i = 0; i < 6; i++) {
-            const angle = (i / 6) * Math.PI * 2;
-            const dist = 600;
-            const x = centerX + Math.cos(angle) * dist;
-            const y = centerY + Math.sin(angle) * dist;
-            this.nodes.push(new Node(200 + i, x, y, -1, Math.random() > 0.5 ? 'medium' : 'small'));
+        for (let i = 0; i < neutralCount; i++) {
+            for (let attempt = 0; attempt < 50; attempt++) {
+                const x = 200 + Math.random() * (this.worldWidth - 400);
+                const y = 200 + Math.random() * (this.worldHeight - 400);
+                const type = Math.random() > 0.7 ? 'large' : Math.random() > 0.3 ? 'medium' : 'small';
+                const tempNode = { x, y, radius: type === 'large' ? 60 : type === 'medium' ? 35 : 20 };
+                
+                if (canPlace(x, y, tempNode.radius)) {
+                    this.nodes.push(new Node(idCounter++, x, y, -1, type));
+                    break;
+                }
+            }
         }
     }
 

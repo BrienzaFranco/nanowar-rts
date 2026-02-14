@@ -436,19 +436,34 @@ class MultiplayerClient {
     }
 
     drawUI(ctx, w, h) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(10, h - 100, 220, 90);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.strokeRect(10, h - 100, 220, 90);
+
+        ctx.font = '12px monospace';
+        ctx.textAlign = 'left';
+        
         const playerColor = this.playerId !== null ? PLAYER_COLORS[this.playerId % PLAYER_COLORS.length] : '#fff';
-        ctx.fillStyle = playerColor; ctx.fillText(`TÚ: JUGADOR ${this.playerId ?? '-'}`, 20, 25);
+        ctx.fillStyle = playerColor;
+        ctx.fillText(`TÚ: JUGADOR ${this.playerId ?? '-'}`, 20, h - 80);
+        
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.fillText(`Sala: ${this.roomId ? this.roomId.slice(-6) : '-'}`, 20, 45);
-        ctx.fillText(`Unidades: ${this.gameState?.entities?.filter(e => e.owner === this.playerId).length || 0}`, 20, 65);
-        ctx.fillText(`Seleccionados: ${this.selectedNodes.length} nodos, ${this.selectedEntities.length} unidades`, 20, 85);
-        ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillText('Arrastrar Click Izq: Caja Selección | Click Der: Mover', w - 20, h - 40);
-        ctx.fillText('Shift+Click: Multi-select | Ruedita: Zoom', w - 20, h - 20);
+        ctx.fillText(`Sala: ${this.roomId ? this.roomId.slice(-6) : '-'}`, 20, h - 60);
+        ctx.fillText(`Unidades: ${this.gameState?.entities?.filter(e => e.owner === this.playerId).length || 0}`, 20, h - 40);
+        ctx.fillText(`Seleccionados: ${this.selectedNodes.length}n / ${this.selectedEntities.length}u`, 20, h - 20);
+        
+        ctx.textAlign = 'right'; 
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillText('Arrastrar Click Izq: Caja Selección', w - 20, h - 60);
+        ctx.fillText('Click Der: Mover | Doble Click: Todo', w - 20, h - 40);
+        ctx.fillText('Shift: Multi-select | Ruedita: Zoom', w - 20, h - 20);
+        
         if (this.lastStateTime > 0) {
-            const lag = Date.now() - this.lastStateTime; ctx.textAlign = 'right';
-            ctx.fillStyle = lag > 500 ? '#f44336' : 'rgba(255, 255, 255, 0.5)'; ctx.fillText(`Ping: ${lag}ms`, w - 20, 30);
+            const lag = Date.now() - this.lastStateTime; 
+            ctx.textAlign = 'right';
+            ctx.fillStyle = lag > 500 ? '#f44336' : 'rgba(255, 255, 255, 0.5)'; 
+            ctx.fillText(`Ping: ${lag}ms`, w - 20, 30);
         }
     }
 
@@ -474,7 +489,17 @@ function showGameScreen() { document.getElementById('lobby-screen').style.displa
 
 document.addEventListener('DOMContentLoaded', () => {
     const multiplayerBtn = document.getElementById('multiplayer-btn');
-    if (multiplayerBtn) { multiplayerBtn.onclick = () => { if (!client) { client = new MultiplayerClient(); client.connect(); } }; }
+    if (multiplayerBtn) { 
+        multiplayerBtn.onclick = () => { 
+            // Show sections first (replaces showMultiplayer in HTML)
+            document.querySelector('.mode-selection').style.display = 'none';
+            document.querySelector('.rooms-section').style.display = 'block';
+            document.querySelector('.menu-buttons').style.display = 'block';
+            
+            // Then connect
+            if (!client) { client = new MultiplayerClient(); client.connect(); } 
+        }; 
+    }
     const createBtn = document.getElementById('create-room-btn');
     if (createBtn) { createBtn.onclick = () => { if (!client) return; client.createRoom((response) => { if (response.success) showLobbyScreen(); }); }; }
     const refreshBtn = document.getElementById('refresh-rooms-btn');
