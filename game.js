@@ -518,17 +518,26 @@ class Node {
     setRallyPoint(x, y) { this.rallyPoint = { x, y }; }
     calculateDefenders(entities) {
         this.defendersInside = 0;
+        this.stockDefenders = 0;
         this.defenderCounts = {};
         this.defendingEntities = [];
+        this.areaDefenders = [];
         for (let e of entities) {
             if (e.dead || e.dying) continue;
             const dx = e.x - this.x, dy = e.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            // Solo cuentan si están DENTRO del nodo (para "suicidar" troupes)
-            if (dist <= this.radius + e.radius + 5) {
+            // Área de influencia para defender el nodo
+            if (dist <= this.influenceRadius) {
                 this.defenderCounts[e.owner] = (this.defenderCounts[e.owner] || 0) + 1;
                 if (e.owner === this.owner) {
+                    this.areaDefenders.push(e);
+                }
+            }
+            // Dentro del nodo para stock
+            if (dist <= this.radius + e.radius + 5) {
+                if (e.owner === this.owner) {
                     this.defendersInside++;
+                    this.stockDefenders++;
                     this.defendingEntities.push(e);
                 }
             }
@@ -543,12 +552,12 @@ class Node {
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
         if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
 
-        // Consumir defensores físicos primero
-        while (damage > 0 && this.defendingEntities && this.defendingEntities.length > 0) {
-            const defender = this.defendingEntities.pop();
+        // Consumir defensores del área primero (influencia)
+        let remainingDefenders = [...this.areaDefenders];
+        while (damage > 0 && remainingDefenders.length > 0) {
+            const defender = remainingDefenders.pop();
             if (defender && !defender.dead && !defender.dying) {
                 defender.die('sacrifice', null, game);
-                this.defendersInside = Math.max(0, this.defendersInside - 1);
                 damage--;
             }
         }
@@ -573,16 +582,20 @@ class Node {
         
         // Absorber troupes propias que estén dentro del nodo (solo si hay espacio en stock)
         if (this.owner !== -1 && game && this.stock < this.maxStock) {
+            const toAbsorb = [];
             for (let e of entities) {
                 if (e.dead || e.dying || e.owner !== this.owner) continue;
                 const dx = e.x - this.x, dy = e.y - this.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < this.radius * 0.7) {
-                    e.die('absorbed', null, game);
-                    this.stock++;
-                    game.spawnParticles(e.x, e.y, this.getColor(), 6, 'explosion');
-                    if (this.stock >= this.maxStock) break;
+                if (dist <= this.radius * 0.8) {
+                    toAbsorb.push(e);
                 }
+            }
+            for (let e of toAbsorb) {
+                if (this.stock >= this.maxStock) break;
+                e.die('absorbed', null, game);
+                this.stock++;
+                game.spawnParticles(e.x, e.y, this.getColor(), 6, 'explosion');
             }
         }
         
