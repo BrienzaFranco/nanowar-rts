@@ -1,4 +1,4 @@
-// Nanowar Multiplayer Client v4.4.0
+// Nanowar Multiplayer Client v4.5.0
 const PLAYER_COLORS = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
 
 class MultiplayerClient {
@@ -13,13 +13,16 @@ class MultiplayerClient {
         this.commandIndicators = [];
         this.waypointLines = []; 
         this.waypointLinePoints = [];
+        
         this.rightMouseDown = false;
+        this.isDragging = false;
         this.mouseDownPos = { x: 0, y: 0 };
         this.mousePos = { x: 0, y: 0 };
-        this.isDragging = false;
+        
         this.running = false;
         this.connected = false;
         this.lastStateTime = 0;
+        this.initialZoomDone = false;
         
         this.camera = { x: 0, y: 0, zoom: 1 };
         this.worldWidth = 2400;
@@ -37,7 +40,6 @@ class MultiplayerClient {
         if (this.canvas && !this.ctx) {
             this.ctx = this.canvas.getContext('2d');
             this.resize();
-            console.log("Canvas initialized");
         }
         return !!this.ctx;
     }
@@ -65,11 +67,9 @@ class MultiplayerClient {
 
     connect() {
         if (this.socket) return;
-        console.log("Connecting to server...");
         this.socket = io({ transports: ['websocket', 'polling'] });
         
         this.socket.on('connect', () => {
-            console.log("Connected to server");
             this.connected = true;
             this.socket.emit('getRooms');
         });
@@ -80,7 +80,7 @@ class MultiplayerClient {
         });
 
         this.socket.on('playerJoined', (data) => {
-            console.log("Room update:", data);
+            console.log("Lobby Update:", data);
             this.updateLobbyUI(data.players);
         });
 
@@ -94,13 +94,12 @@ class MultiplayerClient {
         });
 
         this.socket.on('gameStart', () => {
-            console.log("Game Start signal received!");
+            console.log("GAME STARTING!");
             showGameScreen();
         });
         
         this.socket.on('disconnect', () => { 
             this.connected = false;
-            console.log("Disconnected from server");
         });
     }
 
@@ -109,7 +108,6 @@ class MultiplayerClient {
             if (response.success) {
                 this.roomId = response.roomId;
                 this.playerId = response.playerId;
-                console.log("Room created:", this.roomId, "Player:", this.playerId);
             }
             if (callback) callback(response);
         });
@@ -120,7 +118,6 @@ class MultiplayerClient {
             if (response.success) {
                 this.roomId = roomId;
                 this.playerId = response.playerId;
-                console.log("Joined room:", this.roomId, "Player:", this.playerId);
             }
             if (callback) callback(response);
         });
@@ -150,7 +147,7 @@ class MultiplayerClient {
                     if (res.success) {
                         showLobbyScreen();
                         this.updateLobbyUI(res.players);
-                    } else alert('Error al unirse: ' + res.error);
+                    } else alert('Error: ' + res.error);
                 });
             };
         });
@@ -175,54 +172,16 @@ class MultiplayerClient {
     }
 
     setupEvents() {
-        document.addEventListener('mousedown', (e) => { if (this.canvas && e.target === this.canvas) this.onCanvasMouseDown(e); });
-        document.addEventListener('mousemove', (e) => { if (this.canvas) this.onCanvasMouseMove(e); });
-        document.addEventListener('mouseup', (e) => { if (this.canvas) this.onCanvasMouseUp(e); });
-        document.addEventListener('dblclick', (e) => { if (this.canvas && e.target === this.canvas) this.onCanvasDoubleClick(e); });
-        document.addEventListener('wheel', (e) => { if (this.canvas && e.target === this.canvas) this.onCanvasWheel(e); }, { passive: false });
+        document.addEventListener('mousedown', (e) => { if (this.canvas && e.target === this.canvas) this.onMouseDown(e); });
+        document.addEventListener('mousemove', (e) => { if (this.canvas) this.onMouseMove(e); });
+        document.addEventListener('mouseup', (e) => { if (this.canvas) this.onMouseUp(e); });
+        document.addEventListener('dblclick', (e) => { if (this.canvas && e.target === this.canvas) this.onDoubleClick(e); });
+        document.addEventListener('wheel', (e) => { if (this.canvas && e.target === this.canvas) this.onWheel(e); }, { passive: false });
         document.addEventListener('keydown', (e) => { if (e.key === 's' || e.key === 'S') this.sendAction({ type: 'stop' }); });
         document.addEventListener('contextmenu', (e) => { if (this.canvas && e.target === this.canvas) e.preventDefault(); });
     }
 
-    onCanvasDoubleClick(e) {
-        if (!this.gameState) return;
-        const rect = this.canvas.getBoundingClientRect();
-        const worldPos = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-
-        const clickedNode = this.gameState.nodes.find(n => {
-            const dx = worldPos.x - n.x, dy = worldPos.y - n.y;
-            return Math.sqrt(dx*dx + dy*dy) < n.radius;
-        });
-
-        if (clickedNode) {
-            if (clickedNode.owner === this.playerId) {
-                this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
-                this.selectedEntities = [];
-            }
-            this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
-            return;
-        }
-
-        const clickedEntity = this.gameState.entities.find(ent => {
-            const dx = worldPos.x - ent.x, dy = worldPos.y - ent.y;
-            return Math.sqrt(dx*dx + dy*dy) < ent.radius + 5;
-        });
-
-        if (clickedEntity) {
-            if (clickedEntity.owner === this.playerId) {
-                this.selectedEntities = this.gameState.entities.filter(ent => ent.owner === this.playerId).map(ent => ent.id);
-                this.selectedNodes = [];
-            }
-            this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
-            return;
-        }
-
-        this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
-        this.selectedEntities = this.gameState.entities.filter(ent => ent.owner === this.playerId).map(ent => ent.id);
-        this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
-    }
-
-    onCanvasMouseDown(e) {
+    onMouseDown(e) {
         if (!this.gameState) return;
         const rect = this.canvas.getBoundingClientRect();
         const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -236,19 +195,14 @@ class MultiplayerClient {
             this.rightMouseDown = true;
             this.waypointLinePoints = [{ x: world.x, y: world.y }];
             
-            if (this.selectedEntities.length > 0 || this.selectedNodes.length > 0) {
-                let targetNode = null;
-                for (const node of this.gameState.nodes) {
-                    const dx = world.x - node.x, dy = world.y - node.y;
-                    if (Math.sqrt(dx*dx + dy*dy) < node.radius) { targetNode = node; break; }
-                }
-                this.commandIndicators.push({ x: world.x, y: world.y, life: 1.0, type: targetNode ? 'attack' : 'move' });
-                this.sendAction({ type: 'command', target: world, targetNodeId: targetNode ? targetNode.id : null });
-            }
+            // Send command immediately for right click
+            let targetNode = this.gameState.nodes.find(n => Math.sqrt((world.x - n.x)**2 + (world.y - n.y)**2) < n.radius);
+            this.commandIndicators.push({ x: world.x, y: world.y, life: 1.0, type: targetNode ? 'attack' : 'move' });
+            this.sendAction({ type: 'command', target: world, targetNodeId: targetNode ? targetNode.id : null });
         }
     }
 
-    onCanvasMouseMove(e) {
+    onMouseMove(e) {
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
         this.mousePos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -261,22 +215,20 @@ class MultiplayerClient {
         if (this.rightMouseDown && (this.selectedEntities.length > 0 || this.selectedNodes.length > 0)) {
             const worldPos = this.screenToWorld(this.mousePos.x, this.mousePos.y);
             const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
-            const dx = worldPos.x - lastPoint.x, dy = worldPos.y - lastPoint.y;
-            if (Math.sqrt(dx * dx + dy * dy) > 30) {
+            if (Math.sqrt((worldPos.x - lastPoint.x)**2 + (worldPos.y - lastPoint.y)**2) > 30) {
                 this.waypointLinePoints.push({ x: worldPos.x, y: worldPos.y });
             }
         }
     }
 
-    onCanvasMouseUp(e) {
+    onMouseUp(e) {
         if (e.button === 0) {
             this.isDragging = false;
             const dx = Math.abs(this.mousePos.x - this.mouseDownPos.x);
             const dy = Math.abs(this.mousePos.y - this.mouseDownPos.y);
 
             if (dx < 10 && dy < 10) {
-                const world = this.screenToWorld(this.mouseDownPos.x, this.mouseDownPos.y);
-                this.handleSimpleSelection(world, e.shiftKey);
+                this.handleSimpleSelection(this.screenToWorld(this.mouseDownPos.x, this.mouseDownPos.y), e.shiftKey);
             } else {
                 this.handleBoxSelection(e.shiftKey);
             }
@@ -284,11 +236,8 @@ class MultiplayerClient {
             this.rightMouseDown = false;
             if (this.waypointLinePoints.length > 1) {
                 this.waypointLines.push({ points: [...this.waypointLinePoints], life: 2.0 });
-                let targetNode = null;
                 const lastPoint = this.waypointLinePoints[this.waypointLinePoints.length - 1];
-                for (const node of this.gameState.nodes) {
-                    if (Math.sqrt((lastPoint.x - node.x)**2 + (lastPoint.y - node.y)**2) < node.radius) { targetNode = node; break; }
-                }
+                let targetNode = this.gameState.nodes.find(n => Math.sqrt((lastPoint.x - n.x)**2 + (lastPoint.y - n.y)**2) < n.radius);
                 this.sendAction({ type: 'command', target: lastPoint, waypoints: [...this.waypointLinePoints], targetNodeId: targetNode ? targetNode.id : null });
             }
             this.waypointLinePoints = [];
@@ -296,10 +245,7 @@ class MultiplayerClient {
     }
 
     handleSimpleSelection(world, isShift) {
-        let clickedNode = null;
-        for (const node of this.gameState.nodes) {
-            if (Math.sqrt((world.x - node.x)**2 + (world.y - node.y)**2) < node.radius) { clickedNode = node; break; }
-        }
+        let clickedNode = this.gameState.nodes.find(n => Math.sqrt((world.x - n.x)**2 + (world.y - n.y)**2) < n.radius);
 
         if (clickedNode) {
             if (isShift) {
@@ -318,10 +264,7 @@ class MultiplayerClient {
                 this.selectedEntities = [];
             }
         } else {
-            let clickedEntity = null;
-            for (const ent of this.gameState.entities) {
-                if (Math.sqrt((world.x - ent.x)**2 + (world.y - ent.y)**2) < ent.radius + 5) { clickedEntity = ent; break; }
-            }
+            let clickedEntity = this.gameState.entities.find(ent => Math.sqrt((world.x - ent.x)**2 + (world.y - ent.y)**2) < ent.radius + 5);
             if (clickedEntity && clickedEntity.owner === this.playerId) {
                 if (isShift) {
                     const idx = this.selectedEntities.indexOf(clickedEntity.id);
@@ -358,7 +301,21 @@ class MultiplayerClient {
         this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
     }
 
-    onCanvasWheel(e) {
+    onDoubleClick(e) {
+        if (!this.gameState) return;
+        const world = this.screenToWorld(e.clientX - this.canvas.getBoundingClientRect().left, e.clientY - this.canvas.getBoundingClientRect().top);
+        let clickedNode = this.gameState.nodes.find(n => Math.sqrt((world.x - n.x)**2 + (world.y - n.y)**2) < n.radius);
+        if (clickedNode && clickedNode.owner === this.playerId) {
+            this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
+            this.selectedEntities = [];
+        } else {
+            this.selectedNodes = this.gameState.nodes.filter(n => n.owner === this.playerId).map(n => n.id);
+            this.selectedEntities = this.gameState.entities.filter(ent => ent.owner === this.playerId).map(ent => ent.id);
+        }
+        this.sendAction({ type: 'select', nodeIds: this.selectedNodes, entityIds: this.selectedEntities });
+    }
+
+    onWheel(e) {
         e.preventDefault();
         const rect = this.canvas.getBoundingClientRect();
         const worldBefore = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
@@ -487,7 +444,7 @@ class MultiplayerClient {
         ctx.fillText(`Unidades: ${this.gameState?.entities?.filter(e => e.owner === this.playerId).length || 0}`, 20, 65);
         ctx.fillText(`Seleccionados: ${this.selectedNodes.length} nodos, ${this.selectedEntities.length} unidades`, 20, 85);
         ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.fillText('Click Izq Arrastrar: Caja Selección | Click Der: Mover', w - 20, h - 40);
+        ctx.fillText('Arrastrar Click Izq: Caja Selección | Click Der: Mover', w - 20, h - 40);
         ctx.fillText('Shift+Click: Multi-select | Ruedita: Zoom', w - 20, h - 20);
         if (this.lastStateTime > 0) {
             const lag = Date.now() - this.lastStateTime; ctx.textAlign = 'right';
