@@ -504,12 +504,12 @@ class Entity {
 class Node {
     constructor(id, x, y, ownerId, type = 'medium') {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
-        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 8; this.maxHp = 60; this.spawnInterval = 1.7; }
-        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 15; this.maxHp = 150; this.spawnInterval = 3.0; }
-        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 10; this.maxHp = 100; this.spawnInterval = 2.1; }
+        if (type === 'small') { this.radius = 25; this.influenceRadius = 65; this.baseHp = 8; this.maxHp = 60; }
+        else if (type === 'large') { this.radius = 50; this.influenceRadius = 110; this.baseHp = 15; this.maxHp = 150; }
+        else { this.radius = 38; this.influenceRadius = 85; this.baseHp = 10; this.maxHp = 100; }
         this.spawnEffect = 0;
         this.spawnTimer = 0;
-        this.spawnInterval = this.type === 'small' ? 2.0 : this.type === 'large' ? 3.5 : 2.5;
+        this.spawnInterval = this.type === 'small' ? 3.5 : this.type === 'large' ? 6.0 : 4.5;
         this.spawnProgress = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
     }
