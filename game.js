@@ -375,7 +375,7 @@ class Entity {
         this.deathTime = 0;
         this.absorbTarget = node;
         const playerColor = this.getColor();
-        if (game && type === 'explosion') {
+        if (game && (type === 'explosion' || type === 'absorbed')) {
             game.spawnParticles(this.x, this.y, playerColor, 8, 'explosion');
         } else if (game && type === 'attack') {
             game.spawnParticles(this.x, this.y, playerColor, 5, 'hit');
@@ -646,18 +646,17 @@ class Node {
             ctx.beginPath(); ctx.arc(rx, ry, 5 * camera.zoom, 0, Math.PI * 2); ctx.fillStyle = `rgba(${areaColor},0.6)`; ctx.fill();
         }
         const baseColor = this.getColor();
+        const maxCapacity = this.type === 'small' ? 5 : this.type === 'large' ? 12 : 8;
         let brightness = 1;
         if (this.owner !== -1 && this.defendersInside > 0) {
-            brightness = 1 + Math.min(this.defendersInside * 0.15, 0.6);
+            brightness = 1 + Math.min(this.defendersInside * 0.12, 0.7);
         }
         const r = parseInt(baseColor.slice(1, 3), 16);
         const g = parseInt(baseColor.slice(3, 5), 16);
         const b = parseInt(baseColor.slice(5, 7), 16);
         const brightColor = `rgb(${Math.min(255, r * brightness)}, ${Math.min(255, g * brightness)}, ${Math.min(255, b * brightness)})`;
         
-        const maxHp = this.type === 'small' ? 60 : this.type === 'large' ? 150 : 100;
-        const totalHp = this.getTotalHp();
-        const fillPercent = Math.min(1, totalHp / maxHp);
+        const fillPercent = Math.min(1, this.defendersInside / maxCapacity);
         
         ctx.beginPath(); ctx.arc(sx, sy, sr, 0, Math.PI * 2); 
         ctx.fillStyle = 'rgba(30,30,30,0.9)'; 
@@ -967,6 +966,7 @@ class Game {
         this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
         this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+        this.canvas.addEventListener('dblclick', (e) => this.onDoubleClick(e));
         this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
 
         document.addEventListener('keydown', (e) => {
@@ -1073,6 +1073,41 @@ class Game {
             const dx = this.mouse.x - this.mouseDownPos.x, dy = this.mouse.y - this.mouseDownPos.y;
             if (Math.sqrt(dx * dx + dy * dy) > 5) { this.mouse.drag = true; }
         }
+    }
+
+    onDoubleClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const worldPos = this.camera.screenToWorld(mx, my);
+
+        // Check if clicked on a node
+        const clickedNode = this.nodes.find(n => n.isPointInside(mx, my, this.camera));
+        if (clickedNode) {
+            // Select all nodes of same owner
+            this.selectedNodes = this.nodes.filter(n => n.owner === clickedNode.owner);
+            this.selectedNodes.forEach(n => n.selected = true);
+            this.selectedEntities = [];
+            this.selectedEntities.forEach(ent => ent.selected = false);
+            return;
+        }
+
+        // Check if clicked on an entity
+        const clickedEntity = this.entities.find(ent => !ent.dead && !ent.dying && ent.isPointInside(mx, my, this.camera));
+        if (clickedEntity) {
+            // Select all entities of same owner
+            this.selectedEntities = this.entities.filter(ent => !ent.dead && !ent.dying && ent.owner === clickedEntity.owner);
+            this.selectedEntities.forEach(ent => ent.selected = true);
+            this.selectedNodes = [];
+            this.selectedNodes.forEach(n => n.selected = false);
+            return;
+        }
+
+        // If clicked on empty space, select all nodes + entities of player 0 (human)
+        this.selectedNodes = this.nodes.filter(n => n.owner === 0);
+        this.selectedNodes.forEach(n => n.selected = true);
+        this.selectedEntities = this.entities.filter(ent => !ent.dead && !ent.dying && ent.owner === 0);
+        this.selectedEntities.forEach(ent => ent.selected = true);
     }
 
     onMouseUp(e) {
