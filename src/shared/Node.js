@@ -1,0 +1,146 @@
+import { PLAYER_COLORS } from './GameConfig.js';
+import { Entity } from './Entity.js'; // Circular dependency if Entity imports Node? Node doesn't import Entity class, but uses it in JSDoc maybe.
+// Actually Node creates new Entity in update(). So it needs to import Entity.
+
+export class Node {
+    constructor(id, x, y, ownerId, type = 'medium') {
+        this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
+
+        if (type === 'small') {
+            this.radius = 20 + Math.random() * 5;
+            this.influenceRadius = this.radius * 4;
+            this.maxHp = 60;
+            this.spawnInterval = 3.5;
+        }
+        else if (type === 'large') {
+            this.radius = 55 + Math.random() * 15;
+            this.influenceRadius = this.radius * 3;
+            this.maxHp = 180;
+            this.spawnInterval = 7.5;
+        }
+        else {
+            this.radius = 35 + Math.random() * 8;
+            this.influenceRadius = this.radius * 3.5;
+            this.maxHp = 100;
+            this.spawnInterval = 5.0;
+        }
+
+        // Neutral nodes start at 20% health
+        this.baseHp = (this.owner === -1) ? (this.maxHp * 0.2) : (this.maxHp * 0.33);
+        this.stock = 0;
+
+        this.spawnEffect = 0;
+        this.spawnTimer = 0;
+        this.spawnProgress = 0;
+        this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
+        this.areaDefenders = []; this.allAreaDefenders = [];
+    }
+
+    getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
+
+    setRallyPoint(x, y) { this.rallyPoint = { x, y }; }
+
+    calculateDefenders(entities) {
+        this.defendersInside = 0;
+        this.stockDefenders = 0;
+        this.defenderCounts = {};
+        this.defendingEntities = [];
+        this.allAreaDefenders = [];
+        for (let e of entities) {
+            if (e.dead || e.dying) continue;
+            const dx = e.x - this.x, dy = e.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist <= this.influenceRadius) {
+                this.defenderCounts[e.owner] = (this.defenderCounts[e.owner] || 0) + 1;
+                this.allAreaDefenders.push(e);
+                if (e.owner === this.owner) {
+                    this.areaDefenders.push(e);
+                }
+            }
+            if (dist <= this.radius + e.radius + 5) {
+                if (e.owner === this.owner) {
+                    this.defendersInside++;
+                    this.stockDefenders++;
+                    this.defendingEntities.push(e);
+                }
+            }
+        }
+    }
+
+    getTotalHp() {
+        return Math.min(this.maxHp, this.baseHp);
+    }
+
+    receiveAttack(attackerId, damage, game) {
+        this.hitFlash = 0.3;
+        const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
+        if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
+
+        this.baseHp -= damage;
+        if (this.baseHp <= 0) {
+            this.owner = attackerId;
+            // Captured nodes start at 10% health
+            this.baseHp = this.maxHp * 0.1;
+            this.stock = 0;
+            this.hasSpawnedThisCycle = false;
+            this.rallyPoint = null;
+            if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
+            return true;
+        }
+        return false;
+    }
+
+    update(dt, entities, globalSpawnTimer, game) {
+        this.calculateDefenders(entities);
+        if (this.hitFlash > 0) this.hitFlash -= dt;
+        if (this.spawnEffect > 0) this.spawnEffect -= dt;
+
+        if (this.owner !== -1) {
+            // Heal node slowly if not at max
+            const healRate = 0.5; // units per second? 
+            if (this.baseHp < this.maxHp) {
+                this.baseHp += healRate * dt;
+            }
+
+            this.spawnTimer += dt;
+            const healthPercent = this.baseHp / this.maxHp;
+            // Higher health = faster generation (up to 2x speed)
+            const healthScaling = 0.5 + healthPercent;
+            const spawnThreshold = this.spawnInterval / healthScaling;
+
+            if (this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
+                this.spawnTimer = 0;
+                // Spawning a unit costs health
+                this.baseHp -= 1;
+
+                const angle = Math.random() * Math.PI * 2, dist = this.radius + 25 + Math.random() * 40;
+                const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
+                const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
+                if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y);
+                this.spawnEffect = 0.4;
+                if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
+                return entity;
+            }
+            this.spawnProgress = this.spawnTimer / spawnThreshold;
+        } else {
+            this.spawnTimer = 0;
+            this.spawnProgress = 0;
+        }
+        return null;
+    }
+    isPointInside(mx, my, camera) {
+        const screen = camera.worldToScreen(this.x, this.y);
+        const dx = mx - screen.x;
+        const dy = my - screen.y;
+        return Math.sqrt(dx * dx + dy * dy) < (this.radius + 10) * camera.zoom;
+    }
+
+    isInsideRect(x1, y1, x2, y2, camera) {
+        const screen = camera.worldToScreen(this.x, this.y);
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        return screen.x >= minX && screen.x <= maxX && screen.y >= minY && screen.y <= maxY;
+    }
+}

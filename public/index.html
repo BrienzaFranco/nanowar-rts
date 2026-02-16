@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,15 +11,18 @@
             background: #0a0a0a;
             font-family: 'Courier New', monospace;
         }
+
         .screen {
             background: #0a0a0a;
         }
+
         .menu-container {
             max-width: 500px;
             margin: 0 auto;
             padding: 60px 20px;
             text-align: center;
         }
+
         .game-title {
             font-size: 72px;
             font-weight: bold;
@@ -29,6 +33,7 @@
             color: #4CAF50;
             letter-spacing: 8px;
         }
+
         .game-subtitle {
             font-size: 12px;
             margin-bottom: 50px;
@@ -36,17 +41,20 @@
             letter-spacing: 3px;
             text-transform: uppercase;
         }
+
         .player-input {
             margin-bottom: 30px;
         }
+
         .player-input label {
             display: block;
             margin-bottom: 10px;
             font-size: 11px;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255, 255, 255, 0.5);
             text-transform: uppercase;
             letter-spacing: 2px;
         }
+
         .player-input input {
             padding: 14px 20px;
             font-size: 14px;
@@ -59,17 +67,21 @@
             color: #4CAF50;
             font-family: 'Courier New', monospace;
         }
+
         .player-input input:focus {
             outline: none;
             border-color: #4CAF50;
             box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
         }
+
         .player-input input::placeholder {
-            color: rgba(255,255,255,0.2);
+            color: rgba(255, 255, 255, 0.2);
         }
+
         .menu-buttons {
             margin-bottom: 50px;
         }
+
         .btn-primary {
             padding: 14px 40px;
             font-size: 12px;
@@ -83,11 +95,13 @@
             text-transform: uppercase;
             letter-spacing: 3px;
         }
+
         .btn-primary:hover {
             background: rgba(76, 175, 80, 0.15);
             border-color: #4CAF50;
             box-shadow: 0 0 30px rgba(76, 175, 80, 0.3);
         }
+
         .mode-selection {
             margin-top: 40px;
             padding: 30px;
@@ -95,19 +109,22 @@
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
         .mode-selection h2 {
             margin-bottom: 25px;
             font-size: 11px;
-            color: rgba(255,255,255,0.4);
+            color: rgba(255, 255, 255, 0.4);
             letter-spacing: 3px;
             text-transform: uppercase;
         }
+
         .mode-buttons {
             display: flex;
             gap: 20px;
             justify-content: center;
             flex-wrap: wrap;
         }
+
         .btn-mode {
             display: flex;
             flex-direction: column;
@@ -122,24 +139,29 @@
             transition: all 0.3s ease;
             min-width: 160px;
         }
+
         .btn-mode:hover {
             transform: translateY(-3px);
             background: rgba(30, 30, 40, 0.9);
             border-color: rgba(255, 255, 255, 0.2);
         }
+
         .btn-single:hover {
             border-color: #4CAF50;
             box-shadow: 0 10px 40px rgba(76, 175, 80, 0.2);
         }
+
         .btn-multi:hover {
             border-color: #2196F3;
             box-shadow: 0 10px 40px rgba(33, 150, 243, 0.2);
         }
+
         .mode-icon {
             font-size: 32px;
             margin-bottom: 12px;
             opacity: 0.8;
         }
+
         .mode-title {
             font-size: 12px;
             font-weight: bold;
@@ -147,10 +169,12 @@
             letter-spacing: 2px;
             text-transform: uppercase;
         }
+
         .mode-desc {
             font-size: 10px;
             opacity: 0.5;
         }
+
         .rooms-section {
             margin-top: 30px;
             padding: 20px;
@@ -158,30 +182,34 @@
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
         .rooms-section h2 {
             font-size: 11px;
-            color: rgba(255,255,255,0.4);
+            color: rgba(255, 255, 255, 0.4);
             letter-spacing: 2px;
             margin-bottom: 15px;
             text-transform: uppercase;
         }
+
         #refresh-rooms-btn {
             margin-bottom: 15px;
             padding: 8px 20px;
             font-size: 10px;
             background: transparent;
-            color: rgba(255,255,255,0.5);
-            border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 3px;
             cursor: pointer;
             font-family: 'Courier New', monospace;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+
         #refresh-rooms-btn:hover {
             color: white;
-            border-color: rgba(255,255,255,0.3);
+            border-color: rgba(255, 255, 255, 0.3);
         }
+
         .no-rooms {
             padding: 20px;
             opacity: 0.3;
@@ -190,13 +218,15 @@
         }
     </style>
 </head>
+
 <body>
     <div id="game-container">
         <div id="menu-screen" class="screen">
             <div class="menu-container">
                 <h1 class="game-title">NANOWAR</h1>
-                <p class="game-subtitle">Guerra de Nodos <span id="game-version" style="opacity: 0.4; font-size: 10px;">v4.6.0</span></p>
-                
+                <p class="game-subtitle">Guerra de Nodos <span id="game-version"
+                        style="opacity: 0.4; font-size: 10px;">v4.6.0</span></p>
+
                 <div class="player-input">
                     <label for="player-name">Jugador</label>
                     <input type="text" id="player-name" placeholder="Tu nombre" maxlength="20">
@@ -271,24 +301,27 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="multiplayer.js"></script>
+    <script src="dist/bundle.js"></script>
     <script>
-        function startMultiplayer() {
-            document.querySelector('.mode-selection').style.display = 'none';
-            document.querySelector('.rooms-section').style.display = 'block';
-            document.querySelector('.menu-buttons').style.display = 'block';
-            
-            // Iniciar conexión
-            if (window.initMultiplayer) {
-                window.initMultiplayer();
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelector('.rooms-section').style.display = 'none';
-            document.querySelector('.menu-buttons').style.display = 'none';
-        });
+        // Room listing and lobby logic will be moved to a separate UI system eventually
+        // For now, keeping minimal glue code if needed.
+    </script>
+    function startMultiplayer() {
+    document.querySelector('.mode-selection').style.display = 'none';
+    document.querySelector('.rooms-section').style.display = 'block';
+    document.querySelector('.menu-buttons').style.display = 'block';
+
+    // Iniciar conexión
+    if (window.initMultiplayer) {
+    window.initMultiplayer();
+    }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('.rooms-section').style.display = 'none';
+    document.querySelector('.menu-buttons').style.display = 'none';
+    });
     </script>
 </body>
+
 </html>

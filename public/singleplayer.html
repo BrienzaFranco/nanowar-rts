@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,9 +10,11 @@
         body {
             background: #0a0a0a;
         }
+
         #game-container {
             background: #0a0a0a;
         }
+
         #ui {
             position: absolute;
             top: 15px;
@@ -24,12 +27,14 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             font-family: 'Courier New', monospace;
         }
+
         #ui-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 12px;
         }
+
         #ui-top h1 {
             margin: 0;
             font-size: 14px;
@@ -38,10 +43,12 @@
             text-transform: uppercase;
             letter-spacing: 2px;
         }
+
         #ui-buttons {
             display: flex;
             gap: 6px;
         }
+
         .ui-btn {
             width: 26px;
             height: 26px;
@@ -56,11 +63,13 @@
             align-items: center;
             justify-content: center;
         }
+
         .ui-btn:hover {
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.3);
             color: white;
         }
+
         #score {
             display: flex;
             flex-direction: column;
@@ -69,40 +78,48 @@
             padding-bottom: 12px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
+
         #score span {
             font-size: 11px;
             color: rgba(255, 255, 255, 0.6);
             display: flex;
             justify-content: space-between;
         }
+
         #score span strong {
             color: rgba(255, 255, 255, 0.9);
         }
+
         #players-info {
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
+
         .player-score {
             display: flex;
             align-items: center;
             font-size: 10px;
             color: rgba(255, 255, 255, 0.6);
         }
+
         .player-score-color {
             width: 8px;
             height: 8px;
             border-radius: 50%;
             margin-right: 8px;
         }
+
         .player-score span {
             flex: 1;
         }
+
         #game-canvas {
             display: block;
             width: 100%;
             height: 100%;
         }
+
         #instructions {
             position: absolute;
             bottom: 15px;
@@ -120,9 +137,11 @@
             font-family: 'Courier New', monospace;
             cursor: pointer;
         }
+
         #instructions:hover {
             background: rgba(30, 30, 40, 0.98);
         }
+
         #tutorial-overlay {
             position: fixed;
             top: 0;
@@ -135,9 +154,11 @@
             justify-content: center;
             align-items: center;
         }
+
         #tutorial-overlay.visible {
             display: flex;
         }
+
         #tutorial-content {
             background: rgba(20, 20, 25, 0.98);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -149,6 +170,7 @@
             font-family: 'Courier New', monospace;
             color: rgba(255, 255, 255, 0.85);
         }
+
         #tutorial-content h2 {
             color: #4CAF50;
             font-size: 18px;
@@ -156,6 +178,7 @@
             text-transform: uppercase;
             letter-spacing: 2px;
         }
+
         #tutorial-content h3 {
             color: rgba(255, 255, 255, 0.9);
             font-size: 13px;
@@ -163,15 +186,19 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        #tutorial-content p, #tutorial-content li {
+
+        #tutorial-content p,
+        #tutorial-content li {
             font-size: 11px;
             line-height: 1.7;
             color: rgba(255, 255, 255, 0.65);
             margin-bottom: 6px;
         }
+
         #tutorial-content ul {
             padding-left: 20px;
         }
+
         #tutorial-content .close-btn {
             position: absolute;
             top: 20px;
@@ -182,9 +209,11 @@
             font-size: 24px;
             cursor: pointer;
         }
+
         #tutorial-content .close-btn:hover {
             color: white;
         }
+
         #info-overlay {
             position: fixed;
             top: 0;
@@ -197,9 +226,11 @@
             flex-direction: column;
             border-left: 1px solid rgba(255, 255, 255, 0.08);
         }
+
         #info-overlay.visible {
             display: flex;
         }
+
         #info-content {
             background: transparent;
             border: none;
@@ -209,6 +240,7 @@
             font-family: 'Courier New', monospace;
             color: rgba(255, 255, 255, 0.85);
         }
+
         #info-content h2 {
             color: #4CAF50;
             font-size: 14px;
@@ -218,10 +250,12 @@
             padding-bottom: 15px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
+
         #info-stats {
             overflow-y: auto;
             flex: 1;
         }
+
         #info-content .close-info {
             position: absolute;
             top: 15px;
@@ -232,9 +266,11 @@
             font-size: 18px;
             cursor: pointer;
         }
+
         #info-content .close-info:hover {
             color: white;
         }
+
         #info-content h2 {
             color: #4CAF50;
             font-size: 14px;
@@ -244,10 +280,12 @@
             padding-bottom: 15px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
+
         #info-stats {
             overflow-y: auto;
             flex: 1;
         }
+
         #info-content .stat-row {
             display: flex;
             justify-content: space-between;
@@ -255,14 +293,17 @@
             padding: 8px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
+
         #info-content .stat-label {
             color: rgba(255, 255, 255, 0.5);
         }
+
         #info-content .stat-value {
             color: rgba(255, 255, 255, 0.9);
         }
     </style>
 </head>
+
 <body>
     <div id="game-container">
         <div id="ui">
@@ -282,8 +323,10 @@
         </div>
         <canvas id="game-canvas"></canvas>
         <div id="instructions" onclick="this.style.display='none'">
-            <strong>RALLY:</strong> Selecciona + T + Click | <strong>STOP:</strong> S | <strong>LINEA:</strong> Click Der<br>
-            <strong>DOUBLE CLICK:</strong> Seleccionar todo | <strong>ZOOM:</strong> Rueda | <strong>PAN:</strong> Space<br>
+            <strong>RALLY:</strong> Selecciona + T + Click | <strong>STOP:</strong> S | <strong>LINEA:</strong> Click
+            Der<br>
+            <strong>DOUBLE CLICK:</strong> Seleccionar todo | <strong>ZOOM:</strong> Rueda | <strong>PAN:</strong>
+            Space<br>
             <small style="opacity: 0.5;">Click para cerrar</small>
         </div>
     </div>
@@ -292,10 +335,10 @@
         <div id="tutorial-content">
             <button class="close-btn" onclick="closeTutorial()">&times;</button>
             <h2>COMO JUGAR</h2>
-            
+
             <h3>Objetivo</h3>
             <p>Captura todos los nodos del mapa. Gana quien controle más nodos.</p>
-            
+
             <h3>Controls</h3>
             <ul>
                 <li><strong>Click izquierdo:</strong> Seleccionar nodo/tropa</li>
@@ -307,7 +350,7 @@
                 <li><strong>Rueda mouse:</strong> Zoom</li>
                 <li><strong>Space + arrastrar:</strong> Mover cámara</li>
             </ul>
-            
+
             <h3>Nodos</h3>
             <ul>
                 <li><strong>Pequeños:</strong> Rápidos, poca vida, spawnean rápido</li>
@@ -315,9 +358,10 @@
                 <li><strong>Stock:</strong> Envía troupes a tus nodos para boost de producción</li>
                 <li><strong>Defensa:</strong> Tropas en el área protegen el nodo</li>
             </ul>
-            
+
             <h3>Estrategia</h3>
-            <p>Expande rápido capturando nodos neutros. Defiende tus nodos con troupes. Invierte troupes en stock para mayor producción (cuidado: se pierden al ser capturado).</p>
+            <p>Expande rápido capturando nodos neutros. Defiende tus nodos con troupes. Invierte troupes en stock para
+                mayor producción (cuidado: se pierden al ser capturado).</p>
         </div>
     </div>
 
@@ -343,13 +387,14 @@
         }
         document.getElementById('help-btn').addEventListener('click', showTutorial);
         document.getElementById('info-btn').addEventListener('click', showInfo);
-        document.getElementById('info-overlay').addEventListener('click', function(e) {
+        document.getElementById('info-overlay').addEventListener('click', function (e) {
             if (e.target === this) closeInfo();
         });
-        document.getElementById('tutorial-overlay').addEventListener('click', function(e) {
+        document.getElementById('tutorial-overlay').addEventListener('click', function (e) {
             if (e.target === this) closeTutorial();
         });
     </script>
-    <script src="game.js"></script>
+    <script src="dist/bundle.js"></script>
 </body>
+
 </html>
