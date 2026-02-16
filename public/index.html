@@ -283,116 +283,6 @@
                         style="margin-top: 30px; width: 100%; max-width: 200px;">VOLVER</button>
                 </div>
 
-                <script>
-                    const select = document.getElementById('player-count-select');
-                    const link = document.getElementById('singleplayer-link');
-                    const multiBtn = document.getElementById('multiplayer-mode-btn');
-                    const backBtn = document.getElementById('back-to-modes-btn');
-                    const modeContainer = document.getElementById('mode-selection-container');
-                    const multiContainer = document.getElementById('multiplayer-setup-container');
-
-                    const createRoomBtn = document.getElementById('create-room-btn');
-                    const refreshBtn = document.getElementById('refresh-rooms-btn');
-                    const roomListDiv = document.getElementById('room-list');
-                    const nickInput = document.getElementById('nickname-input');
-
-                    // Load saved nickname
-                    const savedNick = localStorage.getItem('nanowar_nickname');
-                    if (savedNick) nickInput.value = savedNick;
-
-                    nickInput.addEventListener('input', () => {
-                        localStorage.setItem('nanowar_nickname', nickInput.value);
-                        if (window.multiplayer && window.multiplayer.socket) {
-                            window.multiplayer.socket.emit('setNickname', nickInput.value);
-                        }
-                    });
-
-                    function updateLink() {
-                        link.href = `singleplayer.html?players=${select.value}`;
-                    }
-
-                    select.addEventListener('change', updateLink);
-                    updateLink(); // Initial call
-
-                    multiBtn.addEventListener('click', () => {
-                        if (!nickInput.value.trim()) {
-                            alert('Ingresa un nombre de comandante');
-                            return;
-                        }
-                        modeContainer.style.display = 'none';
-                        multiContainer.style.display = 'block';
-
-                        if (window.multiplayer && window.multiplayer.socket) {
-                            window.multiplayer.socket.emit('listRooms');
-                        }
-                    });
-
-                    backBtn.addEventListener('click', () => {
-                        modeContainer.style.display = 'block';
-                        multiContainer.style.display = 'none';
-                    });
-
-                    // Callback for MultiplayerController
-                    window.updateRoomListUI = function (rooms) {
-                        if (rooms.length === 0) {
-                            roomListDiv.innerHTML = '<p class="no-rooms">No hay salas disponibles</p>';
-                            return;
-                        }
-
-                        roomListDiv.innerHTML = rooms.map(room => `
-                            <div class="room-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px dashed rgba(76, 175, 80, 0.2); background: rgba(0,0,0,0.2); margin-bottom: 5px; border-radius: 4px;">
-                                <div style="text-align: left;">
-                                    <div style="font-size: 12px; color: #4CAF50; font-family: monospace; font-weight: bold;">${room.id}</div>
-                                    <div style="font-size: 10px; opacity: 0.6; text-transform: uppercase;">Jugadores: ${room.players}/${room.maxPlayers}</div>
-                                </div>
-                                <button onclick="joinRoom('${room.id}')" class="btn-primary" style="padding: 4px 12px; font-size: 10px; min-width: 80px;">UNIRSE</button>
-                            </div>
-                        `).join('');
-                    };
-
-                    window.updateLobbyUI = function (players) {
-                        const lobbyList = document.getElementById('lobby-players');
-                        if (!lobbyList) return;
-
-                        lobbyList.innerHTML = players.map(p => `
-                            <div style="display: flex; justify-content: space-between; padding: 12px 20px; background: ${p.ready ? 'rgba(76,175,80,0.15)' : 'rgba(255,255,255,0.05)'}; margin-bottom: 8px; border-radius: 6px; border: 1px solid ${p.ready ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
-                                <span style="color: white; font-size: 14px; font-family: monospace;">${p.nickname} ${p.id === window.multiplayer.socket.id ? '<span style="color:#4CAF50; font-size:10px;">(TÚ)</span>' : ''}</span>
-                                <span style="color: ${p.ready ? '#4CAF50' : '#888'}; font-size: 11px; font-weight: bold; letter-spacing: 1px;">${p.ready ? 'LISTO' : 'PREPARANDO...'}</span>
-                            </div>
-                        `).join('');
-
-                        const myPlayer = players.find(p => p.id === window.multiplayer.socket.id);
-                        const readyBtn = document.getElementById('ready-btn');
-                        if (myPlayer && readyBtn) {
-                            readyBtn.innerText = myPlayer.ready ? 'CANCELAR LISTO' : 'ESTOY LISTO';
-                            readyBtn.className = myPlayer.ready ? 'btn-secondary' : 'btn-primary';
-                        }
-                    }
-
-                    window.joinRoom = function (roomId) {
-                        if (window.multiplayer) {
-                            window.multiplayer.socket.emit('setNickname', nickInput.value);
-                            window.multiplayer.joinRoom(roomId);
-                        }
-                    };
-
-                    createRoomBtn.addEventListener('click', () => {
-                        if (window.multiplayer) {
-                            window.multiplayer.socket.emit('setNickname', nickInput.value);
-                            window.multiplayer.createRoom(4);
-                        }
-                    });
-
-                    refreshBtn.addEventListener('click', () => {
-                        if (window.multiplayer && window.multiplayer.socket) {
-                            window.multiplayer.socket.emit('listRooms');
-                        }
-                    });
-
-                    document.getElementById('ready-btn').addEventListener('click', () => {
-                        if (window.multiplayer) window.multiplayer.toggleReady();
-                    });
-                </script>
             </div>
         </div>
 
@@ -419,6 +309,120 @@
     </div>
 
     <script src="dist/bundle.js"></script>
+
+    <script>
+        // Use DOMContentLoaded or put script at end to ensure elements exist
+        document.addEventListener('DOMContentLoaded', () => {
+            const select = document.getElementById('player-count-select');
+            const link = document.getElementById('singleplayer-link');
+            const multiBtn = document.getElementById('multiplayer-mode-btn');
+            const backBtn = document.getElementById('back-to-modes-btn');
+            const modeContainer = document.getElementById('mode-selection-container');
+            const multiContainer = document.getElementById('multiplayer-setup-container');
+
+            const createRoomBtn = document.getElementById('create-room-btn');
+            const refreshBtn = document.getElementById('refresh-rooms-btn');
+            const roomListDiv = document.getElementById('room-list');
+            const nickInput = document.getElementById('nickname-input');
+            const readyBtn = document.getElementById('ready-btn');
+
+            // Load saved nickname
+            const savedNick = localStorage.getItem('nanowar_nickname');
+            if (savedNick) nickInput.value = savedNick;
+
+            nickInput.addEventListener('input', () => {
+                localStorage.setItem('nanowar_nickname', nickInput.value);
+                if (window.multiplayer && window.multiplayer.socket) {
+                    window.multiplayer.socket.emit('setNickname', nickInput.value);
+                }
+            });
+
+            function updateLink() {
+                link.href = `singleplayer.html?players=${select.value}`;
+            }
+
+            select.addEventListener('change', updateLink);
+            updateLink(); // Initial call
+
+            multiBtn.addEventListener('click', () => {
+                if (!nickInput.value.trim()) {
+                    alert('Ingresa un nombre de comandante');
+                    return;
+                }
+                modeContainer.style.display = 'none';
+                multiContainer.style.display = 'block';
+
+                if (window.multiplayer && window.multiplayer.socket) {
+                    window.multiplayer.socket.emit('listRooms');
+                }
+            });
+
+            backBtn.addEventListener('click', () => {
+                modeContainer.style.display = 'block';
+                multiContainer.style.display = 'none';
+            });
+
+            // Callback for MultiplayerController
+            window.updateRoomListUI = function (rooms) {
+                if (rooms.length === 0) {
+                    roomListDiv.innerHTML = '<p class="no-rooms">No hay salas disponibles</p>';
+                    return;
+                }
+
+                roomListDiv.innerHTML = rooms.map(room => `
+                    <div class="room-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px dashed rgba(76, 175, 80, 0.2); background: rgba(0,0,0,0.2); margin-bottom: 5px; border-radius: 4px;">
+                        <div style="text-align: left;">
+                            <div style="font-size: 12px; color: #4CAF50; font-family: monospace; font-weight: bold;">${room.id}</div>
+                            <div style="font-size: 10px; opacity: 0.6; text-transform: uppercase;">Jugadores: ${room.players}/${room.maxPlayers}</div>
+                        </div>
+                        <button onclick="joinRoom('${room.id}')" class="btn-primary" style="padding: 4px 12px; font-size: 10px; min-width: 80px;">UNIRSE</button>
+                    </div>
+                `).join('');
+            };
+
+            window.updateLobbyUI = function (players) {
+                const lobbyList = document.getElementById('lobby-players');
+                if (!lobbyList) return;
+
+                lobbyList.innerHTML = players.map(p => `
+                    <div style="display: flex; justify-content: space-between; padding: 12px 20px; background: ${p.ready ? 'rgba(76,175,80,0.15)' : 'rgba(255,255,255,0.05)'}; margin-bottom: 8px; border-radius: 6px; border: 1px solid ${p.ready ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
+                        <span style="color: white; font-size: 14px; font-family: monospace;">${p.nickname} ${p.id === window.multiplayer.socket.id ? '<span style="color:#4CAF50; font-size:10px;">(TÚ)</span>' : ''}</span>
+                        <span style="color: ${p.ready ? '#4CAF50' : '#888'}; font-size: 11px; font-weight: bold; letter-spacing: 1px;">${p.ready ? 'LISTO' : 'PREPARANDO...'}</span>
+                    </div>
+                `).join('');
+
+                const myPlayer = players.find(p => p.id === window.multiplayer.socket.id);
+                if (myPlayer && readyBtn) {
+                    readyBtn.innerText = myPlayer.ready ? 'CANCELAR LISTO' : 'ESTOY LISTO';
+                    readyBtn.className = myPlayer.ready ? 'btn-secondary' : 'btn-primary';
+                }
+            }
+
+            window.joinRoom = function (roomId) {
+                if (window.multiplayer) {
+                    window.multiplayer.socket.emit('setNickname', nickInput.value);
+                    window.multiplayer.joinRoom(roomId);
+                }
+            };
+
+            createRoomBtn.addEventListener('click', () => {
+                if (window.multiplayer) {
+                    window.multiplayer.socket.emit('setNickname', nickInput.value);
+                    window.multiplayer.createRoom(4);
+                }
+            });
+
+            refreshBtn.addEventListener('click', () => {
+                if (window.multiplayer && window.multiplayer.socket) {
+                    window.multiplayer.socket.emit('listRooms');
+                }
+            });
+
+            readyBtn.addEventListener('click', () => {
+                if (window.multiplayer) window.multiplayer.toggleReady();
+            });
+        });
+    </script>
 </body>
 
 </html>
