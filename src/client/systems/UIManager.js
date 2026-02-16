@@ -16,8 +16,8 @@ export class UIManager {
         ctx.font = '12px monospace';
         ctx.textAlign = 'left';
         ctx.fillStyle = '#fff';
-
-        ctx.fillText(`UNIDADES: ${this.game.state.entities.filter(e => e.owner === 0).length}`, 20, h - 80);
+        const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
+        ctx.fillText(`UNIDADES: ${this.game.state.entities.filter(e => e.owner === playerIndex).length}`, 20, h - 80);
         ctx.fillText(`SELECCIONADOS: ${this.game.systems.selection.selectedEntities.size}`, 20, h - 60);
 
         if (this.game.systems.selection.selectedNodes.size > 0) {

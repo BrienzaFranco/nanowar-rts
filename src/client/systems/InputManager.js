@@ -85,10 +85,17 @@ export class InputManager {
         }
         if (e.code === 'KeyS') {
             const sel = this.game.systems.selection;
-            sel.selectedEntities.forEach(id => {
-                const ent = this.game.state.entities.find(e => e.id === id);
-                if (ent) ent.stop();
-            });
+            if (this.game.controller.sendAction) {
+                this.game.controller.sendAction({
+                    type: 'stop',
+                    unitIds: Array.from(sel.selectedEntities)
+                });
+            } else {
+                sel.selectedEntities.forEach(id => {
+                    const ent = this.game.state.entities.find(e => e.id === id);
+                    if (ent) ent.stop();
+                });
+            }
         }
     }
 

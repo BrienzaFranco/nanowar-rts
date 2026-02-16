@@ -54,6 +54,25 @@ export class GameServer {
                 }
             });
         }
+        else if (action.type === 'rally') {
+            const { nodeIds, targetX, targetY, targetNodeId } = action;
+            const targetNode = targetNodeId ? this.state.nodes.find(n => n.id === targetNodeId) : null;
+            nodeIds.forEach(id => {
+                const node = this.state.nodes.find(n => n.id === id);
+                if (node && node.owner === playerIndex) {
+                    node.setRallyPoint(targetX, targetY, targetNode);
+                }
+            });
+        }
+        else if (action.type === 'stop') {
+            const { unitIds } = action;
+            unitIds.forEach(id => {
+                const entity = this.state.entities.find(e => e.id === id);
+                if (entity && entity.owner === playerIndex) {
+                    entity.stop();
+                }
+            });
+        }
     }
 
     start() {

@@ -20,16 +20,27 @@ export class SelectionManager {
         const worldPos = this.game.camera.screenToWorld(mouse.x, mouse.y);
 
         if (event.button === 0) { // Left Click
+            const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
             if (this.rallyMode && this.selectedNodes.size > 0) {
                 const targetNode = this.game.state.nodes.find(n => {
                     const dx = n.x - worldPos.x, dy = n.y - worldPos.y;
                     return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
                 });
 
-                this.selectedNodes.forEach(id => {
-                    const node = this.game.state.nodes.find(n => n.id === id);
-                    if (node && node.owner === 0) node.setRallyPoint(worldPos.x, worldPos.y, targetNode);
-                });
+                if (this.game.controller.sendAction) {
+                    this.game.controller.sendAction({
+                        type: 'rally',
+                        nodeIds: Array.from(this.selectedNodes),
+                        targetX: worldPos.x,
+                        targetY: worldPos.y,
+                        targetNodeId: targetNode ? targetNode.id : null
+                    });
+                } else {
+                    this.selectedNodes.forEach(id => {
+                        const node = this.game.state.nodes.find(n => n.id === id);
+                        if (node && node.owner === playerIndex) node.setRallyPoint(worldPos.x, worldPos.y, targetNode);
+                    });
+                }
                 this.rallyMode = false;
                 return;
             }
