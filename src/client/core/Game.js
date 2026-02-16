@@ -78,6 +78,7 @@ export class Game {
         
         // Track entities before update for collision detection
         const entitiesBefore = this.state.entities.length;
+        const playerEntitiesBefore = this.state.entities.filter(e => e.owner === playerIdx).length;
         
         this.state.update(dt, this);
         if (this.controller && this.controller.update) {
@@ -94,6 +95,9 @@ export class Game {
         // Add cooldown for healing sound
         this.healSoundCooldown -= dt;
         
+        // Only play sounds if we have a valid player index (>= 0)
+        const isValidPlayer = playerIdx >= 0;
+        
         let playedHealSound = false;
         
         this.state.nodes.forEach(n => {
@@ -101,16 +105,17 @@ export class Game {
             const oldHp = nodeHpBefore.get(n.id);
             
             // Node was captured by US (from neutral)
-            if (oldOwner !== undefined && oldOwner === -1 && n.owner === playerIdx) {
+            if (isValidPlayer && oldOwner !== undefined && oldOwner === -1 && n.owner === playerIdx) {
                 sounds.playCapture();
             }
             
             // Our node is healing (HP going up) - play sound with cooldown
-            if (!playedHealSound && oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx && this.healSoundCooldown < 0) {
+            if (isValidPlayer && !playedHealSound && oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx && this.healSoundCooldown < 0) {
                 const hpPercent = n.baseHp / n.maxHp;
                 
                 // Play sound when healing (HP going up)
                 if (n.baseHp > oldHp) {
+                    console.log('HEAL SOUND: node', n.id, 'owner:', n.owner, 'playerIdx:', playerIdx, 'hp:', hpPercent);
                     sounds.playNodeHealing(hpPercent);
                     this.healSoundCooldown = 2.0; // Much longer cooldown
                     playedHealSound = true;
@@ -120,15 +125,11 @@ export class Game {
 
         // Check for OUR cell collisions - play when OUR units die
         const entityCountNow = this.state.entities.length;
+        const playerEntitiesNow = this.state.entities.filter(e => e.owner === playerIdx).length;
         
-        // If units died, play collision sound (satisfying when we win)
-        if (entityCountNow < entitiesBefore) {
+        // If OUR units died, play collision sound
+        if (playerEntitiesNow < playerEntitiesBefore && isValidPlayer) {
             sounds.playCollision();
-        }
-
-        // Check win/lose condition for singleplayer
-        if (this.controller && this.controller.playerIndex !== undefined) {
-            this.checkWinCondition();
         }
     }
 
