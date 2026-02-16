@@ -64,7 +64,9 @@ window.initGame = (mode) => {
 // Auto-init based on page
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('game-canvas')) {
-        const isSingle = window.location.pathname.includes('singleplayer');
+        // Check if singleplayer by path or by URL params
+        const isSingle = window.location.pathname.includes('singleplayer') || 
+                         new URLSearchParams(window.location.search).has('players');
         window.initGame(isSingle ? 'singleplayer' : 'multiplayer');
     }
 });
