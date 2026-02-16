@@ -5,6 +5,7 @@ export class SoundManager {
     constructor() {
         this.ctx = null;
         this.enabled = true;
+        this.playerIndex = 0; // Default to player 0
         this.init();
     }
 
@@ -14,6 +15,10 @@ export class SoundManager {
         } catch (e) {
             console.warn('Web Audio API not supported');
         }
+    }
+
+    setPlayerIndex(idx) {
+        this.playerIndex = idx;
     }
 
     resume() {

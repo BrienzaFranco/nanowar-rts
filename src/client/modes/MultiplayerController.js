@@ -292,8 +292,8 @@ export class MultiplayerController {
                 clientNode.rallyPoint = sn.rallyPoint;
             }
             
-            // Play capture sound if owner changed
-            if (oldOwner !== sn.owner && oldOwner !== -1 && sn.owner !== -1) {
+            // Play capture sound ONLY if WE captured it
+            if (oldOwner !== sn.owner && sn.owner === this.playerIndex) {
                 sounds.playCapture();
             }
         });

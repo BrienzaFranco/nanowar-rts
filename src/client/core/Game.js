@@ -22,6 +22,8 @@ export class Game {
 
         this.running = false;
         this.gameOverShown = false;
+        this.collisionSoundCooldown = 0;
+        this.nodeChargeCooldown = 0;
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -61,9 +63,14 @@ export class Game {
     }
 
     update(dt) {
+        // Set player index for sounds
+        sounds.setPlayerIndex(this.controller?.playerIndex ?? 0);
+        
         // Track node owners and HP before update for capture detection
         const nodeOwnersBefore = new Map();
         const nodeHpBefore = new Map();
+        const playerIdx = this.controller?.playerIndex ?? 0;
+        
         this.state.nodes.forEach(n => {
             nodeOwnersBefore.set(n.id, n.owner);
             nodeHpBefore.set(n.id, n.baseHp);
@@ -88,23 +95,27 @@ export class Game {
             const oldOwner = nodeOwnersBefore.get(n.id);
             const oldHp = nodeHpBefore.get(n.id);
             
-            // Node was captured
-            if (oldOwner !== undefined && oldOwner !== n.owner && n.owner !== -1) {
+            // Node was captured by US
+            if (oldOwner !== undefined && oldOwner !== n.owner && n.owner === playerIdx) {
                 sounds.playCapture();
             }
             
-            // Node is being attacked/damaged - play charging sound based on HP
-            if (oldHp !== undefined && n.owner !== -1) {
+            // Our node is being attacked/damaged - play charging sound based on HP
+            if (oldHp !== undefined && n.owner === playerIdx) {
                 const hpPercent = n.baseHp / n.maxHp;
                 
-                // Play sound when taking damage (HP going down)
-                if (n.baseHp < oldHp && hpPercent < 0.9) {
+                // Play sound when taking damage (HP going down), with cooldown
+                if (n.baseHp < oldHp && hpPercent < 0.9 && this.nodeChargeCooldown <= 0) {
                     sounds.playNodeCharging(hpPercent);
+                    this.nodeChargeCooldown = 0.15; // Limit how often this plays
                 }
             }
         });
 
-        // Check for enemy cell collisions - play sound when cells die from collision
+        // Update cooldowns
+        if (this.nodeChargeCooldown > 0) this.nodeChargeCooldown -= dt;
+        
+        // Check for enemy cell collisions - play sound when OUR cells die from collision
         // If many entities died this frame, it's likely from collisions
         const entityCountNow = this.state.entities.length;
         const died = entitiesBefore - entityCountNow;
@@ -113,7 +124,7 @@ export class Game {
         if (!this.collisionSoundCooldown) this.collisionSoundCooldown = 0;
         this.collisionSoundCooldown -= dt;
         
-        // If enemies died from collisions (not all at once, just a few), play sound
+        // If OUR enemies died from collisions (not all at once, just a few), play sound
         if (this.collisionSoundCooldown <= 0 && died > 0 && died < 10) {
             sounds.playCollision();
             this.collisionSoundCooldown = 0.3;
