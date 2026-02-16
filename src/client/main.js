@@ -41,6 +41,7 @@ window.initGame = (mode) => {
                 
                 // Stop current game
                 game.running = false;
+                game.gameOverShown = false;
                 
                 // Clear state - create fresh GameState
                 game.state = new GameState();

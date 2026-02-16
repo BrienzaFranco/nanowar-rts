@@ -20,6 +20,7 @@ export class Game {
         this.waypointLines = [];
 
         this.running = false;
+        this.gameOverShown = false;
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -59,6 +60,78 @@ export class Game {
         this.particles = this.particles.filter(p => p.update(dt));
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
+
+        // Check win/lose condition for singleplayer
+        if (this.controller && this.controller.playerIndex !== undefined) {
+            this.checkWinCondition();
+        }
+    }
+
+    checkWinCondition() {
+        // Only check win condition in singleplayer mode
+        if (!this.controller || this.controller.playerIndex === undefined || this.controller.playerIndex === -1) {
+            return;
+        }
+        
+        // Prevent multiple checks
+        if (this.gameOverShown) return;
+        
+        const playerIndex = this.controller.playerIndex;
+        const playerNodes = this.state.nodes.filter(n => n.owner === playerIndex);
+        const enemyNodes = this.state.nodes.filter(n => n.owner !== -1 && n.owner !== playerIndex);
+        const playerEntities = this.state.entities.filter(e => e.owner === playerIndex && !e.dead && !e.dying);
+
+        // Lose: no nodes and no entities
+        if (playerNodes.length === 0 && playerEntities.length === 0) {
+            this.gameOverShown = true;
+            this.showGameOver(false);
+            return;
+        }
+
+        // Win: no enemy nodes left
+        if (enemyNodes.length === 0) {
+            this.gameOverShown = true;
+            this.showGameOver(true);
+            return;
+        }
+    }
+
+    showGameOver(won) {
+        this.running = false;
+        const msg = won ? '¡VICTORIA!' : 'DERROTA';
+        const color = won ? '#4CAF50' : '#f44336';
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'game-over-overlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); display: flex;
+            justify-content: center; align-items: center; z-index: 1000;
+        `;
+        
+        const box = document.createElement('div');
+        box.style.cssText = `
+            padding: 40px 60px; background: #141419;
+            border: 3px solid ${color}; border-radius: 12px;
+            text-align: center;
+        `;
+        
+        box.innerHTML = `
+            <h1 style="color: ${color}; font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">${msg}</h1>
+            <button id="restart-btn" style="
+                background: ${color}; color: white; border: none;
+                padding: 12px 30px; font-size: 16px; cursor: pointer;
+                border-radius: 4px; font-family: 'Courier New', monospace;
+            ">JUGAR DE NUEVO</button>
+        `;
+        
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            overlay.remove();
+            location.reload();
+        });
     }
 
     draw() {

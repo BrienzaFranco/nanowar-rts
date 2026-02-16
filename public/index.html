@@ -315,6 +315,12 @@
         </div>
 
         <div id="game-screen" class="screen" style="display: none;">
+            <div id="ui-top" style="position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">
+                <h1 style="margin: 0; color: white; font-size: 18px; text-shadow: 0 0 10px black;">NANOWAR</h1>
+                <div style="pointer-events: auto;">
+                    <button id="reset-btn" class="ui-btn" style="padding: 8px 16px;">REINICIAR</button>
+                </div>
+            </div>
             <canvas id="game-canvas"></canvas>
         </div>
     </div>
