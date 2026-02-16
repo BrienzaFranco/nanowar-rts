@@ -163,10 +163,15 @@ export class MultiplayerController {
             box.style.cssText = `
                 padding: 40px 60px; background: #141419;
                 border: 3px solid ${color}; border-radius: 12px;
-                text-align: center;
+                text-align: center; position: relative;
             `;
             
             box.innerHTML = `
+                <button onclick="this.parentElement.parentElement.remove(); location.href='index.html';" style="
+                    position: absolute; top: 10px; right: 15px;
+                    background: none; border: none; color: #888;
+                    font-size: 24px; cursor: pointer; line-height: 1;
+                ">&times;</button>
                 <h1 style="color: ${color}; font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">${msg}</h1>
                 ${statsHTML}
                 <p style="color: #888; margin-bottom: 20px;">${lost ? 'Puedes seguir jugando mientras esperas...' : ''}</p>
@@ -179,6 +184,14 @@ export class MultiplayerController {
             
             overlay.appendChild(box);
             document.body.appendChild(overlay);
+            
+            // Click outside to close
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.remove();
+                    location.href = 'index.html';
+                }
+            });
             
             document.getElementById('restart-btn').addEventListener('click', () => {
                 overlay.remove();

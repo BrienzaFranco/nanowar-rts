@@ -156,22 +156,43 @@ export class Game {
             padding: 30px 40px; background: #141419;
             border: 3px solid ${color}; border-radius: 12px;
             text-align: center; max-width: 500px; max-height: 80vh; overflow-y: auto;
+            position: relative;
         `;
         
         box.innerHTML = `
+            <button onclick="this.parentElement.parentElement.remove()" style="
+                position: absolute; top: 10px; right: 15px;
+                background: none; border: none; color: #888;
+                font-size: 24px; cursor: pointer; line-height: 1;
+            ">&times;</button>
             <h1 style="color: ${color}; font-size: 42px; margin: 0 0 15px 0; letter-spacing: 4px;">${msg}</h1>
             ${statsHTML}
             <h3 style="color: #888; margin: 15px 0 5px 0;">Unidades por Jugador</h3>
             ${graphHTML}
-            <button id="restart-btn" style="
-                background: ${color}; color: white; border: none;
-                padding: 12px 30px; font-size: 16px; cursor: pointer;
-                border-radius: 4px; font-family: 'Courier New', monospace; margin-top: 15px;
-            ">JUGAR DE NUEVO</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
+                <button id="menu-btn" style="
+                    background: #666; color: white; border: none;
+                    padding: 12px 20px; font-size: 14px; cursor: pointer;
+                    border-radius: 4px; font-family: 'Courier New', monospace;
+                ">MENU</button>
+                <button id="restart-btn" style="
+                    background: ${color}; color: white; border: none;
+                    padding: 12px 20px; font-size: 14px; cursor: pointer;
+                    border-radius: 4px; font-family: 'Courier New', monospace;
+                ">JUGAR DE NUEVO</button>
+            </div>
         `;
         
         overlay.appendChild(box);
         document.body.appendChild(overlay);
+        
+        // Click outside to close
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.remove();
+                location.href = 'index.html';
+            }
+        });
         
         // Draw graph
         setTimeout(() => {
@@ -232,6 +253,14 @@ export class Game {
             overlay.remove();
             location.reload();
         });
+        
+        const menuBtnInOverlay = document.getElementById('menu-btn');
+        if (menuBtnInOverlay) {
+            menuBtnInOverlay.addEventListener('click', () => {
+                overlay.remove();
+                location.href = 'index.html';
+            });
+        }
     }
 
     draw() {
