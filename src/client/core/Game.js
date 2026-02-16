@@ -22,6 +22,7 @@ export class Game {
 
         this.running = false;
         this.gameOverShown = false;
+        this.healSoundCooldown = 0;
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -89,23 +90,27 @@ export class Game {
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
 
         // Check for node captures and node healing sounds - ONLY FOR OUR NODES
+        // Add cooldown for healing sound
+        if (!this.healSoundCooldown) this.healSoundCooldown = 0;
+        this.healSoundCooldown -= dt;
+        
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
             const oldHp = nodeHpBefore.get(n.id);
             
-            // Node was captured by US (from neutral or enemy)
-            if (oldOwner !== undefined && oldOwner !== n.owner && n.owner === playerIdx && oldOwner === -1) {
+            // Node was captured by US (from neutral)
+            if (oldOwner !== undefined && oldOwner === -1 && n.owner === playerIdx) {
                 sounds.playCapture();
             }
             
-            // Our node is being attacked - no sound for that
-            // Our node is healing (HP going up) - play sound
-            if (oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx) {
+            // Our node is healing (HP going up) - play sound with cooldown
+            if (oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx && this.healSoundCooldown <= 0) {
                 const hpPercent = n.baseHp / n.maxHp;
                 
                 // Play sound when healing (HP going up)
                 if (n.baseHp > oldHp) {
                     sounds.playNodeHealing(hpPercent);
+                    this.healSoundCooldown = 0.3;
                 }
             }
         });

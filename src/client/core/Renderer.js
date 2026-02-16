@@ -70,16 +70,18 @@ export class Renderer {
             this.ctx.fill();
         }
 
-        // Spawn Progress - show player color when owned
+        // Spawn Progress - player color when full, white otherwise
         if (node.owner !== -1 && node.spawnProgress > 0) {
-            // Use player's color for owned nodes
-            const playerColor = node.getColor();
-            const progressColor = playerColor;
+            const isFull = node.baseHp >= node.maxHp;
+            
+            // Use player color when full, white otherwise
+            const progressColor = isFull ? baseColor : '#ffffff';
+            const lineWidth = isFull ? (3 * camera.zoom) : (2 * camera.zoom);
             
             this.ctx.beginPath();
             this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + node.spawnProgress * Math.PI * 2);
             this.ctx.strokeStyle = progressColor;
-            this.ctx.lineWidth = 2 * camera.zoom;
+            this.ctx.lineWidth = lineWidth;
             this.ctx.stroke();
         }
 

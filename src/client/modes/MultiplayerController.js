@@ -142,6 +142,13 @@ export class MultiplayerController {
             // Mark game as over to stop receiving states
             if (this.game) this.game.gameOverShown = true;
             
+            // Play win/lose sound
+            if (won) {
+                sounds.playWin();
+            } else {
+                sounds.playLose();
+            }
+            
             // Show overlay
             const msg = won ? '¡VICTORIA!' : (data.winner === -1 ? 'EMPATE' : 'DERROTA');
             const color = won ? '#4CAF50' : '#f44336';
@@ -176,6 +183,11 @@ export class MultiplayerController {
                 }
             }
             statsHTML += '</div>';
+            
+            // Generate graph
+            const graphWidth = 400;
+            const graphHeight = 150;
+            let graphHTML = `<canvas id="stats-graph" width="${graphWidth}" height="${graphHeight}" style="margin: 15px 0; border: 1px solid #333; background: rgba(0,0,0,0.3);"></canvas>`;
             
             const overlay = document.createElement('div');
             overlay.id = 'game-over-overlay';
