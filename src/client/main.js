@@ -4,6 +4,7 @@ import { SelectionManager } from './systems/SelectionManager.js';
 import { UIManager } from './systems/UIManager.js';
 import { SingleplayerController } from './modes/SingleplayerController.js';
 import { MultiplayerController } from './modes/MultiplayerController.js';
+import { GameState } from '../shared/GameState.js';
 
 window.initGame = (mode) => {
     const game = new Game('game-canvas');
@@ -27,6 +28,33 @@ window.initGame = (mode) => {
         game.controller = new MultiplayerController(game);
         game.controller.connect();
         // Don't start game loop here - wait for server's gameStart event
+    }
+
+    // Setup reset button for singleplayer
+    if (mode === 'singleplayer') {
+        const resetBtn = document.getElementById('reset-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const playerCount = parseInt(urlParams.get('players')) || 2;
+                const difficulty = urlParams.get('difficulty') || 'intermediate';
+                
+                // Stop current game
+                game.running = false;
+                
+                // Clear state - create fresh GameState
+                game.state = new GameState();
+                game.state.playerCount = game.controller.ais.length + 1;
+                game.particles = [];
+                game.commandIndicators = [];
+                game.waypointLines = [];
+                game.systems.selection.clear();
+                
+                // Re-setup with new map
+                game.controller.setup(playerCount, difficulty);
+                game.start();
+            });
+        }
     }
 
     return game;
