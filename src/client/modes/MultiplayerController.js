@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { Entity } from '../../shared/Entity.js';
 import { Node } from '../../shared/Node.js';
+import { GameState } from '../../shared/GameState.js';
 
 export class MultiplayerController {
     constructor(game) {
@@ -10,12 +11,12 @@ export class MultiplayerController {
         this.playerIndex = -1;
         this.roomId = null;
         this.cameraCentered = false;
+        this.initialStateReceived = false;
     }
 
     connect(url = '/') {
         this.socket = io(url);
         this.setupSocketEvents();
-        // Expose this controller to window for UI interaction
         window.multiplayer = this;
     }
 
@@ -25,7 +26,6 @@ export class MultiplayerController {
             console.log('MultiplayerController connected to server');
             this.socket.emit('listRooms');
 
-            // Send nickname if we have one stored
             const name = localStorage.getItem('nanowar_nickname');
             if (name) this.socket.emit('setNickname', name);
         });
@@ -43,14 +43,51 @@ export class MultiplayerController {
             }
         });
 
-        this.socket.on('gameStart', () => {
+        this.socket.on('gameStart', (initialState) => {
             console.log('Game starting!');
+            
+            // Clear existing state and initialize from server
+            this.game.state = new GameState();
+            this.game.state.nodes = [];
+            this.game.state.entities = [];
+            this.game.state.playerCount = initialState.playerCount || this.game.state.playerCount;
+            
+            // Apply initial state
+            if (initialState.nodes) {
+                initialState.nodes.forEach(sn => {
+                    const node = new Node(sn.id, sn.x, sn.y, sn.owner, sn.type);
+                    node.baseHp = sn.baseHp;
+                    node.maxHp = sn.maxHp;
+                    node.stock = sn.stock;
+                    node.maxStock = sn.maxStock;
+                    node.spawnProgress = sn.spawnProgress;
+                    if (sn.rallyPoint) node.rallyPoint = sn.rallyPoint;
+                    this.game.state.nodes.push(node);
+                });
+            }
+            
+            // Spawn initial entities for all players like singleplayer does
+            this.game.state.nodes.forEach(node => {
+                if (node.owner !== -1) {
+                    for (let i = 0; i < 15; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = node.radius + 30;
+                        const ent = new Entity(
+                            node.x + Math.cos(angle) * dist,
+                            node.y + Math.sin(angle) * dist,
+                            node.owner,
+                            Date.now() + i + (node.owner * 1000)
+                        );
+                        this.game.state.entities.push(ent);
+                    }
+                }
+            });
+
             const lobby = document.getElementById('lobby-screen');
             const gameScreen = document.getElementById('game-screen');
             if (lobby) lobby.style.display = 'none';
             if (gameScreen) gameScreen.style.display = 'block';
             
-            // Resize canvas now that it's visible
             this.game.resize();
             this.game.start();
         });
@@ -106,25 +143,27 @@ export class MultiplayerController {
     }
 
     syncState(serverState) {
-        // Authoritative sync for Nodes
+        // Sync nodes
         serverState.nodes.forEach(sn => {
             let clientNode = this.game.state.nodes.find(cn => cn.id === sn.id);
             if (!clientNode) {
-                // Create node if it doesn't exist
                 clientNode = new Node(sn.id, sn.x, sn.y, sn.owner, sn.type);
                 this.game.state.nodes.push(clientNode);
             }
-
-            // Update properties
+            
+            // Update properties from server
             clientNode.owner = sn.owner;
             clientNode.baseHp = sn.baseHp;
+            clientNode.stock = sn.stock;
             clientNode.spawnProgress = sn.spawnProgress;
+            clientNode.hitFlash = sn.hitFlash;
+            clientNode.spawnEffect = sn.spawnEffect;
             if (sn.rallyPoint) {
                 clientNode.rallyPoint = sn.rallyPoint;
             }
         });
 
-        // Center camera on player's node if not already done
+        // Center camera on player's starting node
         if (!this.cameraCentered && this.playerIndex !== -1 && this.game.state.nodes.length > 0) {
             const startNode = this.game.state.nodes.find(n => n.owner === this.playerIndex);
             if (startNode) {
@@ -133,30 +172,32 @@ export class MultiplayerController {
             }
         }
 
-        // Authoritative sync for Entities (Re-instantiation Fix)
-        // 1. Identify entities to keep/update and entities to add
-        const newEntities = [];
+        // Sync entities - update existing ones
+        const entityMap = new Map();
+        this.game.state.entities.forEach(e => entityMap.set(e.id, e));
+
         serverState.entities.forEach(se => {
-            let localEnt = this.game.state.entities.find(le => le.id === se.id);
-            if (localEnt) {
-                // Update existing
-                localEnt.x = se.x;
-                localEnt.y = se.y;
-                localEnt.vx = se.vx;
-                localEnt.vy = se.vy;
-                localEnt.owner = se.owner;
-                localEnt.dying = se.dying;
-                newEntities.push(localEnt);
-            } else {
-                // Re-instantiate new
-                const ent = new Entity(se.x, se.y, se.owner, se.id);
-                ent.vx = se.vx;
-                ent.vy = se.vy;
-                ent.dying = se.dying;
-                newEntities.push(ent);
+            let ent = entityMap.get(se.id);
+            if (!ent) {
+                ent = new Entity(se.x, se.y, se.owner, se.id);
+                this.game.state.entities.push(ent);
             }
+            
+            // Update from server (authoritative)
+            ent.x = se.x;
+            ent.y = se.y;
+            ent.vx = se.vx;
+            ent.vy = se.vy;
+            ent.owner = se.owner;
+            ent.dying = se.dying;
+            ent.deathType = se.deathType;
+            ent.deathTime = se.deathTime;
+            
+            entityMap.set(se.id, ent);
         });
 
-        this.game.state.entities = newEntities;
+        // Remove entities that no longer exist on server
+        const serverEntityIds = new Set(serverState.entities.map(e => e.id));
+        this.game.state.entities = this.game.state.entities.filter(e => serverEntityIds.has(e.id));
     }
 }

@@ -37,4 +37,8 @@ export class Camera {
         this.x = -padding;
         this.y = -padding;
     }
+    centerOn(worldX, worldY, screenWidth, screenHeight) {
+        this.x = worldX - screenWidth / (2 * this.zoom);
+        this.y = worldY - screenHeight / (2 * this.zoom);
+    }
 }

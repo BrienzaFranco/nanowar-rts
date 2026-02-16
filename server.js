@@ -106,7 +106,7 @@ io.on('connection', (socket) => {
             const allReady = game.playerSockets.every(s => s.ready);
             if (allReady) {
                 game.start();
-                io.to(socket.roomId).emit('gameStart');
+                io.to(socket.roomId).emit('gameStart', game.state.getState());
             }
         }
     });
