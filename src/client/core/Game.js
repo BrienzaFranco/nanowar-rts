@@ -35,18 +35,28 @@ export class Game {
     start() {
         if (this.running) return;
         this.running = true;
-        let lastTime = performance.now();
+        this.lastTime = performance.now();
+        
+        const game = this;
         const loop = (now) => {
-            if (!this.running) return;
-            const dt = Math.min((now - lastTime) / 1000, 0.05);
-            lastTime = now;
+            if (!game.running) return;
+            const dt = Math.min((now - game.lastTime) / 1000, 0.05);
+            game.lastTime = now;
 
-            this.update(dt);
-            this.draw();
+            game.update(dt);
+            game.draw();
 
-            requestAnimationFrame(loop);
+            game.animationId = requestAnimationFrame(loop);
         };
-        requestAnimationFrame(loop);
+        game.animationId = requestAnimationFrame(loop);
+    }
+
+    stop() {
+        this.running = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
     }
 
     update(dt) {
@@ -97,7 +107,7 @@ export class Game {
     }
 
     showGameOver(won) {
-        this.running = false;
+        this.stop();
         const msg = won ? '¡VICTORIA!' : 'DERROTA';
         const color = won ? '#4CAF50' : '#f44336';
         

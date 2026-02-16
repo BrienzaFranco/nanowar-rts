@@ -60,8 +60,8 @@ window.initGame = (mode) => {
                 const playerCount = parseInt(urlParams.get('players')) || 2;
                 const difficulty = urlParams.get('difficulty') || 'intermediate';
                 
-                // Stop current game
-                game.running = false;
+                // Stop current game properly
+                game.stop();
                 game.gameOverShown = false;
                 
                 // Clear state - create fresh GameState
