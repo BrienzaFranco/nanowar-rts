@@ -246,8 +246,18 @@
 
                 <div class="mode-selection">
                     <h2>Seleccionar Modo</h2>
+                    <div
+                        style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Rivales:</label>
+                        <select id="player-count-select"
+                            style="background: #141419; color: #4CAF50; border: 1px solid rgba(76,175,80,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
+                            <option value="2">1 vs 1 (1 IA)</option>
+                            <option value="3">1 vs 2 (2 IAs)</option>
+                            <option value="4" selected>1 vs 3 (3 IAs)</option>
+                        </select>
+                    </div>
                     <div class="mode-buttons">
-                        <a href="singleplayer.html" class="btn-mode btn-single">
+                        <a href="singleplayer.html" id="singleplayer-link" class="btn-mode btn-single">
                             <span class="mode-icon">&#9679;</span>
                             <span class="mode-title">Singleplayer</span>
                             <span class="mode-desc">vs IA</span>
@@ -259,6 +269,18 @@
                         </button>
                     </div>
                 </div>
+
+                <script>
+                    const select = document.getElementById('player-count-select');
+                    const link = document.getElementById('singleplayer-link');
+
+                    function updateLink() {
+                        link.href = `singleplayer.html?players=${select.value}`;
+                    }
+
+                    select.addEventListener('change', updateLink);
+                    updateLink(); // Initial call
+                </script>
             </div>
         </div>
 

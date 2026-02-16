@@ -17,8 +17,10 @@ window.initGame = (mode) => {
 
     // Initialize Mode
     if (mode === 'singleplayer') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const playerCount = parseInt(urlParams.get('players')) || 2;
         game.controller = new SingleplayerController(game);
-        game.controller.setup(2); // Default to 1v1
+        game.controller.setup(playerCount);
     } else {
         game.controller = new MultiplayerController(game);
         game.controller.connect();
