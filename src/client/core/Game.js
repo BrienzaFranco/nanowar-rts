@@ -22,8 +22,6 @@ export class Game {
 
         this.running = false;
         this.gameOverShown = false;
-        this.collisionSoundCooldown = 0;
-        this.nodeChargeCooldown = 0;
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -90,7 +88,7 @@ export class Game {
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
 
-        // Check for node captures and node charging sounds
+        // Check for node captures and node charging sounds - ONLY FOR OUR NODES
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
             const oldHp = nodeHpBefore.get(n.id);
@@ -100,34 +98,23 @@ export class Game {
                 sounds.playCapture();
             }
             
-            // Our node is being attacked/damaged - play charging sound based on HP
+            // Our node is being attacked/damaged
             if (oldHp !== undefined && n.owner === playerIdx) {
                 const hpPercent = n.baseHp / n.maxHp;
                 
-                // Play sound when taking damage (HP going down), with cooldown
-                if (n.baseHp < oldHp && hpPercent < 0.9 && this.nodeChargeCooldown <= 0) {
+                // Play sound when taking damage (HP going down)
+                if (n.baseHp < oldHp && hpPercent < 0.9) {
                     sounds.playNodeCharging(hpPercent);
-                    this.nodeChargeCooldown = 0.15; // Limit how often this plays
                 }
             }
         });
 
-        // Update cooldowns
-        if (this.nodeChargeCooldown > 0) this.nodeChargeCooldown -= dt;
-        
-        // Check for enemy cell collisions - play sound when OUR cells die from collision
-        // If many entities died this frame, it's likely from collisions
+        // Check for OUR cell collisions - play when OUR units die
         const entityCountNow = this.state.entities.length;
-        const died = entitiesBefore - entityCountNow;
         
-        // Track collision sound cooldown
-        if (!this.collisionSoundCooldown) this.collisionSoundCooldown = 0;
-        this.collisionSoundCooldown -= dt;
-        
-        // If OUR enemies died from collisions (not all at once, just a few), play sound
-        if (this.collisionSoundCooldown <= 0 && died > 0 && died < 10) {
+        // If units died, play collision sound (satisfying when we win)
+        if (entityCountNow < entitiesBefore) {
             sounds.playCollision();
-            this.collisionSoundCooldown = 0.3;
         }
 
         // Check win/lose condition for singleplayer
