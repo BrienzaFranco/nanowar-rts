@@ -21,9 +21,14 @@ export class SelectionManager {
 
         if (event.button === 0) { // Left Click
             if (this.rallyMode && this.selectedNodes.size > 0) {
+                const targetNode = this.game.state.nodes.find(n => {
+                    const dx = n.x - worldPos.x, dy = n.y - worldPos.y;
+                    return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
+                });
+
                 this.selectedNodes.forEach(id => {
                     const node = this.game.state.nodes.find(n => n.id === id);
-                    if (node && node.owner === 0) node.setRallyPoint(worldPos.x, worldPos.y);
+                    if (node && node.owner === 0) node.setRallyPoint(worldPos.x, worldPos.y, targetNode);
                 });
                 this.rallyMode = false;
                 return;

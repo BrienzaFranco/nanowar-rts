@@ -38,7 +38,10 @@ export class Node {
 
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
 
-    setRallyPoint(x, y) { this.rallyPoint = { x, y }; }
+    setRallyPoint(x, y, targetNode = null) {
+        this.rallyPoint = { x, y };
+        this.rallyTargetNode = targetNode;
+    }
 
     calculateDefenders(entities) {
         this.defendersInside = 0;
@@ -105,7 +108,8 @@ export class Node {
             this.spawnTimer += dt;
             const healthPercent = this.baseHp / this.maxHp;
             // Higher health = faster generation (up to 2x speed)
-            const healthScaling = 0.5 + healthPercent;
+            // + 0.1 extra boost if at or above 100% health
+            const healthScaling = 0.5 + healthPercent + (healthPercent >= 1.0 ? 0.1 : 0);
             const spawnThreshold = this.spawnInterval / healthScaling;
 
             if (this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
@@ -116,7 +120,7 @@ export class Node {
                 const angle = Math.random() * Math.PI * 2, dist = this.radius + 25 + Math.random() * 40;
                 const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
                 const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
-                if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y);
+                if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);
                 this.spawnEffect = 0.4;
                 if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
                 return entity;
