@@ -3,6 +3,7 @@ import { Renderer } from './Renderer.js';
 import { GameState } from '../../shared/GameState.js';
 import { GAME_SETTINGS } from '../../shared/GameConfig.js';
 import { Particle } from './Particle.js';
+import { sounds } from '../systems/SoundManager.js';
 
 export class Game {
     constructor(canvasId) {
@@ -108,6 +109,14 @@ export class Game {
 
     showGameOver(won) {
         this.stop();
+        
+        // Play sound
+        if (won) {
+            sounds.playWin();
+        } else {
+            sounds.playLose();
+        }
+        
         const msg = won ? '¡VICTORIA!' : 'DERROTA';
         const color = won ? '#4CAF50' : '#f44336';
         

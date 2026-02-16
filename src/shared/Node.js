@@ -75,6 +75,14 @@ export class Node {
     }
 
     receiveAttack(attackerId, damage, game) {
+        // Don't allow defeated players to capture nodes
+        if (game && game.playerSockets) {
+            const player = game.playerSockets[attackerId];
+            if (player && player.defeated) {
+                return false; // Can't capture nodes
+            }
+        }
+        
         this.hitFlash = 0.3;
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
         if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');

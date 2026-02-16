@@ -92,23 +92,49 @@ export class GameServer {
                 }
             });
         }
+        
+        // Check if player is defeated - restrict actions
+        if (this.playerSockets[playerIndex]?.defeated) {
+            // Defeated players can only move/attack, not capture nodes
+            // Allow stop and move, but NOT path to neutral/enemy nodes
+            if (action.type === 'path') {
+                return; // Block waypoint paths
+            }
+            if (action.type === 'rally') {
+                return; // Block rally points
+            }
+            // Allow move but target node capture is blocked in Node logic
+        }
     }
 
     handleSurrender(socketId) {
         const playerIndex = this.playerSockets.findIndex(s => s.id === socketId);
         if (playerIndex === -1) return;
         
-        // Mark player as surrendered - they keep their nodes but can't win
-        const surrenderedPlayer = this.playerSockets[playerIndex];
-        surrenderedPlayer.surrendered = true;
+        // Mark player as defeated
+        const player = this.playerSockets[playerIndex];
+        player.defeated = true;
+        player.surrendered = true;
         
-        console.log(`Player ${playerIndex} surrendered`);
-        
-        // Remove all their units (they become neutral)
-        this.state.entities = this.state.entities.filter(e => e.owner !== playerIndex);
+        console.log(`Player ${playerIndex} surrendered - can only move/attack now`);
         
         // Notify other players
-        this.io.to(this.roomId).emit('playerSurrendered', { playerIndex });
+        this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: true });
+    }
+
+    checkPlayerDefeated(playerIndex) {
+        const player = this.playerSockets[playerIndex];
+        if (!player || player.defeated) return;
+        
+        const playerNodes = this.state.nodes.filter(n => n.owner === playerIndex);
+        const playerEntities = this.state.entities.filter(e => e.owner === playerIndex && !e.dead && !e.dying);
+        
+        // Player is defeated if no nodes and no entities
+        if (playerNodes.length === 0 && playerEntities.length === 0) {
+            player.defeated = true;
+            console.log(`Player ${playerIndex} defeated - no nodes or units`);
+            this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: false });
+        }
     }
 
     checkWinCondition() {
@@ -169,6 +195,11 @@ export class GameServer {
 
             this.state.update(dt, this);
             this.io.to(this.roomId).emit('gameState', this.state.getState());
+            
+            // Check if any player is defeated
+            for (let i = 0; i < this.playerSockets.length; i++) {
+                this.checkPlayerDefeated(i);
+            }
             
             // Check win condition every second (every 30 frames)
             this.checkWinCondition();

@@ -14,6 +14,7 @@ export class MultiplayerController {
         this.initialStateReceived = false;
         this.gameLost = false;
         this.surrendered = false;
+        this.playerDefeated = false;
     }
 
     connect(url = '/') {
@@ -102,12 +103,30 @@ export class MultiplayerController {
             this.game.start();
         });
 
+        this.socket.on('playerDefeated', (data) => {
+            const isMe = data.playerIndex === this.playerIndex;
+            
+            if (isMe) {
+                this.playerDefeated = true;
+                // Show small notification
+                const notif = document.createElement('div');
+                notif.style.cssText = `
+                    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+                    background: rgba(244,67,54,0.9); color: white; padding: 10px 20px;
+                    border-radius: 4px; z-index: 100; font-family: monospace;
+                `;
+                notif.textContent = data.surrendered ? 'TE RENDISTE - Solo puedes mover y atacar' : 'SIN NODOS - Solo puedes mover y atacar';
+                document.body.appendChild(notif);
+                setTimeout(() => notif.remove(), 3000);
+            }
+        });
+
         this.socket.on('gameState', (serverState) => {
             // Stop syncing after game over
             if (this.game.gameOverShown) return;
             
-            // Keep syncing even if lost - players can still move units
-            if (this.game.running || this.gameLost) {
+            // Keep syncing always for defeated players who can still play
+            if (this.game.running || this.playerDefeated) {
                 this.syncState(serverState);
             }
         });

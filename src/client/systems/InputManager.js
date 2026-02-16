@@ -1,3 +1,5 @@
+import { sounds } from './SoundManager.js';
+
 export class InputManager {
     constructor(game) {
         this.game = game;

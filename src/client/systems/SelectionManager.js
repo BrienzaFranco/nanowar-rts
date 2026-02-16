@@ -1,3 +1,5 @@
+import { sounds } from './SoundManager.js';
+
 export class SelectionManager {
     constructor(game) {
         this.game = game;
@@ -201,6 +203,10 @@ export class SelectionManager {
             } else {
                 this.selectAt(mouse.x, mouse.y);
             }
+            // Play selection sound
+            if (this.selectedEntities.size > 0 || this.selectedNodes.size > 0) {
+                sounds.playSelect();
+            }
         }
         if (event.button === 2) {
             if (this.currentPath.length > 2 && this.selectedEntities.size > 0) {
@@ -215,6 +221,7 @@ export class SelectionManager {
                         path: this.currentPath
                     });
                 }
+                sounds.playMove();
             }
             this.currentPath = [];
         }
@@ -232,6 +239,13 @@ export class SelectionManager {
 
     executeCommand(worldX, worldY, targetNode) {
         this.game.spawnCommandIndicator(worldX, worldY, targetNode ? 'attack' : 'move');
+        
+        // Play sound
+        if (targetNode && targetNode.owner !== -1 && targetNode.owner !== (this.game.controller.playerIndex || 0)) {
+            sounds.playAttack();
+        } else {
+            sounds.playMove();
+        }
 
         if (this.game.controller.sendAction) {
             // Multiplayer execution via server
