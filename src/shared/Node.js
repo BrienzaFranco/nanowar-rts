@@ -130,7 +130,9 @@ export class Node {
                 // Spawning a unit costs health
                 this.baseHp -= 1;
 
-                const angle = Math.random() * Math.PI * 2, dist = this.radius + 25 + Math.random() * 40;
+                // Spawn at edge of influence radius (just inside the area, outside the node)
+                const angle = Math.random() * Math.PI * 2;
+                const dist = this.influenceRadius - 5; // Just inside influence radius
                 const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
                 const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
                 if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);

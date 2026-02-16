@@ -93,35 +93,13 @@ export class Game {
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
 
-        // Check for node captures and node healing sounds - ONLY FOR OUR NODES
-        // Add cooldown for healing sound
-        this.healSoundCooldown -= dt;
-        if (this.healSoundDelay > 0) this.healSoundDelay -= dt;
-        
-        // Only play sounds if we have a valid player index (>= 0)
-        const isValidPlayer = playerIdx >= 0;
-        
-        let playedHealSound = false;
-        
+        // Check for node captures - ONLY FOR OUR NODES
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
-            const oldHp = nodeHpBefore.get(n.id);
             
             // Node was captured by US (from neutral)
             if (isValidPlayer && oldOwner !== undefined && oldOwner === -1 && n.owner === playerIdx) {
                 sounds.playCapture();
-            }
-            
-            // Our node is healing (HP going up) - play sound with cooldown
-            if (isValidPlayer && !playedHealSound && this.healSoundDelay <= 0 && oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx && this.healSoundCooldown < 0) {
-                const hpPercent = n.baseHp / n.maxHp;
-                
-                // Play sound when healing (HP going up)
-                if (n.baseHp > oldHp) {
-                    sounds.playNodeHealing(hpPercent);
-                    this.healSoundCooldown = 2.0; // Much longer cooldown
-                    playedHealSound = true;
-                }
             }
         });
 
