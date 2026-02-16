@@ -93,47 +93,51 @@ export class SoundManager {
     }
 
     playCapture() {
-        // Longer, more satisfying chord with build-up
+        // Simple satisfying "ding" - not too loud
         if (!this.ctx || !this.enabled) return;
         this.resume();
         
-        // Main chord - C major with octave and extensions
-        const notes = [523, 659, 784, 1047, 1319];
+        // Single clear tone
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
         
-        notes.forEach((freq, i) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            
-            osc.type = i < 2 ? 'sine' : 'triangle';
-            osc.frequency.value = freq;
-            
-            // Staggered entry for build-up effect
-            const startTime = this.ctx.currentTime + i * 0.08;
-            const duration = 0.7;
-            
-            gain.gain.setValueAtTime(0, startTime);
-            gain.gain.linearRampToValueAtTime(0.1, startTime + 0.05);
-            gain.gain.setValueAtTime(0.1, startTime + duration - 0.15);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-            
-            osc.connect(gain);
-            gain.connect(this.ctx.destination);
-            
-            osc.start(startTime);
-            osc.stop(startTime + duration);
-        });
+        osc.type = 'sine';
+        osc.frequency.value = 880;
         
-        // Add a bass note
-        const bassOsc = this.ctx.createOscillator();
-        const bassGain = this.ctx.createGain();
-        bassOsc.type = 'sine';
-        bassOsc.frequency.value = 261.63;
-        bassGain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-        bassGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
-        bassOsc.connect(bassGain);
-        bassGain.connect(this.ctx.destination);
-        bassOsc.start();
-        bassOsc.stop(this.ctx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.08, this.ctx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.25);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.25);
+    }
+
+    playNodeCharging(percent) {
+        // Sound that gets higher as node gets closer to 100%
+        // percent is 0-1
+        if (!this.ctx || !this.enabled) return;
+        this.resume();
+        
+        // Frequency increases with percent: 200Hz at 0%, 800Hz at 100%
+        const freq = 200 + percent * 600;
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        
+        gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.15);
     }
 
     playCollision() {

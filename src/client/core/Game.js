@@ -61,9 +61,16 @@ export class Game {
     }
 
     update(dt) {
-        // Track node owners before update for capture detection
+        // Track node owners and HP before update for capture detection
         const nodeOwnersBefore = new Map();
-        this.state.nodes.forEach(n => nodeOwnersBefore.set(n.id, n.owner));
+        const nodeHpBefore = new Map();
+        this.state.nodes.forEach(n => {
+            nodeOwnersBefore.set(n.id, n.owner);
+            nodeHpBefore.set(n.id, n.baseHp);
+        });
+        
+        // Track entities before update for collision detection
+        const entitiesBefore = this.state.entities.length;
         
         this.state.update(dt, this);
         if (this.controller && this.controller.update) {
@@ -76,241 +83,45 @@ export class Game {
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
 
-        // Check for node captures and play sound
+        // Check for node captures and node charging sounds
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
+            const oldHp = nodeHpBefore.get(n.id);
+            
+            // Node was captured
             if (oldOwner !== undefined && oldOwner !== n.owner && n.owner !== -1) {
                 sounds.playCapture();
             }
+            
+            // Node is being attacked/damaged - play charging sound based on HP
+            if (oldHp !== undefined && n.owner !== -1) {
+                const hpPercent = n.baseHp / n.maxHp;
+                
+                // Play sound when taking damage (HP going down)
+                if (n.baseHp < oldHp && hpPercent < 0.9) {
+                    sounds.playNodeCharging(hpPercent);
+                }
+            }
         });
 
-        // Check for own cell collisions (simple approximation)
-        // Only check for player 0 in singleplayer or playerIndex in multiplayer
-        const playerIdx = this.controller?.playerIndex ?? 0;
-        const playerEntities = this.state.entities.filter(e => e.owner === playerIdx && !e.dead && !e.dying);
+        // Check for enemy cell collisions - play sound when cells die from collision
+        // If many entities died this frame, it's likely from collisions
+        const entityCountNow = this.state.entities.length;
+        const died = entitiesBefore - entityCountNow;
         
         // Track collision sound cooldown
         if (!this.collisionSoundCooldown) this.collisionSoundCooldown = 0;
         this.collisionSoundCooldown -= dt;
         
-        // If enough time passed, check for clustered own cells
-        if (this.collisionSoundCooldown <= 0 && playerEntities.length > 5) {
-            // Simple check: find average position of player's cells
-            let avgX = 0, avgY = 0;
-            playerEntities.forEach(e => { avgX += e.x; avgY += e.y; });
-            avgX /= playerEntities.length;
-            avgY /= playerEntities.length;
-            
-            // Count how many are near the average (clustered)
-            const clustered = playerEntities.filter(e => {
-                const dx = e.x - avgX, dy = e.y - avgY;
-                return Math.sqrt(dx*dx + dy*dy) < 100;
-            }).length;
-            
-            // If many are clustered, play collision sound
-            if (clustered > 10) {
-                sounds.playCollision();
-                this.collisionSoundCooldown = 0.5; // Play at most every 0.5s
-            }
+        // If enemies died from collisions (not all at once, just a few), play sound
+        if (this.collisionSoundCooldown <= 0 && died > 0 && died < 10) {
+            sounds.playCollision();
+            this.collisionSoundCooldown = 0.3;
         }
 
         // Check win/lose condition for singleplayer
         if (this.controller && this.controller.playerIndex !== undefined) {
             this.checkWinCondition();
-        }
-    }
-
-    checkWinCondition() {
-        // Only check win condition in singleplayer mode
-        if (!this.controller || this.controller.playerIndex === undefined || this.controller.playerIndex === -1) {
-            return;
-        }
-        
-        // Prevent multiple checks
-        if (this.gameOverShown) return;
-        
-        const playerIndex = this.controller.playerIndex;
-        const playerNodes = this.state.nodes.filter(n => n.owner === playerIndex);
-        const enemyNodes = this.state.nodes.filter(n => n.owner !== -1 && n.owner !== playerIndex);
-        const playerEntities = this.state.entities.filter(e => e.owner === playerIndex && !e.dead && !e.dying);
-
-        // Lose: no nodes and no entities
-        if (playerNodes.length === 0 && playerEntities.length === 0) {
-            this.gameOverShown = true;
-            this.showGameOver(false);
-            return;
-        }
-
-        // Win: no enemy nodes left
-        if (enemyNodes.length === 0) {
-            this.gameOverShown = true;
-            this.showGameOver(true);
-            return;
-        }
-    }
-
-    showGameOver(won) {
-        this.stop();
-        
-        // Play sound
-        if (won) {
-            sounds.playWin();
-        } else {
-            sounds.playLose();
-        }
-        
-        const msg = won ? '¡VICTORIA!' : 'DERROTA';
-        const color = won ? '#4CAF50' : '#f44336';
-        
-        const stats = this.state.getStats();
-        const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4'];
-        
-        // Generate stats HTML
-        let statsHTML = '<div style="margin: 20px 0; text-align: left; font-size: 12px;">';
-        statsHTML += `<p style="color: #888; margin-bottom: 10px;">Duración: ${Math.floor(stats.elapsed)}m ${Math.floor((stats.elapsed % 1) * 60)}s</p>`;
-        
-        for (let pid in stats.produced) {
-            const p = parseInt(pid);
-            const pColor = playerColors[p % playerColors.length];
-            const pName = p === this.controller.playerIndex ? 'TÚ' : `IA ${p}`;
-            const produced = stats.produced[pid]?.total || 0;
-            const lost = stats.lost[pid]?.total || 0;
-            const current = stats.current[pid] || 0;
-            const prodPerMin = stats.produced[pid]?.perMinute || 0;
-            
-            statsHTML += `
-                <div style="color: ${pColor}; margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                    <strong>${pName}</strong><br>
-                    Producidas: ${produced} (${prodPerMin}/min)<br>
-                    Perdidas: ${lost}<br>
-                    Actuales: ${current}
-                </div>
-            `;
-        }
-        statsHTML += '</div>';
-        
-        // Generate graph
-        const graphWidth = 400;
-        const graphHeight = 150;
-        let graphHTML = `<canvas id="stats-graph" width="${graphWidth}" height="${graphHeight}" style="margin: 15px 0; border: 1px solid #333; background: rgba(0,0,0,0.3);"></canvas>`;
-        
-        const overlay = document.createElement('div');
-        overlay.id = 'game-over-overlay';
-        overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); display: flex;
-            justify-content: center; align-items: center; z-index: 1000;
-        `;
-        
-        const box = document.createElement('div');
-        box.style.cssText = `
-            padding: 30px 40px; background: #141419;
-            border: 3px solid ${color}; border-radius: 12px;
-            text-align: center; max-width: 500px; max-height: 80vh; overflow-y: auto;
-            position: relative;
-        `;
-        
-        box.innerHTML = `
-            <button onclick="this.parentElement.parentElement.remove()" style="
-                position: absolute; top: 10px; right: 15px;
-                background: none; border: none; color: #888;
-                font-size: 24px; cursor: pointer; line-height: 1;
-            ">&times;</button>
-            <h1 style="color: ${color}; font-size: 42px; margin: 0 0 15px 0; letter-spacing: 4px;">${msg}</h1>
-            ${statsHTML}
-            <h3 style="color: #888; margin: 15px 0 5px 0;">Unidades por Jugador</h3>
-            ${graphHTML}
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px;">
-                <button id="menu-btn" style="
-                    background: #666; color: white; border: none;
-                    padding: 12px 20px; font-size: 14px; cursor: pointer;
-                    border-radius: 4px; font-family: 'Courier New', monospace;
-                ">MENU</button>
-                <button id="restart-btn" style="
-                    background: ${color}; color: white; border: none;
-                    padding: 12px 20px; font-size: 14px; cursor: pointer;
-                    border-radius: 4px; font-family: 'Courier New', monospace;
-                ">JUGAR DE NUEVO</button>
-            </div>
-        `;
-        
-        overlay.appendChild(box);
-        document.body.appendChild(overlay);
-        
-        // Click outside to close
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                overlay.remove();
-                location.href = 'index.html';
-            }
-        });
-        
-        // Draw graph
-        setTimeout(() => {
-            const canvas = document.getElementById('stats-graph');
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                const history = stats.history;
-                if (history.length > 0) {
-                    const maxTime = Math.max(...history.map(h => h.time));
-                    const maxCount = Math.max(...history.map(h => h.count), 10);
-                    
-                    ctx.clearRect(0, 0, graphWidth, graphHeight);
-                    
-                    // Draw grid
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 1;
-                    for (let i = 0; i <= 5; i++) {
-                        const y = (graphHeight / 5) * i;
-                        ctx.beginPath();
-                        ctx.moveTo(0, y);
-                        ctx.lineTo(graphWidth, y);
-                        ctx.stroke();
-                    }
-                    
-                    // Draw lines for each player
-                    const players = [...new Set(history.map(h => h.playerId))];
-                    players.forEach(pid => {
-                        const pColor = playerColors[pid % playerColors.length];
-                        ctx.strokeStyle = pColor;
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        
-                        const playerData = history.filter(h => h.playerId === pid).sort((a, b) => a.time - b.time);
-                        playerData.forEach((point, idx) => {
-                            const x = (point.time / maxTime) * graphWidth;
-                            const y = graphHeight - (point.count / maxCount) * graphHeight;
-                            if (idx === 0) ctx.moveTo(x, y);
-                            else ctx.lineTo(x, y);
-                        });
-                        ctx.stroke();
-                    });
-                    
-                    // Legend
-                    ctx.font = '10px monospace';
-                    players.forEach((pid, i) => {
-                        const pColor = playerColors[pid % playerColors.length];
-                        const label = pid === this.controller.playerIndex ? 'TÚ' : `IA ${pid}`;
-                        ctx.fillStyle = pColor;
-                        ctx.fillRect(10, 10 + i * 14, 8, 8);
-                        ctx.fillStyle = '#fff';
-                        ctx.fillText(label, 22, 17 + i * 14);
-                    });
-                }
-            }
-        }, 100);
-        
-        document.getElementById('restart-btn').addEventListener('click', () => {
-            overlay.remove();
-            location.reload();
-        });
-        
-        const menuBtnInOverlay = document.getElementById('menu-btn');
-        if (menuBtnInOverlay) {
-            menuBtnInOverlay.addEventListener('click', () => {
-                overlay.remove();
-                location.href = 'index.html';
-            });
         }
     }
 
