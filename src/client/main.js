@@ -5,6 +5,7 @@ import { UIManager } from './systems/UIManager.js';
 import { SingleplayerController } from './modes/SingleplayerController.js';
 import { MultiplayerController } from './modes/MultiplayerController.js';
 import { GameState } from '../shared/GameState.js';
+import { sounds } from './systems/SoundManager.js';
 
 window.initGame = (mode) => {
     const game = new Game('game-canvas');
@@ -44,6 +45,17 @@ window.initGame = (mode) => {
         menuBtn.addEventListener('click', () => {
             game.running = false;
             location.href = 'index.html';
+        });
+    }
+
+    // Setup mute button
+    const muteBtn = document.getElementById('mute-btn');
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            const enabled = sounds.toggle();
+            muteBtn.textContent = enabled ? '🔊' : '🔇';
+            muteBtn.style.background = enabled ? 'rgba(76,175,80,0.8)' : 'rgba(244,67,54,0.8)';
+            muteBtn.style.borderColor = enabled ? '#4CAF50' : '#f44336';
         });
     }
 

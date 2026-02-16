@@ -49,12 +49,12 @@ export class SoundManager {
     }
 
     playSelect() {
-        // Short dry blip
+        console.log('SOUND: playSelect');
         this.playTone(700, 0.05, 'triangle', 0.06);
     }
 
     playMove() {
-        // Dry, rhythmic biological ship sound
+        console.log('SOUND: playMove');
         if (!this.ctx || !this.enabled) return;
         this.resume();
         
@@ -125,7 +125,7 @@ export class SoundManager {
     }
 
     playNodeHealing(percent) {
-        // Sound that gets higher as node gets closer to full - satisfying
+        console.log('SOUND: playNodeHealing', percent);
         if (!this.ctx || !this.enabled) return;
         this.resume();
         

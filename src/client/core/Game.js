@@ -38,6 +38,7 @@ export class Game {
         if (this.running) return;
         this.running = true;
         this.lastTime = performance.now();
+        this.healSoundCooldown = 0;
         
         const game = this;
         const loop = (now) => {
@@ -91,8 +92,9 @@ export class Game {
 
         // Check for node captures and node healing sounds - ONLY FOR OUR NODES
         // Add cooldown for healing sound
-        if (!this.healSoundCooldown) this.healSoundCooldown = 0;
         this.healSoundCooldown -= dt;
+        
+        let playedHealSound = false;
         
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
@@ -104,13 +106,14 @@ export class Game {
             }
             
             // Our node is healing (HP going up) - play sound with cooldown
-            if (oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx && this.healSoundCooldown <= 0) {
+            if (!playedHealSound && oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx && this.healSoundCooldown < 0) {
                 const hpPercent = n.baseHp / n.maxHp;
                 
                 // Play sound when healing (HP going up)
                 if (n.baseHp > oldHp) {
                     sounds.playNodeHealing(hpPercent);
-                    this.healSoundCooldown = 0.3;
+                    this.healSoundCooldown = 2.0; // Much longer cooldown
+                    playedHealSound = true;
                 }
             }
         });
