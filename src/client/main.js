@@ -32,10 +32,23 @@ window.initGame = (mode) => {
         
         game.resize();
         game.start();
-    } else {
-        game.controller = new MultiplayerController(game);
-        game.controller.connect();
-        // Don't start game loop here - wait for server's gameStart event
+    }
+
+    // Setup menu button
+    const menuBtn = document.getElementById('menu-btn');
+    if (menuBtn) {
+        menuBtn.addEventListener('click', () => {
+            game.running = false;
+            location.href = 'index.html';
+        });
+    }
+
+    // Show surrender button only in multiplayer
+    if (mode === 'multiplayer') {
+        const surrenderBtn = document.getElementById('surrender-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        if (surrenderBtn) surrenderBtn.style.display = 'block';
+        if (resetBtn) resetBtn.style.display = 'none';
     }
 
     // Setup reset button for singleplayer
@@ -62,6 +75,18 @@ window.initGame = (mode) => {
                 // Re-setup with new map
                 game.controller.setup(playerCount, difficulty);
                 game.start();
+            });
+        }
+    }
+
+    // Setup surrender button for multiplayer
+    if (mode === 'multiplayer') {
+        const surrenderBtn = document.getElementById('surrender-btn');
+        if (surrenderBtn) {
+            surrenderBtn.addEventListener('click', () => {
+                if (game.controller && game.controller.surrender) {
+                    game.controller.surrender();
+                }
             });
         }
     }

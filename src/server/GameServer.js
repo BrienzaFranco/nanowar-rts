@@ -94,12 +94,32 @@ export class GameServer {
         }
     }
 
+    handleSurrender(socketId) {
+        const playerIndex = this.playerSockets.findIndex(s => s.id === socketId);
+        if (playerIndex === -1) return;
+        
+        // Mark player as surrendered - they keep their nodes but can't win
+        const surrenderedPlayer = this.playerSockets[playerIndex];
+        surrenderedPlayer.surrendered = true;
+        
+        console.log(`Player ${playerIndex} surrendered`);
+        
+        // Remove all their units (they become neutral)
+        this.state.entities = this.state.entities.filter(e => e.owner !== playerIndex);
+        
+        // Notify other players
+        this.io.to(this.roomId).emit('playerSurrendered', { playerIndex });
+    }
+
     checkWinCondition() {
         if (this.gameEnded) return;
 
         const activePlayers = [];
         
         for (let i = 0; i < this.playerSockets.length; i++) {
+            // Skip surrendered players
+            if (this.playerSockets[i].surrendered) continue;
+            
             const playerNodes = this.state.nodes.filter(n => n.owner === i);
             const playerEntities = this.state.entities.filter(e => e.owner === i && !e.dead && !e.dying);
             
@@ -108,7 +128,7 @@ export class GameServer {
             }
         }
 
-        // If only one player remains, they win
+        // If only one non-surrendered player remains, they win
         if (activePlayers.length === 1 && this.playerSockets.length > 1) {
             this.gameEnded = true;
             const winnerIndex = activePlayers[0];
@@ -116,7 +136,7 @@ export class GameServer {
             return;
         }
 
-        // If no players left
+        // If no active players left
         if (activePlayers.length === 0) {
             this.gameEnded = true;
             this.io.to(this.roomId).emit('gameOver', { winner: -1 });

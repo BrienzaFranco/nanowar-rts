@@ -9,6 +9,15 @@ export class GameState {
         this.globalSpawnTimer = new GlobalSpawnTimer(2.5);
         this.worldWidth = GAME_SETTINGS.WORLD_WIDTH;
         this.worldHeight = GAME_SETTINGS.WORLD_HEIGHT;
+        
+        // Statistics tracking
+        this.stats = {
+            startTime: Date.now(),
+            unitsProduced: {}, // playerId -> count
+            unitsLost: {}, // playerId -> count
+            unitsCurrent: {}, // playerId -> current count
+            history: [] // { time, playerId, count }
+        };
     }
 
     update(dt, gameInstance) {
@@ -18,15 +27,81 @@ export class GameState {
             const newEntity = node.update(dt, this.entities, this.globalSpawnTimer, gameInstance);
             if (newEntity) {
                 this.entities.push(newEntity);
+                // Track production
+                const pid = newEntity.owner;
+                this.stats.unitsProduced[pid] = (this.stats.unitsProduced[pid] || 0) + 1;
             }
         });
 
+        const currentUnits = {};
         this.entities.forEach(ent => {
-            ent.update(dt, this.entities, this.nodes, null, gameInstance); // Camera is null here for server/shared logic
+            if (!ent.dead && !ent.dying) {
+                currentUnits[ent.owner] = (currentUnits[ent.owner] || 0) + 1;
+            }
+        });
+
+        // Track unit losses
+        this.entities.forEach(ent => {
+            if (ent.dead && !ent.lossTracked) {
+                ent.lossTracked = true;
+                const pid = ent.owner;
+                this.stats.unitsLost[pid] = (this.stats.unitsLost[pid] || 0) + 1;
+            }
+        });
+
+        // Update current counts
+        this.stats.unitsCurrent = currentUnits;
+
+        // Record history every second
+        const now = Date.now();
+        if (now - (this.stats.lastRecord || 0) > 1000) {
+            this.stats.lastRecord = now;
+            for (let pid in currentUnits) {
+                this.stats.history.push({
+                    time: (now - this.stats.startTime) / 1000,
+                    playerId: parseInt(pid),
+                    count: currentUnits[pid]
+                });
+            }
+        }
+
+        this.entities.forEach(ent => {
+            ent.update(dt, this.entities, this.nodes, null, gameInstance);
         });
 
         // Clean up dead entities
         this.entities = this.entities.filter(ent => !ent.dead);
+    }
+
+    getStats() {
+        const elapsed = (Date.now() - this.stats.startTime) / 60000; // minutes
+        const result = {
+            elapsed: elapsed,
+            produced: {},
+            lost: {},
+            current: {},
+            history: this.stats.history
+        };
+        
+        for (let pid in this.stats.unitsProduced) {
+            result.produced[pid] = {
+                total: this.stats.unitsProduced[pid],
+                perMinute: elapsed > 0 ? Math.round(this.stats.unitsProduced[pid] / elapsed) : 0
+            };
+        }
+        
+        for (let pid in this.stats.unitsLost) {
+            result.lost[pid] = {
+                total: this.stats.unitsLost[pid],
+                perMinute: elapsed > 0 ? Math.round(this.stats.unitsLost[pid] / elapsed) : 0
+            };
+        }
+        
+        for (let pid in this.stats.unitsCurrent) {
+            result.current[pid] = this.stats.unitsCurrent[pid];
+        }
+        
+        return result;
     }
 
     getState() {
@@ -45,7 +120,8 @@ export class GameState {
                 vx: e.vx, vy: e.vy,
                 dying: e.dying, deathType: e.deathType, deathTime: e.deathTime
             })),
-            playerCount: this.playerCount
+            playerCount: this.playerCount,
+            stats: this.getStats()
         };
     }
 }

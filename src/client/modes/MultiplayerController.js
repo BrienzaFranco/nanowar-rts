@@ -13,12 +13,21 @@ export class MultiplayerController {
         this.cameraCentered = false;
         this.initialStateReceived = false;
         this.gameLost = false;
+        this.surrendered = false;
     }
 
     connect(url = '/') {
         this.socket = io(url);
         this.setupSocketEvents();
         window.multiplayer = this;
+    }
+
+    surrender() {
+        if (this.socket && this.connected && !this.surrendered) {
+            this.surrendered = true;
+            this.socket.emit('surrender');
+            alert('Te has rendido. Puedes seguir jugando mientras esperas.');
+        }
     }
 
     setupSocketEvents() {

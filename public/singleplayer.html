@@ -319,7 +319,10 @@
                 <span>ENEMIGOS: <strong id="enemy-nodes">0</strong></span>
             </div>
             <div id="players-info"></div>
-            <button id="reset-btn" class="ui-btn" style="width: 100%; padding: 8px;">REINICIAR</button>
+            <div style="display: flex; gap: 10px;">
+                <button id="reset-btn" class="ui-btn" style="flex: 1; padding: 8px;">REINICIAR</button>
+                <button id="menu-btn" class="ui-btn" style="flex: 1; padding: 8px;">MENU</button>
+            </div>
         </div>
         <canvas id="game-canvas"></canvas>
         <div id="instructions" onclick="this.style.display='none'">

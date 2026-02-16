@@ -120,6 +120,15 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('surrender', () => {
+        if (socket.roomId) {
+            const game = roomManager.getRoom(socket.roomId);
+            if (game) {
+                game.handleSurrender(socket.id);
+            }
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log('Player disconnected:', socket.id);
         if (socket.roomId) {
