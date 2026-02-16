@@ -379,9 +379,17 @@
                 multiContainer.style.display = 'block';
                 if (singleplayerOptions) singleplayerOptions.style.display = 'none';
 
-                if (window.multiplayer && window.multiplayer.socket) {
-                    window.multiplayer.socket.emit('listRooms');
+                // Initialize multiplayer if not already done
+                if (!window.multiplayer) {
+                    window.initGame('multiplayer');
                 }
+                
+                // Wait for socket to connect then list rooms
+                setTimeout(() => {
+                    if (window.multiplayer && window.multiplayer.socket) {
+                        window.multiplayer.socket.emit('listRooms');
+                    }
+                }, 500);
             });
 
             backBtn.addEventListener('click', () => {
@@ -406,6 +414,12 @@
                         <button onclick="joinRoom('${room.id}')" class="btn-primary" style="padding: 4px 12px; font-size: 10px; min-width: 80px;">UNIRSE</button>
                     </div>
                 `).join('');
+            };
+            
+            window.joinRoom = function(roomId) {
+                if (window.multiplayer) {
+                    window.multiplayer.joinRoom(roomId);
+                }
             };
 
             window.updateLobbyUI = function (players) {
