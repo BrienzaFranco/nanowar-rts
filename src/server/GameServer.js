@@ -162,7 +162,7 @@ export class GameServer {
 
         let lastTime = Date.now();
         const loop = () => {
-            if (!this.gameStarted) return;
+            if (!this.gameStarted || this.gameEnded) return;
             const now = Date.now();
             const dt = Math.min((now - lastTime) / 1000, 0.05);
             lastTime = now;

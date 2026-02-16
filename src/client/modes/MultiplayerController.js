@@ -103,6 +103,9 @@ export class MultiplayerController {
         });
 
         this.socket.on('gameState', (serverState) => {
+            // Stop syncing after game over
+            if (this.game.gameOverShown) return;
+            
             // Keep syncing even if lost - players can still move units
             if (this.game.running || this.gameLost) {
                 this.syncState(serverState);
@@ -115,6 +118,9 @@ export class MultiplayerController {
             
             // Keep game running even if lost - players can still move units
             this.gameLost = lost;
+            
+            // Mark game as over to stop receiving states
+            if (this.game) this.game.gameOverShown = true;
             
             // Show overlay
             const msg = won ? '¡VICTORIA!' : (data.winner === -1 ? 'EMPATE' : 'DERROTA');
