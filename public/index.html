@@ -232,19 +232,7 @@
                     <input type="text" id="player-name" placeholder="Tu nombre" maxlength="20">
                 </div>
 
-                <div class="menu-buttons">
-                    <button id="create-room-btn" class="btn-primary">Crear Sala</button>
-                </div>
-
-                <div class="rooms-section">
-                    <h2>Salas Disponibles</h2>
-                    <button id="refresh-rooms-btn" class="btn-secondary">Actualizar</button>
-                    <div id="room-list">
-                        <p class="no-rooms">No hay salas disponibles</p>
-                    </div>
-                </div>
-
-                <div class="mode-selection">
+                <div id="mode-selection-container" class="mode-selection">
                     <h2>Seleccionar Modo</h2>
                     <div
                         style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -262,7 +250,7 @@
                             <span class="mode-title">Singleplayer</span>
                             <span class="mode-desc">vs IA</span>
                         </a>
-                        <button id="multiplayer-btn" class="btn-mode btn-multi">
+                        <button id="multiplayer-mode-btn" class="btn-mode btn-multi">
                             <span class="mode-icon">&#9670;</span>
                             <span class="mode-title">Multiplayer</span>
                             <span class="mode-desc">Online</span>
@@ -270,9 +258,30 @@
                     </div>
                 </div>
 
+                <div id="multiplayer-setup-container" style="display: none;">
+                    <div class="menu-buttons" style="margin-bottom: 20px;">
+                        <button id="create-room-btn" class="btn-primary">Crear Sala</button>
+                    </div>
+
+                    <div class="rooms-section">
+                        <h2>Salas Disponibles</h2>
+                        <button id="refresh-rooms-btn" class="btn-secondary">Actualizar</button>
+                        <div id="room-list">
+                            <p class="no-rooms">No hay salas disponibles</p>
+                        </div>
+                    </div>
+
+                    <button id="back-to-modes-btn" class="btn-secondary"
+                        style="margin-top: 30px; width: 100%; max-width: 200px;">VOLVER</button>
+                </div>
+
                 <script>
                     const select = document.getElementById('player-count-select');
                     const link = document.getElementById('singleplayer-link');
+                    const multiBtn = document.getElementById('multiplayer-mode-btn');
+                    const backBtn = document.getElementById('back-to-modes-btn');
+                    const modeContainer = document.getElementById('mode-selection-container');
+                    const multiContainer = document.getElementById('multiplayer-setup-container');
 
                     function updateLink() {
                         link.href = `singleplayer.html?players=${select.value}`;
@@ -280,6 +289,17 @@
 
                     select.addEventListener('change', updateLink);
                     updateLink(); // Initial call
+
+                    multiBtn.addEventListener('click', () => {
+                        modeContainer.style.display = 'none';
+                        multiContainer.style.display = 'block';
+                        if (window.initMultiplayer) window.initMultiplayer();
+                    });
+
+                    backBtn.addEventListener('click', () => {
+                        modeContainer.style.display = 'block';
+                        multiContainer.style.display = 'none';
+                    });
                 </script>
             </div>
         </div>
@@ -323,6 +343,7 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script src="dist/bundle.js"></script>
     <script>
         // Room listing and lobby logic will be moved to a separate UI system eventually

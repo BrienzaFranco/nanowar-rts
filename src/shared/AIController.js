@@ -3,7 +3,12 @@ export class AIController {
         this.game = game;
         this.playerId = playerId;
         this.timer = 0;
-        this.decisionInterval = 1.5;
+        this.decisionInterval = 1.0 + Math.random(); // Varied intervals
+
+        // Personnelities: Aggressive, Defensive, Expansive
+        const personalities = ['aggressive', 'defensive', 'expansive'];
+        this.personality = personalities[Math.floor(Math.random() * personalities.length)];
+        console.log(`AI Player ${playerId} is ${this.personality}`);
     }
 
     update(dt) {
@@ -22,7 +27,20 @@ export class AIController {
 
         myNodes.forEach(sourceNode => {
             const count = sourceNode.areaDefenders ? sourceNode.areaDefenders.length : 0;
-            if (count > 8 || (count > 3 && Math.random() < 0.3)) {
+
+            // Basic threshold to decide if we can move units
+            let unitThreshold = 5;
+            if (this.personality === 'aggressive') unitThreshold = 3;
+            if (this.personality === 'defensive') unitThreshold = 10;
+
+            if (count > unitThreshold || (count > 2 && Math.random() < 0.2)) {
+
+                // Healing priority for Defensive
+                if (this.personality === 'defensive' && sourceNode.hp < sourceNode.maxHp * 0.8) {
+                    // Stay and heal
+                    return;
+                }
+
                 let closest = null;
                 let minDist = Infinity;
 
@@ -32,8 +50,17 @@ export class AIController {
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
                     let score = dist;
-                    if (target.owner === -1) score *= 0.5;
-                    else if (target.defendersInside < 5) score *= 0.7;
+
+                    // Modifiers based on personality
+                    if (target.owner === -1) {
+                        // Expansion priority
+                        score *= (this.personality === 'expansive') ? 0.3 : 0.6;
+                    } else {
+                        // Attack enemy priority
+                        score *= (this.personality === 'aggressive') ? 0.5 : 1.2;
+                    }
+
+                    if (target.defendersInside < 5) score *= 0.8;
 
                     if (score < minDist) {
                         minDist = score;
@@ -56,13 +83,13 @@ export class AIController {
             Math.sqrt((e.x - sourceNode.x) ** 2 + (e.y - sourceNode.y) ** 2) <= sourceNode.influenceRadius
         );
 
-        const count = Math.ceil(units.length * 0.6);
+        let attackPercent = 0.6;
+        if (this.personality === 'aggressive') attackPercent = 0.75;
+        if (this.personality === 'defensive') attackPercent = 0.4;
+
+        const count = Math.ceil(units.length * attackPercent);
         const attackers = units.slice(0, count);
 
-        // We use game.executeCommand or directly modify entities?
-        // Game logic allows direct modification if we are the controller.
-        // But for consistency with network, maybe use an action?
-        // For now, direct modification as in original code.
         attackers.forEach(e => {
             e.setTarget(targetNode.x, targetNode.y, targetNode);
         });
