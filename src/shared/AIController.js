@@ -3,12 +3,25 @@ export class AIController {
         this.game = game;
         this.playerId = playerId;
         this.timer = 0;
-        this.decisionInterval = 1.0 + Math.random(); // Varied intervals
 
-        // Personnelities: Aggressive, Defensive, Expansive
+        // Difficulty levels: affecting decision interval and aggression
+        const difficulties = ['Easy', 'Normal', 'Hard', 'Nightmare'];
+        this.difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+
+        // Personalities: Aggressive, Defensive, Expansive
         const personalities = ['aggressive', 'defensive', 'expansive'];
         this.personality = personalities[Math.floor(Math.random() * personalities.length)];
-        console.log(`AI Player ${playerId} is ${this.personality}`);
+
+        // Set interval based on difficulty
+        const baseIntervals = {
+            'Easy': 2.0,
+            'Normal': 1.2,
+            'Hard': 0.8,
+            'Nightmare': 0.4
+        };
+        this.decisionInterval = baseIntervals[this.difficulty] + (Math.random() * 0.4);
+
+        console.log(`[AI INFO] Player ${playerId} initialized: Difficulty=${this.difficulty}, Personality=${this.personality}`);
     }
 
     update(dt) {
@@ -21,61 +34,78 @@ export class AIController {
 
     makeDecision() {
         const myNodes = this.game.state.nodes.filter(n => n.owner === this.playerId);
-        const availableNodes = this.game.state.nodes.filter(n => n.owner !== this.playerId);
+        const allNodes = this.game.state.nodes;
+        const enemyNodes = allNodes.filter(n => n.owner !== this.playerId && n.owner !== -1);
+        const neutralNodes = allNodes.filter(n => n.owner === -1);
 
         if (myNodes.length === 0) return;
 
         myNodes.forEach(sourceNode => {
-            const count = sourceNode.areaDefenders ? sourceNode.areaDefenders.length : 0;
+            const defenderCount = sourceNode.areaDefenders ? sourceNode.areaDefenders.length : 0;
 
-            // Basic threshold to decide if we can move units
-            let unitThreshold = 5;
-            if (this.personality === 'aggressive') unitThreshold = 3;
-            if (this.personality === 'defensive') unitThreshold = 10;
+            // Attack sensitivity based on difficulty and personality
+            let minDefendersToStay = 5;
+            if (this.difficulty === 'Nightmare') minDefendersToStay = 2;
+            if (this.difficulty === 'Easy') minDefendersToStay = 10;
 
-            if (count > unitThreshold || (count > 2 && Math.random() < 0.2)) {
+            if (this.personality === 'defensive') minDefendersToStay += 5;
+            if (this.personality === 'aggressive') minDefendersToStay -= 2;
 
-                // Healing priority for Defensive
-                if (this.personality === 'defensive' && sourceNode.hp < sourceNode.maxHp * 0.8) {
-                    // Stay and heal
-                    return;
-                }
+            // Heal check for Defensive
+            if (this.personality === 'defensive' && sourceNode.hp < sourceNode.maxHp * 0.9) {
+                return; // Prioritize healing
+            }
 
-                let closest = null;
-                let minDist = Infinity;
+            if (defenderCount > minDefendersToStay || (defenderCount > 2 && Math.random() < 0.15)) {
+                let bestTarget = null;
+                let bestScore = -Infinity;
 
-                for (let target of availableNodes) {
+                allNodes.filter(n => n !== sourceNode).forEach(target => {
                     const dx = target.x - sourceNode.x;
                     const dy = target.y - sourceNode.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    let score = dist;
+                    // Score calculation: higher is better
+                    let score = 1000 / dist; // Base proximity score
 
-                    // Modifiers based on personality
+                    // Ownership modifiers
                     if (target.owner === -1) {
-                        // Expansion priority
-                        score *= (this.personality === 'expansive') ? 0.3 : 0.6;
+                        // Neutral node
+                        let expansionWeight = (this.personality === 'expansive') ? 3.0 : 1.5;
+                        // Reduce priority if we already have many nodes
+                        if (myNodes.length > 5) expansionWeight *= 0.5;
+                        score *= expansionWeight;
+                    } else if (target.owner !== this.playerId) {
+                        // Enemy node
+                        let attackWeight = (this.personality === 'aggressive') ? 2.5 : 1.0;
+                        if (this.difficulty === 'Hard' || this.difficulty === 'Nightmare') {
+                            // Target weak enemy nodes
+                            if (target.hp < target.maxHp * 0.4) attackWeight *= 2.0;
+                        }
+                        score *= attackWeight;
                     } else {
-                        // Attack enemy priority
-                        score *= (this.personality === 'aggressive') ? 0.5 : 1.2;
+                        // Reinforce own node
+                        if (this.personality === 'defensive' && target.hp < target.maxHp * 0.5) {
+                            score *= 2.0;
+                        } else {
+                            score *= 0.1; // Low priority to reinforce healthy nodes
+                        }
                     }
 
-                    if (target.defendersInside < 5) score *= 0.8;
-
-                    if (score < minDist) {
-                        minDist = score;
-                        closest = target;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestTarget = target;
                     }
-                }
+                });
 
-                if (closest) {
-                    this.attack(sourceNode, closest);
+                if (bestTarget) {
+                    this.sendUnits(sourceNode, bestTarget);
                 }
             }
         });
     }
 
-    attack(sourceNode, targetNode) {
+    sendUnits(sourceNode, targetNode) {
         const units = this.game.state.entities.filter(e =>
             e.owner === this.playerId &&
             !e.dead &&
@@ -83,11 +113,15 @@ export class AIController {
             Math.sqrt((e.x - sourceNode.x) ** 2 + (e.y - sourceNode.y) ** 2) <= sourceNode.influenceRadius
         );
 
-        let attackPercent = 0.6;
-        if (this.personality === 'aggressive') attackPercent = 0.75;
-        if (this.personality === 'defensive') attackPercent = 0.4;
+        if (units.length === 0) return;
 
-        const count = Math.ceil(units.length * attackPercent);
+        // Attack percentage based on personality/difficulty
+        let attackPercent = 0.5;
+        if (this.personality === 'aggressive') attackPercent = 0.8;
+        if (this.difficulty === 'Nightmare') attackPercent += 0.1;
+        if (this.difficulty === 'Easy') attackPercent = 0.3;
+
+        const count = Math.ceil(units.length * Math.min(attackPercent, 0.95));
         const attackers = units.slice(0, count);
 
         attackers.forEach(e => {
