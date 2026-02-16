@@ -216,10 +216,16 @@ export class Entity {
             const touchRange = node.radius + this.radius;
 
             if (dist <= touchRange) {
-                if (game && game.state && game.state.entities) {
-                    // node.calculateDefenders(game.state.entities); 
+                // Neutral node - just capture, don't kill cells
+                if (node.owner === -1) {
+                    // Capture neutral node on contact
+                    if (!this.dying) {
+                        node.receiveAttack(this.owner, node.maxHp + 1, game); // Instant capture
+                    }
+                    return;
                 }
 
+                // Owned node logic - existing behavior
                 if (node.owner === this.owner && node.owner !== -1) {
                     if (node.baseHp < node.maxHp && !this.dying) {
                         node.baseHp += 1;
