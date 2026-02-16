@@ -32,6 +32,10 @@ window.initGame = (mode) => {
         
         game.resize();
         game.start();
+    } else {
+        // Multiplayer - controller is set up when connecting
+        game.controller = new MultiplayerController(game);
+        game.controller.connect();
     }
 
     // Setup menu button
