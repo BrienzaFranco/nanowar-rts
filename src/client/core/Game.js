@@ -88,23 +88,24 @@ export class Game {
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
 
-        // Check for node captures and node charging sounds - ONLY FOR OUR NODES
+        // Check for node captures and node healing sounds - ONLY FOR OUR NODES
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
             const oldHp = nodeHpBefore.get(n.id);
             
-            // Node was captured by US
-            if (oldOwner !== undefined && oldOwner !== n.owner && n.owner === playerIdx) {
+            // Node was captured by US (from neutral or enemy)
+            if (oldOwner !== undefined && oldOwner !== n.owner && n.owner === playerIdx && oldOwner === -1) {
                 sounds.playCapture();
             }
             
-            // Our node is being attacked/damaged
-            if (oldHp !== undefined && n.owner === playerIdx) {
+            // Our node is being attacked - no sound for that
+            // Our node is healing (HP going up) - play sound
+            if (oldHp !== undefined && n.owner === playerIdx && oldOwner === playerIdx) {
                 const hpPercent = n.baseHp / n.maxHp;
                 
-                // Play sound when taking damage (HP going down)
-                if (n.baseHp < oldHp && hpPercent < 0.9) {
-                    sounds.playNodeCharging(hpPercent);
+                // Play sound when healing (HP going up)
+                if (n.baseHp > oldHp) {
+                    sounds.playNodeHealing(hpPercent);
                 }
             }
         });

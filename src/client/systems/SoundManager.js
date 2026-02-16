@@ -124,14 +124,13 @@ export class SoundManager {
         osc.stop(this.ctx.currentTime + 0.25);
     }
 
-    playNodeCharging(percent) {
-        // Sound that gets higher as node gets closer to 100%
-        // percent is 0-1
+    playNodeHealing(percent) {
+        // Sound that gets higher as node gets closer to full - satisfying
         if (!this.ctx || !this.enabled) return;
         this.resume();
         
-        // Frequency increases with percent: 200Hz at 0%, 800Hz at 100%
-        const freq = 200 + percent * 600;
+        // Frequency increases with percent: 200Hz at 0%, 900Hz at 100%
+        const freq = 200 + percent * 700;
         
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -139,14 +138,16 @@ export class SoundManager {
         osc.type = 'sine';
         osc.frequency.value = freq;
         
-        gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+        // Satisfying envelope
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.06, this.ctx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
         
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         
         osc.start();
-        osc.stop(this.ctx.currentTime + 0.15);
+        osc.stop(this.ctx.currentTime + 0.12);
     }
 
     playCollision() {
