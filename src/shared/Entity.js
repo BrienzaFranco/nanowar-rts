@@ -248,17 +248,9 @@ export class Entity {
                     return;
                 }
 
-                // Owned node logic - existing behavior
+                // Owned node - don't absorb cells, just let them float near
                 if (node.owner === this.owner && node.owner !== -1) {
-                    if (node.baseHp < node.maxHp && !this.dying) {
-                        node.baseHp += 1;
-                        this.die('absorbed', node, game);
-                        return;
-                    }
-                    if (this.targetNode === node) {
-                        this.stop();
-                        this.targetNode = null;
-                    }
+                    // Just don't kill the cell - let it float
                     return;
                 }
 
