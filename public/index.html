@@ -388,6 +388,10 @@
                             window.multiplayer.socket.emit('listRooms');
                         }
                     });
+
+                    document.getElementById('ready-btn').addEventListener('click', () => {
+                        if (window.multiplayer) window.multiplayer.toggleReady();
+                    });
                 </script>
             </div>
         </div>
