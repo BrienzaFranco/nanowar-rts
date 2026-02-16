@@ -23,6 +23,14 @@ window.initGame = (mode) => {
         const difficulty = urlParams.get('difficulty') || 'intermediate';
         game.controller = new SingleplayerController(game);
         game.controller.setup(playerCount, difficulty);
+        
+        // Show game screen
+        const menu = document.getElementById('menu-screen');
+        const gameScreen = document.getElementById('game-screen');
+        if (menu) menu.style.display = 'none';
+        if (gameScreen) gameScreen.style.display = 'block';
+        game.resize();
+        
         game.start();
     } else {
         game.controller = new MultiplayerController(game);
