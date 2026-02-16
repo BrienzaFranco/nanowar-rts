@@ -19,6 +19,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const roomManager = new RoomManager();
 
+const broadcastRoomList = () => {
+    const rooms = roomManager.listRooms();
+    io.emit('roomList', rooms);
+};
+
 const broadcastLobbyUpdate = (roomId) => {
     const game = roomManager.getRoom(roomId);
     if (game) {
