@@ -130,21 +130,15 @@ export class Node {
                 // Spawning a unit costs health
                 this.baseHp -= 1;
 
-                // Spawn at edge of influence radius (just inside the area, outside the node)
+                // Spawn at middle of influence radius (not too close to edge, not too close to center)
                 const angle = Math.random() * Math.PI * 2;
-                const dist = this.influenceRadius - 5; // Just inside influence radius
-                const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
+                const spawnDist = this.influenceRadius * 0.6; // 60% from center
+                const ex = this.x + Math.cos(angle) * spawnDist, ey = this.y + Math.sin(angle) * spawnDist;
                 const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
                 
-                // If no rally point, set initial target toward center of node to stay in area
+                // If no rally point, just stay there floating (no target)
                 if (!this.rallyPoint) {
-                    // Move toward a point closer to center but still in area
-                    const targetDist = this.radius + 20; // Between node and edge
-                    const targetAngle = angle + Math.PI; // Move inward
-                    entity.setTarget(
-                        this.x + Math.cos(targetAngle) * targetDist,
-                        this.y + Math.sin(targetAngle) * targetDist
-                    );
+                    // No target - will float in place with random movement
                 } else {
                     entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);
                 }
