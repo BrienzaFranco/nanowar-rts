@@ -127,8 +127,6 @@ export class Node {
             // Always spawn when ready - full nodes spawn faster (20% bonus)
             if (this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 this.spawnTimer = 0;
-                // Spawning a unit costs health
-                this.baseHp -= 1;
 
                 // Spawn at middle of influence radius (not too close to edge, not too close to center)
                 const angle = Math.random() * Math.PI * 2;
