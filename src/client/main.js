@@ -24,13 +24,13 @@ window.initGame = (mode) => {
         game.controller = new SingleplayerController(game);
         game.controller.setup(playerCount, difficulty);
         
-        // Show game screen
+        // Show game UI and screen
+        const ui = document.getElementById('ui');
         const menu = document.getElementById('menu-screen');
-        const gameScreen = document.getElementById('game-screen');
+        if (ui) ui.style.display = 'block';
         if (menu) menu.style.display = 'none';
-        if (gameScreen) gameScreen.style.display = 'block';
-        game.resize();
         
+        game.resize();
         game.start();
     } else {
         game.controller = new MultiplayerController(game);
