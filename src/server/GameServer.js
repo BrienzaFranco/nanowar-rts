@@ -115,6 +115,7 @@ export class GameServer {
         if (this.gameEnded) return;
 
         const activePlayers = [];
+        const playerCounts = {};
         
         for (let i = 0; i < this.playerSockets.length; i++) {
             // Skip surrendered players
@@ -123,23 +124,33 @@ export class GameServer {
             const playerNodes = this.state.nodes.filter(n => n.owner === i);
             const playerEntities = this.state.entities.filter(e => e.owner === i && !e.dead && !e.dying);
             
+            const totalUnits = playerNodes.length * 5 + playerEntities.length;
+            playerCounts[i] = totalUnits;
+            
             if (playerNodes.length > 0 || playerEntities.length > 0) {
                 activePlayers.push(i);
             }
         }
 
-        // If only one non-surrendered player remains, they win
+        // If only one non-surrendered player has nodes/units, they win
         if (activePlayers.length === 1 && this.playerSockets.length > 1) {
             this.gameEnded = true;
             const winnerIndex = activePlayers[0];
-            this.io.to(this.roomId).emit('gameOver', { winner: winnerIndex });
+            console.log(`Game Over! Winner: Player ${winnerIndex}`);
+            this.io.to(this.roomId).emit('gameOver', { 
+                winner: winnerIndex,
+                stats: this.state.getStats()
+            });
             return;
         }
 
         // If no active players left
         if (activePlayers.length === 0) {
             this.gameEnded = true;
-            this.io.to(this.roomId).emit('gameOver', { winner: -1 });
+            this.io.to(this.roomId).emit('gameOver', { 
+                winner: -1,
+                stats: this.state.getStats()
+            });
         }
     }
 

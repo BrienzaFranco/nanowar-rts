@@ -120,6 +120,37 @@ export class MultiplayerController {
             const msg = won ? '¡VICTORIA!' : (data.winner === -1 ? 'EMPATE' : 'DERROTA');
             const color = won ? '#4CAF50' : '#f44336';
             
+            const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4'];
+            
+            // Generate stats HTML
+            let statsHTML = '<div style="margin: 20px 0; text-align: left; font-size: 12px;">';
+            
+            const stats = data.stats || this.game.state.getStats();
+            
+            if (stats && stats.produced) {
+                statsHTML += `<p style="color: #888; margin-bottom: 10px;">Duración: ${Math.floor(stats.elapsed)}m ${Math.floor((stats.elapsed % 1) * 60)}s</p>`;
+                
+                for (let pid in stats.produced) {
+                    const p = parseInt(pid);
+                    const pColor = playerColors[p % playerColors.length];
+                    const pName = p === this.playerIndex ? 'TÚ' : `Jugador ${p + 1}`;
+                    const produced = stats.produced[pid]?.total || 0;
+                    const lostUnits = stats.lost[pid]?.total || 0;
+                    const current = stats.current[pid] || 0;
+                    const prodPerMin = stats.produced[pid]?.perMinute || 0;
+                    
+                    statsHTML += `
+                        <div style="color: ${pColor}; margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                            <strong>${pName}</strong><br>
+                            Producidas: ${produced} (${prodPerMin}/min)<br>
+                            Perdidas: ${lostUnits}<br>
+                            Actuales: ${current}
+                        </div>
+                    `;
+                }
+            }
+            statsHTML += '</div>';
+            
             const overlay = document.createElement('div');
             overlay.id = 'game-over-overlay';
             overlay.style.cssText = `
@@ -137,6 +168,7 @@ export class MultiplayerController {
             
             box.innerHTML = `
                 <h1 style="color: ${color}; font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">${msg}</h1>
+                ${statsHTML}
                 <p style="color: #888; margin-bottom: 20px;">${lost ? 'Puedes seguir jugando mientras esperas...' : ''}</p>
                 <button id="restart-btn" style="
                     background: ${color}; color: white; border: none;
