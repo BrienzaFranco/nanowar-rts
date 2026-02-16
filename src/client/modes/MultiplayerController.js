@@ -66,10 +66,10 @@ export class MultiplayerController {
                 });
             }
             
-            // Spawn initial entities for all players like singleplayer does
+            // Spawn initial entities for all players - MORE units for multiplayer
             this.game.state.nodes.forEach(node => {
                 if (node.owner !== -1) {
-                    for (let i = 0; i < 15; i++) {
+                    for (let i = 0; i < 20; i++) {
                         const angle = Math.random() * Math.PI * 2;
                         const dist = node.radius + 30;
                         const ent = new Entity(
@@ -96,6 +96,45 @@ export class MultiplayerController {
             if (this.game.running) {
                 this.syncState(serverState);
             }
+        });
+
+        this.socket.on('gameOver', (data) => {
+            this.game.running = false;
+            const won = data.winner === this.playerIndex;
+            const msg = won ? '¡VICTORIA!' : 'DERROTA';
+            const color = won ? '#4CAF50' : '#f44336';
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'game-over-overlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.85); display: flex;
+                justify-content: center; align-items: center; z-index: 1000;
+            `;
+            
+            const box = document.createElement('div');
+            box.style.cssText = `
+                padding: 40px 60px; background: #141419;
+                border: 3px solid ${color}; border-radius: 12px;
+                text-align: center;
+            `;
+            
+            box.innerHTML = `
+                <h1 style="color: ${color}; font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">${msg}</h1>
+                <button id="restart-btn" style="
+                    background: ${color}; color: white; border: none;
+                    padding: 12px 30px; font-size: 16px; cursor: pointer;
+                    border-radius: 4px; font-family: 'Courier New', monospace;
+                ">VOLVER AL MENU</button>
+            `;
+            
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            
+            document.getElementById('restart-btn').addEventListener('click', () => {
+                overlay.remove();
+                location.reload();
+            });
         });
 
         this.socket.on('disconnect', () => {

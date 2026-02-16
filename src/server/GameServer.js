@@ -1,5 +1,6 @@
 import { GameState } from '../shared/GameState.js';
 import { MapGenerator } from '../shared/MapGenerator.js';
+import { Entity } from '../shared/Entity.js';
 
 export class GameServer {
     constructor(roomId, io, maxPlayers = 4) {
@@ -9,27 +10,45 @@ export class GameServer {
         this.state = new GameState();
         this.playerSockets = [];
         this.gameStarted = false;
+        this.gameEnded = false;
     }
 
     addPlayer(socket) {
         if (this.playerSockets.length < this.maxPlayers) {
             this.playerSockets.push(socket);
-            const playerIndex = this.playerSockets.length - 1; // 0 is player, 1-3 are others
+            const playerIndex = this.playerSockets.length - 1;
             return playerIndex;
         }
         return -1;
     }
 
     removePlayer(socketId) {
-        this.playerSockets = this.playerSockets.filter(s => s.id !== socketId);
+        const idx = this.playerSockets.findIndex(s => s.id === socketId);
+        if (idx !== -1) {
+            const removedPlayerIndex = idx;
+            this.playerSockets.splice(idx, 1);
+            
+            // Reassign player indices
+            this.playerSockets.forEach((s, i) => s.playerIndex = i);
+            
+            // Make disconnected player's nodes neutral
+            this.state.nodes.forEach(n => {
+                if (n.owner === removedPlayerIndex) {
+                    n.owner = -1;
+                    n.baseHp = n.maxHp;
+                }
+            });
+            
+            // Remove all entities from disconnected player
+            this.state.entities = this.state.entities.filter(e => e.owner !== removedPlayerIndex);
+        }
         if (this.playerSockets.length === 0) {
             this.gameStarted = false;
+            this.gameEnded = false;
         }
     }
 
     handleAction(socketId, action) {
-        // Authoritative action processing
-        // Find player index for this socket
         const playerIndex = this.playerSockets.findIndex(s => s.id === socketId);
         if (playerIndex === -1) return;
 
@@ -75,9 +94,39 @@ export class GameServer {
         }
     }
 
+    checkWinCondition() {
+        if (this.gameEnded) return;
+
+        const activePlayers = [];
+        
+        for (let i = 0; i < this.playerSockets.length; i++) {
+            const playerNodes = this.state.nodes.filter(n => n.owner === i);
+            const playerEntities = this.state.entities.filter(e => e.owner === i && !e.dead && !e.dying);
+            
+            if (playerNodes.length > 0 || playerEntities.length > 0) {
+                activePlayers.push(i);
+            }
+        }
+
+        // If only one player remains, they win
+        if (activePlayers.length === 1 && this.playerSockets.length > 1) {
+            this.gameEnded = true;
+            const winnerIndex = activePlayers[0];
+            this.io.to(this.roomId).emit('gameOver', { winner: winnerIndex });
+            return;
+        }
+
+        // If no players left
+        if (activePlayers.length === 0) {
+            this.gameEnded = true;
+            this.io.to(this.roomId).emit('gameOver', { winner: -1 });
+        }
+    }
+
     start() {
         if (this.gameStarted) return;
         this.gameStarted = true;
+        this.gameEnded = false;
         this.initLevel();
 
         let lastTime = Date.now();
@@ -89,23 +138,47 @@ export class GameServer {
 
             this.state.update(dt, this);
             this.io.to(this.roomId).emit('gameState', this.state.getState());
+            
+            // Check win condition every second (every 30 frames)
+            this.checkWinCondition();
 
-            setTimeout(loop, 1000 / 30);
+            if (!this.gameEnded) {
+                setTimeout(loop, 1000 / 30);
+            }
         };
         loop();
     }
 
     initLevel() {
-        // Authoritative level creation logic
+        const actualPlayers = this.playerSockets.length;
+        this.state.playerCount = actualPlayers;
+        
+        // Generate map with actual player count
         this.state.nodes = MapGenerator.generate(
-            this.maxPlayers,
+            actualPlayers,
             this.state.worldWidth,
             this.state.worldHeight
         );
+
+        // Spawn initial entities - MORE units for multiplayer
+        this.state.nodes.forEach(node => {
+            if (node.owner !== -1) {
+                // Spawn 20 units per node (was 15)
+                for (let i = 0; i < 20; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = node.radius + 30;
+                    const ent = new Entity(
+                        node.x + Math.cos(angle) * dist,
+                        node.y + Math.sin(angle) * dist,
+                        node.owner,
+                        Date.now() + i + (node.owner * 1000)
+                    );
+                    this.state.entities.push(ent);
+                }
+            }
+        });
     }
 
     spawnParticles(x, y, color, count, type) {
-        // On server, we can track events to send to client
-        // For now, handled by client prediction or pure authoritative sync
     }
 }
