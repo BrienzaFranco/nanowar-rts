@@ -8,15 +8,26 @@ export class UIManager {
         const h = this.game.canvas.height;
         const w = this.game.canvas.width;
 
+        const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
+        const playerColor = [
+            '#4CAF50', '#f44336', '#2196F3', '#FF9800',
+            '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'
+        ][playerIndex % 8];
+
+        // Player indicator
+        ctx.fillStyle = playerColor;
+        ctx.font = 'bold 16px monospace';
+        ctx.fillText(`ERES JUGADOR ${playerIndex + 1}`, 20, h - 110);
+
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(10, h - 100, 220, 90);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.strokeStyle = playerColor;
         ctx.strokeRect(10, h - 100, 220, 90);
 
         ctx.font = '12px monospace';
         ctx.textAlign = 'left';
         ctx.fillStyle = '#fff';
-        const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
+
         ctx.fillText(`UNIDADES: ${this.game.state.entities.filter(e => e.owner === playerIndex).length}`, 20, h - 80);
         ctx.fillText(`SELECCIONADOS: ${this.game.systems.selection.selectedEntities.size}`, 20, h - 60);
 

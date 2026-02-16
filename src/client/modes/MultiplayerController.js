@@ -9,6 +9,7 @@ export class MultiplayerController {
         this.connected = false;
         this.playerIndex = -1;
         this.roomId = null;
+        this.cameraCentered = false;
     }
 
     connect(url = '/') {
@@ -119,6 +120,15 @@ export class MultiplayerController {
                 clientNode.rallyPoint = sn.rallyPoint;
             }
         });
+
+        // Center camera on player's node if not already done
+        if (!this.cameraCentered && this.playerIndex !== -1 && this.game.state.nodes.length > 0) {
+            const startNode = this.game.state.nodes.find(n => n.owner === this.playerIndex);
+            if (startNode) {
+                this.game.camera.centerOn(startNode.x, startNode.y, this.game.canvas.width, this.game.canvas.height);
+                this.cameraCentered = true;
+            }
+        }
 
         // Authoritative sync for Entities (Re-instantiation Fix)
         // 1. Identify entities to keep/update and entities to add
