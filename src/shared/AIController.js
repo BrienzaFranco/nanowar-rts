@@ -7,16 +7,21 @@ export class AIController {
 
         // Personalities: Aggressive, Defensive, Expansive
         const personalities = ['aggressive', 'defensive', 'expansive'];
-        this.personality = personalities[Math.floor(Math.random() * personalities.length)];
+        if (this.difficulty === 'Easy') {
+            // Easy mode always gets defensive personality - less aggressive
+            this.personality = 'defensive';
+        } else {
+            this.personality = personalities[Math.floor(Math.random() * personalities.length)];
+        }
 
-        // Set interval based on difficulty
+        // Set interval based on difficulty - Easy is VERY slow
         const baseIntervals = {
-            'Easy': 2.0,
+            'Easy': 3.5,
             'Normal': 1.2,
             'Hard': 0.8,
             'Nightmare': 0.4
         };
-        this.decisionInterval = baseIntervals[this.difficulty] + (Math.random() * 0.4);
+        this.decisionInterval = baseIntervals[this.difficulty] + (Math.random() * 0.5);
 
         console.log(`[AI INFO] Player ${playerId} initialized: Difficulty=${this.difficulty}, Personality=${this.personality}`);
     }
@@ -43,10 +48,17 @@ export class AIController {
             // Attack sensitivity based on difficulty and personality
             let minDefendersToStay = 5;
             if (this.difficulty === 'Nightmare') minDefendersToStay = 2;
-            if (this.difficulty === 'Easy') minDefendersToStay = 10;
+            if (this.difficulty === 'Hard') minDefendersToStay = 4;
+            if (this.difficulty === 'Easy') minDefendersToStay = 18; // Keeps almost all units defending!
 
             if (this.personality === 'defensive') minDefendersToStay += 5;
             if (this.personality === 'aggressive') minDefendersToStay -= 2;
+
+            // For Easy: prioritize neutrals over attacking
+            if (this.difficulty === 'Easy' && neutralNodes.length > 0) {
+                // Easy AI focuses on expansion, rarely attacks
+                minDefendersToStay = 25; // Very defensive
+            }
 
             // Heal check for Defensive
             if (this.personality === 'defensive' && sourceNode.hp < sourceNode.maxHp * 0.9) {
@@ -68,13 +80,19 @@ export class AIController {
                     // Ownership modifiers
                     if (target.owner === -1) {
                         // Neutral node
-                        let expansionWeight = (this.personality === 'expansive') ? 3.0 : 1.5;
+                        let expansionWeight = 1.5;
+                        if (this.personality === 'expansive') expansionWeight = 3.0;
+                        if (this.difficulty === 'Easy') expansionWeight = 5.0; // Prioritize neutrals!
                         // Reduce priority if we already have many nodes
                         if (myNodes.length > 5) expansionWeight *= 0.5;
                         score *= expansionWeight;
                     } else if (target.owner !== this.playerId) {
                         // Enemy node
-                        let attackWeight = (this.personality === 'aggressive') ? 2.5 : 1.0;
+                        let attackWeight = 1.0;
+                        if (this.personality === 'aggressive') attackWeight = 2.5;
+                        if (this.difficulty === 'Nightmare') attackWeight = 3.0;
+                        if (this.difficulty === 'Hard') attackWeight = 2.0;
+                        if (this.difficulty === 'Easy') attackWeight = 0.3; // Rarely attacks enemies!
                         if (this.difficulty === 'Hard' || this.difficulty === 'Nightmare') {
                             // Target weak enemy nodes
                             if (target.hp < target.maxHp * 0.4) attackWeight *= 2.0;
@@ -115,8 +133,9 @@ export class AIController {
         // Attack percentage based on personality/difficulty
         let attackPercent = 0.5;
         if (this.personality === 'aggressive') attackPercent = 0.8;
-        if (this.difficulty === 'Nightmare') attackPercent += 0.1;
-        if (this.difficulty === 'Easy') attackPercent = 0.3;
+        if (this.difficulty === 'Nightmare') attackPercent = 0.9;
+        if (this.difficulty === 'Hard') attackPercent = 0.65;
+        if (this.difficulty === 'Easy') attackPercent = 0.15; // Very few units attack!
 
         const count = Math.ceil(units.length * Math.min(attackPercent, 0.95));
         const attackers = units.slice(0, count);
