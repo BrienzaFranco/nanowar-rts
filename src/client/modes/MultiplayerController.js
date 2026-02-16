@@ -2,6 +2,7 @@ import { io } from 'socket.io-client';
 import { Entity } from '../../shared/Entity.js';
 import { Node } from '../../shared/Node.js';
 import { GameState } from '../../shared/GameState.js';
+import { sounds } from '../systems/SoundManager.js';
 
 export class MultiplayerController {
     constructor(game) {
@@ -277,6 +278,9 @@ export class MultiplayerController {
                 this.game.state.nodes.push(clientNode);
             }
             
+            // Check if node was captured
+            const oldOwner = clientNode.owner;
+            
             // Update properties from server
             clientNode.owner = sn.owner;
             clientNode.baseHp = sn.baseHp;
@@ -286,6 +290,11 @@ export class MultiplayerController {
             clientNode.spawnEffect = sn.spawnEffect;
             if (sn.rallyPoint) {
                 clientNode.rallyPoint = sn.rallyPoint;
+            }
+            
+            // Play capture sound if owner changed
+            if (oldOwner !== sn.owner && oldOwner !== -1 && sn.owner !== -1) {
+                sounds.playCapture();
             }
         });
 

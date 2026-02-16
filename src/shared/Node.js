@@ -124,9 +124,8 @@ export class Node {
             const healthScaling = 0.5 + healthPercent + (isFull ? 0.2 : 0);
             const spawnThreshold = this.spawnInterval / healthScaling;
 
-            // Only spawn if NOT full - when full, it's "recharging" after spawning
-            // This prevents infinite spawning when buffer is full
-            if (!isFull && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
+            // Always spawn when ready - full nodes spawn faster (20% bonus)
+            if (this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 this.spawnTimer = 0;
                 // Spawning a unit costs health
                 this.baseHp -= 1;
@@ -140,8 +139,8 @@ export class Node {
                 return entity;
             }
             
-            // Show progress, but at full it's at 100%
-            this.spawnProgress = isFull ? 1.0 : (this.spawnTimer / spawnThreshold);
+            // Show progress
+            this.spawnProgress = this.spawnTimer / spawnThreshold;
         } else {
             this.spawnTimer = 0;
             this.spawnProgress = 0;

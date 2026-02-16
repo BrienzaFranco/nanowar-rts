@@ -61,6 +61,10 @@ export class Game {
     }
 
     update(dt) {
+        // Track node owners before update for capture detection
+        const nodeOwnersBefore = new Map();
+        this.state.nodes.forEach(n => nodeOwnersBefore.set(n.id, n.owner));
+        
         this.state.update(dt, this);
         if (this.controller && this.controller.update) {
             this.controller.update(dt);
@@ -71,6 +75,44 @@ export class Game {
         this.particles = this.particles.filter(p => p.update(dt));
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
+
+        // Check for node captures and play sound
+        this.state.nodes.forEach(n => {
+            const oldOwner = nodeOwnersBefore.get(n.id);
+            if (oldOwner !== undefined && oldOwner !== n.owner && n.owner !== -1) {
+                sounds.playCapture();
+            }
+        });
+
+        // Check for own cell collisions (simple approximation)
+        // Only check for player 0 in singleplayer or playerIndex in multiplayer
+        const playerIdx = this.controller?.playerIndex ?? 0;
+        const playerEntities = this.state.entities.filter(e => e.owner === playerIdx && !e.dead && !e.dying);
+        
+        // Track collision sound cooldown
+        if (!this.collisionSoundCooldown) this.collisionSoundCooldown = 0;
+        this.collisionSoundCooldown -= dt;
+        
+        // If enough time passed, check for clustered own cells
+        if (this.collisionSoundCooldown <= 0 && playerEntities.length > 5) {
+            // Simple check: find average position of player's cells
+            let avgX = 0, avgY = 0;
+            playerEntities.forEach(e => { avgX += e.x; avgY += e.y; });
+            avgX /= playerEntities.length;
+            avgY /= playerEntities.length;
+            
+            // Count how many are near the average (clustered)
+            const clustered = playerEntities.filter(e => {
+                const dx = e.x - avgX, dy = e.y - avgY;
+                return Math.sqrt(dx*dx + dy*dy) < 100;
+            }).length;
+            
+            // If many are clustered, play collision sound
+            if (clustered > 10) {
+                sounds.playCollision();
+                this.collisionSoundCooldown = 0.5; // Play at most every 0.5s
+            }
+        }
 
         // Check win/lose condition for singleplayer
         if (this.controller && this.controller.playerIndex !== undefined) {

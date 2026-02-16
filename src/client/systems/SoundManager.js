@@ -93,28 +93,70 @@ export class SoundManager {
     }
 
     playCapture() {
-        // Satisfying chord
+        // Longer, more satisfying chord with build-up
         if (!this.ctx || !this.enabled) return;
         this.resume();
         
-        [523, 659, 784].forEach((freq, i) => {
+        // Main chord - C major with octave and extensions
+        const notes = [523, 659, 784, 1047, 1319];
+        
+        notes.forEach((freq, i) => {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             
-            osc.type = 'sine';
+            osc.type = i < 2 ? 'sine' : 'triangle';
             osc.frequency.value = freq;
             
-            const startTime = this.ctx.currentTime + i * 0.05;
+            // Staggered entry for build-up effect
+            const startTime = this.ctx.currentTime + i * 0.08;
+            const duration = 0.7;
+            
             gain.gain.setValueAtTime(0, startTime);
-            gain.gain.linearRampToValueAtTime(0.08, startTime + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+            gain.gain.linearRampToValueAtTime(0.1, startTime + 0.05);
+            gain.gain.setValueAtTime(0.1, startTime + duration - 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
             
             osc.connect(gain);
             gain.connect(this.ctx.destination);
             
             osc.start(startTime);
-            osc.stop(startTime + 0.3);
+            osc.stop(startTime + duration);
         });
+        
+        // Add a bass note
+        const bassOsc = this.ctx.createOscillator();
+        const bassGain = this.ctx.createGain();
+        bassOsc.type = 'sine';
+        bassOsc.frequency.value = 261.63;
+        bassGain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        bassGain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
+        bassOsc.connect(bassGain);
+        bassGain.connect(this.ctx.destination);
+        bassOsc.start();
+        bassOsc.stop(this.ctx.currentTime + 0.6);
+    }
+
+    playCollision() {
+        // Short satisfying "pop" for cell collisions - own cells only
+        if (!this.ctx || !this.enabled) return;
+        this.resume();
+        
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = 'sine';
+        // Quick frequency sweep for "pop" effect
+        osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.08);
+        
+        gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
     }
 
     playSpawn() {
