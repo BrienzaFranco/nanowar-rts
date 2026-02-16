@@ -18,8 +18,8 @@ export class RoomManager {
     listRooms() {
         return Array.from(this.rooms.values()).map(r => ({
             id: r.roomId,
-            players: r.playerSockets.length,
-            maxPlayers: r.maxPlayers
+            players: (r.playerSockets ? r.playerSockets.length : 0),
+            maxPlayers: r.maxPlayers || 4
         }));
     }
 }

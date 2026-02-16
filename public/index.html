@@ -283,6 +283,10 @@
                     const modeContainer = document.getElementById('mode-selection-container');
                     const multiContainer = document.getElementById('multiplayer-setup-container');
 
+                    const createRoomBtn = document.getElementById('create-room-btn');
+                    const refreshBtn = document.getElementById('refresh-rooms-btn');
+                    const roomListDiv = document.getElementById('room-list');
+
                     function updateLink() {
                         link.href = `singleplayer.html?players=${select.value}`;
                     }
@@ -293,48 +297,74 @@
                     multiBtn.addEventListener('click', () => {
                         modeContainer.style.display = 'none';
                         multiContainer.style.display = 'block';
-                        if (window.initMultiplayer) window.initMultiplayer();
+
+                        if (window.multiplayer && window.multiplayer.socket) {
+                            console.log('Requesting room list via MultiplayerController');
+                            window.multiplayer.socket.emit('listRooms');
+                        } else {
+                            console.warn('Multiplayer controller not yet ready');
+                        }
                     });
 
                     backBtn.addEventListener('click', () => {
                         modeContainer.style.display = 'block';
                         multiContainer.style.display = 'none';
                     });
+
+                    // Callback for MultiplayerController
+                    window.updateRoomListUI = function (rooms) {
+                        console.log('Updating Room List UI:', rooms);
+                        if (rooms.length === 0) {
+                            roomListDiv.innerHTML = '<p class="no-rooms">No hay salas disponibles</p>';
+                            return;
+                        }
+
+                        roomListDiv.innerHTML = rooms.map(room => `
+                            <div class="room-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px dashed rgba(76, 175, 80, 0.2); background: rgba(0,0,0,0.2); margin-bottom: 5px; border-radius: 4px;">
+                                <div style="text-align: left;">
+                                    <div style="font-size: 12px; color: #4CAF50; font-family: monospace; font-weight: bold;">${room.id}</div>
+                                    <div style="font-size: 10px; opacity: 0.6; text-transform: uppercase;">Jugadores: ${room.players}/${room.maxPlayers}</div>
+                                </div>
+                                <button onclick="joinRoom('${room.id}')" class="btn-primary" style="padding: 4px 12px; font-size: 10px; min-width: 80px;">UNIRSE</button>
+                            </div>
+                        `).join('');
+                    };
+
+                    window.joinRoom = function (roomId) {
+                        if (window.multiplayer) {
+                            window.multiplayer.joinRoom(roomId);
+                        }
+                    };
+
+                    createRoomBtn.addEventListener('click', () => {
+                        if (window.multiplayer) {
+                            window.multiplayer.createRoom(4);
+                        }
+                    });
+
+                    refreshBtn.addEventListener('click', () => {
+                        if (window.multiplayer && window.multiplayer.socket) {
+                            window.multiplayer.socket.emit('listRooms');
+                        }
+                    });
                 </script>
             </div>
         </div>
 
-        <div id="create-room-dialog" class="dialog" style="display: none;">
-            <div class="dialog-content">
-                <h3>Crear Nueva Sala</h3>
-                <div class="form-group">
-                    <label for="room-name">Nombre de la Sala</label>
-                    <input type="text" id="room-name" placeholder="Sala" maxlength="30">
-                </div>
-                <div class="form-group">
-                    <label for="max-players">Jugadores</label>
-                    <select id="max-players">
-                        <option value="2">2 jugadores</option>
-                        <option value="3">3 jugadores</option>
-                        <option value="4" selected>4 jugadores</option>
-                    </select>
-                </div>
-                <div class="dialog-buttons">
-                    <button id="cancel-create-room" class="btn-secondary">Cancelar</button>
-                    <button id="confirm-create-room" class="btn-primary">Crear</button>
-                </div>
-            </div>
-        </div>
-
         <div id="lobby-screen" class="screen" style="display: none;">
-            <div class="lobby-container">
-                <h2>Sala de Espera</h2>
-                <div id="lobby-players" class="players-list"></div>
-                <div class="lobby-actions">
-                    <button id="ready-btn" class="btn-primary">LISTO</button>
-                    <button id="leave-lobby-btn" class="btn-secondary">Salir</button>
+            <div class="lobby-container"
+                style="max-width: 500px; margin: 100px auto; padding: 40px; background: rgba(20,20,25,0.95); border: 2px solid #4CAF50; border-radius: 12px; text-align: center; box-shadow: 0 0 30px rgba(76,175,80,0.2);">
+                <h2
+                    style="color: #4CAF50; letter-spacing: 4px; margin-bottom: 30px; border-bottom: 1px solid rgba(76,175,80,0.3); padding-bottom: 15px;">
+                    SALA DE ESPERA</h2>
+                <div id="lobby-players"
+                    style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px;">
+                    <p style="font-size: 13px; color: white;">Esperando a otros comandantes...</p>
                 </div>
-                <p class="lobby-info">Esperando a jugadores...</p>
+                <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
+                    <button class="btn-primary" style="flex: 1;">ESTOY LISTO</button>
+                    <button onclick="location.reload()" class="btn-secondary" style="flex: 1;">SALIR</button>
+                </div>
             </div>
         </div>
 
@@ -344,26 +374,6 @@
     </div>
 
     <script src="dist/bundle.js"></script>
-    <script>
-        // Room listing and lobby logic will be moved to a separate UI system eventually
-        // For now, keeping minimal glue code if needed.
-    </script>
-    function startMultiplayer() {
-    document.querySelector('.mode-selection').style.display = 'none';
-    document.querySelector('.rooms-section').style.display = 'block';
-    document.querySelector('.menu-buttons').style.display = 'block';
-
-    // Iniciar conexión
-    if (window.initMultiplayer) {
-    window.initMultiplayer();
-    }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-    document.querySelector('.rooms-section').style.display = 'none';
-    document.querySelector('.menu-buttons').style.display = 'none';
-    });
-    </script>
 </body>
 
 </html>
