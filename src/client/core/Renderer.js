@@ -70,13 +70,25 @@ export class Renderer {
             this.ctx.fill();
         }
 
-        // Spawn Progress
+        // Spawn Progress - show player color when full
         if (node.owner !== -1 && node.spawnProgress > 0) {
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + node.spawnProgress * Math.PI * 2);
-            this.ctx.strokeStyle = `rgba(255,255,255,${0.5 + node.spawnProgress * 0.3})`;
-            this.ctx.lineWidth = 1.5 * camera.zoom;
-            this.ctx.stroke();
+            const isFull = node.baseHp >= node.maxHp;
+            
+            // When full, show solid player color ring
+            if (isFull) {
+                this.ctx.beginPath();
+                this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, 0, Math.PI * 2);
+                this.ctx.strokeStyle = baseColor;
+                this.ctx.lineWidth = 3 * camera.zoom;
+                this.ctx.stroke();
+            } else {
+                // Normal progress ring
+                this.ctx.beginPath();
+                this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + node.spawnProgress * Math.PI * 2);
+                this.ctx.strokeStyle = `rgba(255,255,255,${0.5 + node.spawnProgress * 0.3})`;
+                this.ctx.lineWidth = 1.5 * camera.zoom;
+                this.ctx.stroke();
+            }
         }
 
         // Node Body (Radial Fill)

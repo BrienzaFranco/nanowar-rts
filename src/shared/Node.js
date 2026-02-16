@@ -108,19 +108,25 @@ export class Node {
 
         if (this.owner !== -1) {
             // Heal node slowly if not at max
-            const healRate = 0.5; // units per second? 
+            const healRate = 0.5;
             if (this.baseHp < this.maxHp) {
                 this.baseHp += healRate * dt;
             }
 
+            // Check if node is full (100%+ health = bonus production)
+            const isFull = this.baseHp >= this.maxHp;
+            
             this.spawnTimer += dt;
-            const healthPercent = this.baseHp / this.maxHp;
+            const healthPercent = Math.min(this.baseHp / this.maxHp, 1.0);
+            
             // Higher health = faster generation (up to 2x speed)
-            // + 0.1 extra boost if at or above 100% health
-            const healthScaling = 0.5 + healthPercent + (healthPercent >= 1.0 ? 0.1 : 0);
+            // + 0.2 extra boost if at or above 100% health (full)
+            const healthScaling = 0.5 + healthPercent + (isFull ? 0.2 : 0);
             const spawnThreshold = this.spawnInterval / healthScaling;
 
-            if (this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
+            // Only spawn if NOT full - when full, it's "recharging" after spawning
+            // This prevents infinite spawning when buffer is full
+            if (!isFull && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 this.spawnTimer = 0;
                 // Spawning a unit costs health
                 this.baseHp -= 1;
@@ -133,7 +139,9 @@ export class Node {
                 if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
                 return entity;
             }
-            this.spawnProgress = this.spawnTimer / spawnThreshold;
+            
+            // Show progress, but at full it's at 100%
+            this.spawnProgress = isFull ? 1.0 : (this.spawnTimer / spawnThreshold);
         } else {
             this.spawnTimer = 0;
             this.spawnProgress = 0;
