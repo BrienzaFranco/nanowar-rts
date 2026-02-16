@@ -93,6 +93,9 @@ export class Game {
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
 
+        // Only play sounds if we have a valid player index (>= 0)
+        const isValidPlayer = playerIdx >= 0;
+
         // Check for node captures - ONLY FOR OUR NODES
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
