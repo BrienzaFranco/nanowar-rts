@@ -49,12 +49,10 @@ export class SoundManager {
     }
 
     playSelect() {
-        console.log('SOUND: playSelect');
         this.playTone(700, 0.05, 'triangle', 0.06);
     }
 
     playMove() {
-        console.log('SOUND: playMove');
         if (!this.ctx || !this.enabled) return;
         this.resume();
         
@@ -125,7 +123,6 @@ export class SoundManager {
     }
 
     playNodeHealing(percent) {
-        console.log('SOUND: playNodeHealing', percent);
         if (!this.ctx || !this.enabled) return;
         this.resume();
         
