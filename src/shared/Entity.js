@@ -250,8 +250,7 @@ export class Entity {
 
                 // Owned node logic - existing behavior
                 if (node.owner === this.owner && node.owner !== -1) {
-                    // Only absorb when node is at full health (100%)
-                    if (node.baseHp >= node.maxHp && !this.dying) {
+                    if (node.baseHp < node.maxHp && !this.dying) {
                         node.baseHp += 1;
                         this.die('absorbed', node, game);
                         return;
