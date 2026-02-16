@@ -228,32 +228,34 @@
                         style="opacity: 0.4; font-size: 10px;">v5.0.0</span></p>
 
                 <div class="player-input">
-                    <label for="player-name">Jugador</label>
+                    <label for="player-name">Comandante</label>
                     <input type="text" id="player-name" placeholder="Tu nombre" maxlength="20">
                 </div>
 
                 <div id="mode-selection-container" class="mode-selection">
                     <h2>Seleccionar Modo</h2>
-                    <div
-                        style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                        <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Rivales:</label>
-                        <select id="player-count-select"
-                            style="background: #141419; color: #4CAF50; border: 1px solid rgba(76,175,80,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
-                            <option value="2">1 vs 1 (1 IA)</option>
-                            <option value="3">1 vs 2 (2 IAs)</option>
-                            <option value="4" selected>1 vs 3 (3 IAs)</option>
-                        </select>
-                    </div>
-                    <div
-                        style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                        <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Dificultad:</label>
-                        <select id="difficulty-select"
-                            style="background: #141419; color: #2196F3; border: 1px solid rgba(33,150,243,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
-                            <option value="easy">Fácil</option>
-                            <option value="intermediate" selected>Intermedio</option>
-                            <option value="hard">Difícil</option>
-                            <option value="expert">Experto</option>
-                        </select>
+                    <div id="singleplayer-options">
+                        <div
+                            style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Rivales:</label>
+                            <select id="player-count-select"
+                                style="background: #141419; color: #4CAF50; border: 1px solid rgba(76,175,80,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
+                                <option value="2">1 vs 1 (1 IA)</option>
+                                <option value="3">1 vs 2 (2 IAs)</option>
+                                <option value="4" selected>1 vs 3 (3 IAs)</option>
+                            </select>
+                        </div>
+                        <div
+                            style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Dificultad:</label>
+                            <select id="difficulty-select"
+                                style="background: #141419; color: #2196F3; border: 1px solid rgba(33,150,243,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
+                                <option value="easy">Fácil</option>
+                                <option value="intermediate" selected>Intermedio</option>
+                                <option value="hard">Difícil</option>
+                                <option value="expert">Experto</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="nickname-section" style="margin-bottom: 25px;">
                         <label for="nickname-input"
@@ -348,6 +350,8 @@
             const savedNick = localStorage.getItem('nanowar_nickname');
             if (savedNick) nickInput.value = savedNick;
 
+            const singleplayerOptions = document.getElementById('singleplayer-options');
+
             nickInput.addEventListener('input', () => {
                 localStorage.setItem('nanowar_nickname', nickInput.value);
                 if (window.multiplayer && window.multiplayer.socket) {
@@ -371,6 +375,7 @@
                 }
                 modeContainer.style.display = 'none';
                 multiContainer.style.display = 'block';
+                if (singleplayerOptions) singleplayerOptions.style.display = 'none';
 
                 if (window.multiplayer && window.multiplayer.socket) {
                     window.multiplayer.socket.emit('listRooms');
@@ -380,6 +385,7 @@
             backBtn.addEventListener('click', () => {
                 modeContainer.style.display = 'block';
                 multiContainer.style.display = 'none';
+                if (singleplayerOptions) singleplayerOptions.style.display = 'block';
             });
 
             // Callback for MultiplayerController

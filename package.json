@@ -1,6 +1,6 @@
 {
   "name": "nanowar-multiplayer",
-  "version": "1.0.0",
+  "version": "5.0.1",
   "type": "module",
   "description": "Nanowar - Juego de estrategia multijugador",
   "main": "server.js",

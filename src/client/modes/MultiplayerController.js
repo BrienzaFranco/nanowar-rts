@@ -12,6 +12,7 @@ export class MultiplayerController {
         this.roomId = null;
         this.cameraCentered = false;
         this.initialStateReceived = false;
+        this.gameLost = false;
     }
 
     connect(url = '/') {
@@ -93,15 +94,21 @@ export class MultiplayerController {
         });
 
         this.socket.on('gameState', (serverState) => {
-            if (this.game.running) {
+            // Keep syncing even if lost - players can still move units
+            if (this.game.running || this.gameLost) {
                 this.syncState(serverState);
             }
         });
 
         this.socket.on('gameOver', (data) => {
-            this.game.running = false;
             const won = data.winner === this.playerIndex;
-            const msg = won ? '¡VICTORIA!' : 'DERROTA';
+            const lost = data.winner !== -1 && data.winner !== this.playerIndex;
+            
+            // Keep game running even if lost - players can still move units
+            this.gameLost = lost;
+            
+            // Show overlay
+            const msg = won ? '¡VICTORIA!' : (data.winner === -1 ? 'EMPATE' : 'DERROTA');
             const color = won ? '#4CAF50' : '#f44336';
             
             const overlay = document.createElement('div');
@@ -121,6 +128,7 @@ export class MultiplayerController {
             
             box.innerHTML = `
                 <h1 style="color: ${color}; font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">${msg}</h1>
+                <p style="color: #888; margin-bottom: 20px;">${lost ? 'Puedes seguir jugando mientras esperas...' : ''}</p>
                 <button id="restart-btn" style="
                     background: ${color}; color: white; border: none;
                     padding: 12px 30px; font-size: 16px; cursor: pointer;
