@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import { Entity } from '../shared/Entity.js';
+import { Entity } from '../../shared/Entity.js';
 
 export class MultiplayerController {
     constructor(game) {
