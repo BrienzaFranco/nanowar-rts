@@ -135,7 +135,20 @@ export class Node {
                 const dist = this.influenceRadius - 5; // Just inside influence radius
                 const ex = this.x + Math.cos(angle) * dist, ey = this.y + Math.sin(angle) * dist;
                 const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
-                if (this.rallyPoint) entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);
+                
+                // If no rally point, set initial target toward center of node to stay in area
+                if (!this.rallyPoint) {
+                    // Move toward a point closer to center but still in area
+                    const targetDist = this.radius + 20; // Between node and edge
+                    const targetAngle = angle + Math.PI; // Move inward
+                    entity.setTarget(
+                        this.x + Math.cos(targetAngle) * targetDist,
+                        this.y + Math.sin(targetAngle) * targetDist
+                    );
+                } else {
+                    entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);
+                }
+                
                 this.spawnEffect = 0.4;
                 if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
                 return entity;
