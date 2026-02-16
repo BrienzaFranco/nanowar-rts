@@ -216,11 +216,12 @@ export class Entity {
             const touchRange = node.radius + this.radius;
 
             if (dist <= touchRange) {
-                // Neutral node - just capture, don't kill cells
+                // Neutral node - capture and die (crash into it)
                 if (node.owner === -1) {
                     // Capture neutral node on contact
                     if (!this.dying) {
                         node.receiveAttack(this.owner, node.maxHp + 1, game); // Instant capture
+                        this.die('attack', node, game); // Cell crashes and dies
                     }
                     return;
                 }

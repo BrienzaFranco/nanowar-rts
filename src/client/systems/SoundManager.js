@@ -49,30 +49,34 @@ export class SoundManager {
     }
 
     playSelect() {
-        // Short high blip
-        this.playTone(800, 0.08, 'sine', 0.08);
+        // Short dry blip
+        this.playTone(700, 0.05, 'triangle', 0.06);
     }
 
     playMove() {
-        // Ascending blip
+        // Dry, rhythmic biological ship sound
         if (!this.ctx || !this.enabled) return;
         this.resume();
         
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(500, this.ctx.currentTime + 0.1);
-        
-        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
-        
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.15);
+        // Quick double blip - rhythmic
+        [400, 500].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            
+            const startTime = this.ctx.currentTime + i * 0.05;
+            
+            gain.gain.setValueAtTime(0.08, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.06);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.start(startTime);
+            osc.stop(startTime + 0.06);
+        });
     }
 
     playAttack() {
