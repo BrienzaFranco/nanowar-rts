@@ -115,6 +115,29 @@ export class Entity {
     }
 
     handleCollisionsAndCohesion(allEntities, nodes, game) {
+        // First, push entities out of nodes they might be inside
+        if (nodes) {
+            for (let node of nodes) {
+                const dx = this.x - node.x;
+                const dy = this.y - node.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = node.radius + this.radius;
+                
+                if (dist < minDist && dist > 0) {
+                    // Push entity out of node
+                    const overlap = minDist - dist;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    this.x += nx * overlap;
+                    this.y += ny * overlap;
+                    
+                    // Bounce velocity
+                    this.vx += nx * 50 * 0.016;
+                    this.vy += ny * 50 * 0.016;
+                }
+            }
+        }
+        
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
 
         for (let other of allEntities) {
