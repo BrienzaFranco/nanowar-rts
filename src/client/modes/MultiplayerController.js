@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { Entity } from '../shared/Entity.js';
 
 export class MultiplayerController {
     constructor(game) {
@@ -21,12 +22,22 @@ export class MultiplayerController {
             this.connected = true;
             console.log('MultiplayerController connected to server');
             this.socket.emit('listRooms');
+
+            // Send nickname if we have one stored
+            const name = localStorage.getItem('nanowar_nickname');
+            if (name) this.socket.emit('setNickname', name);
         });
 
         this.socket.on('roomList', (rooms) => {
-            // Trigger UI update if window.updateRoomListUI exists
             if (window.updateRoomListUI) {
                 window.updateRoomListUI(rooms);
+            }
+        });
+
+        this.socket.on('lobbyUpdate', (data) => {
+            console.log('Lobby Update:', data);
+            if (window.updateLobbyUI) {
+                window.updateLobbyUI(data.players);
             }
         });
 
@@ -72,6 +83,10 @@ export class MultiplayerController {
         });
     }
 
+    toggleReady() {
+        if (this.socket) this.socket.emit('toggleReady');
+    }
+
     showLobby() {
         const lobby = document.getElementById('lobby-screen');
         const menu = document.getElementById('menu-screen');
@@ -86,19 +101,40 @@ export class MultiplayerController {
     }
 
     syncState(serverState) {
-        // Authoritative sync
+        // Authoritative sync for Nodes
         this.game.state.nodes.forEach(clientNode => {
             const serverNode = serverState.nodes.find(sn => sn.id === clientNode.id);
             if (serverNode) {
                 clientNode.owner = serverNode.owner;
                 clientNode.baseHp = serverNode.baseHp;
-                // Don't sync internal progress if we want prediction, 
-                // but for authoritative simple sync we do.
                 clientNode.spawnProgress = serverNode.spawnProgress;
             }
         });
 
-        // For entities, simple replacement for now
-        this.game.state.entities = serverState.entities;
+        // Authoritative sync for Entities (Re-instantiation Fix)
+        // 1. Identify entities to keep/update and entities to add
+        const newEntities = [];
+        serverState.entities.forEach(se => {
+            let localEnt = this.game.state.entities.find(le => le.id === se.id);
+            if (localEnt) {
+                // Update existing
+                localEnt.x = se.x;
+                localEnt.y = se.y;
+                localEnt.vx = se.vx;
+                localEnt.vy = se.vy;
+                localEnt.owner = se.owner;
+                localEnt.dying = se.dying;
+                newEntities.push(localEnt);
+            } else {
+                // Re-instantiate new
+                const ent = new Entity(se.x, se.y, se.owner, se.id);
+                ent.vx = se.vx;
+                ent.vy = se.vy;
+                ent.dying = se.dying;
+                newEntities.push(ent);
+            }
+        });
+
+        this.game.state.entities = newEntities;
     }
 }

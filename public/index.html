@@ -244,6 +244,14 @@
                             <option value="4" selected>1 vs 3 (3 IAs)</option>
                         </select>
                     </div>
+                    <div class="nickname-section" style="margin-bottom: 25px;">
+                        <label for="nickname-input"
+                            style="display: block; font-size: 10px; color: #4CAF50; margin-bottom: 5px; opacity: 0.8;">IDENTIFICACIÓN
+                            DE COMANDANTE</label>
+                        <input type="text" id="nickname-input" placeholder="Comandante" maxlength="15"
+                            style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(76,175,80,0.4); color: white; padding: 10px; border-radius: 4px; text-align: center; font-family: 'Courier New', monospace;">
+                    </div>
+
                     <div class="mode-buttons">
                         <a href="singleplayer.html" id="singleplayer-link" class="btn-mode btn-single">
                             <span class="mode-icon">&#9679;</span>
@@ -286,6 +294,18 @@
                     const createRoomBtn = document.getElementById('create-room-btn');
                     const refreshBtn = document.getElementById('refresh-rooms-btn');
                     const roomListDiv = document.getElementById('room-list');
+                    const nickInput = document.getElementById('nickname-input');
+
+                    // Load saved nickname
+                    const savedNick = localStorage.getItem('nanowar_nickname');
+                    if (savedNick) nickInput.value = savedNick;
+
+                    nickInput.addEventListener('input', () => {
+                        localStorage.setItem('nanowar_nickname', nickInput.value);
+                        if (window.multiplayer && window.multiplayer.socket) {
+                            window.multiplayer.socket.emit('setNickname', nickInput.value);
+                        }
+                    });
 
                     function updateLink() {
                         link.href = `singleplayer.html?players=${select.value}`;
@@ -295,14 +315,15 @@
                     updateLink(); // Initial call
 
                     multiBtn.addEventListener('click', () => {
+                        if (!nickInput.value.trim()) {
+                            alert('Ingresa un nombre de comandante');
+                            return;
+                        }
                         modeContainer.style.display = 'none';
                         multiContainer.style.display = 'block';
 
                         if (window.multiplayer && window.multiplayer.socket) {
-                            console.log('Requesting room list via MultiplayerController');
                             window.multiplayer.socket.emit('listRooms');
-                        } else {
-                            console.warn('Multiplayer controller not yet ready');
                         }
                     });
 
@@ -313,7 +334,6 @@
 
                     // Callback for MultiplayerController
                     window.updateRoomListUI = function (rooms) {
-                        console.log('Updating Room List UI:', rooms);
                         if (rooms.length === 0) {
                             roomListDiv.innerHTML = '<p class="no-rooms">No hay salas disponibles</p>';
                             return;
@@ -330,14 +350,35 @@
                         `).join('');
                     };
 
+                    window.updateLobbyUI = function (players) {
+                        const lobbyList = document.getElementById('lobby-players');
+                        if (!lobbyList) return;
+
+                        lobbyList.innerHTML = players.map(p => `
+                            <div style="display: flex; justify-content: space-between; padding: 12px 20px; background: ${p.ready ? 'rgba(76,175,80,0.15)' : 'rgba(255,255,255,0.05)'}; margin-bottom: 8px; border-radius: 6px; border: 1px solid ${p.ready ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
+                                <span style="color: white; font-size: 14px; font-family: monospace;">${p.nickname} ${p.id === window.multiplayer.socket.id ? '<span style="color:#4CAF50; font-size:10px;">(TÚ)</span>' : ''}</span>
+                                <span style="color: ${p.ready ? '#4CAF50' : '#888'}; font-size: 11px; font-weight: bold; letter-spacing: 1px;">${p.ready ? 'LISTO' : 'PREPARANDO...'}</span>
+                            </div>
+                        `).join('');
+
+                        const myPlayer = players.find(p => p.id === window.multiplayer.socket.id);
+                        const readyBtn = document.getElementById('ready-btn');
+                        if (myPlayer && readyBtn) {
+                            readyBtn.innerText = myPlayer.ready ? 'CANCELAR LISTO' : 'ESTOY LISTO';
+                            readyBtn.className = myPlayer.ready ? 'btn-secondary' : 'btn-primary';
+                        }
+                    }
+
                     window.joinRoom = function (roomId) {
                         if (window.multiplayer) {
+                            window.multiplayer.socket.emit('setNickname', nickInput.value);
                             window.multiplayer.joinRoom(roomId);
                         }
                     };
 
                     createRoomBtn.addEventListener('click', () => {
                         if (window.multiplayer) {
+                            window.multiplayer.socket.emit('setNickname', nickInput.value);
                             window.multiplayer.createRoom(4);
                         }
                     });
@@ -362,7 +403,7 @@
                     <p style="font-size: 13px; color: white;">Esperando a otros comandantes...</p>
                 </div>
                 <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
-                    <button class="btn-primary" style="flex: 1;">ESTOY LISTO</button>
+                    <button id="ready-btn" class="btn-primary" style="flex: 1;">ESTOY LISTO</button>
                     <button onclick="location.reload()" class="btn-secondary" style="flex: 1;">SALIR</button>
                 </div>
             </div>

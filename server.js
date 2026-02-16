@@ -19,16 +19,30 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const roomManager = new RoomManager();
 
-const broadcastRoomList = () => {
-    const rooms = roomManager.listRooms();
-    io.emit('roomList', rooms);
+const broadcastLobbyUpdate = (roomId) => {
+    const game = roomManager.getRoom(roomId);
+    if (game) {
+        const players = game.playerSockets.map(s => ({
+            id: s.id,
+            nickname: s.nickname || 'Anónimo',
+            ready: s.ready || false
+        }));
+        io.to(roomId).emit('lobbyUpdate', { players });
+    }
 };
 
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
+    socket.nickname = 'Player_' + socket.id.substr(0, 4);
+    socket.ready = false;
 
     // Send current rooms on connect
     socket.emit('roomList', roomManager.listRooms());
+
+    socket.on('setNickname', (nickname) => {
+        socket.nickname = nickname.substring(0, 15);
+        if (socket.roomId) broadcastLobbyUpdate(socket.roomId);
+    });
 
     socket.on('listRooms', () => {
         socket.emit('roomList', roomManager.listRooms());
@@ -44,11 +58,13 @@ io.on('connection', (socket) => {
         const playerIndex = gameServer.addPlayer(socket);
         socket.join(roomId);
         socket.roomId = roomId;
+        socket.ready = false;
 
         console.log(`Room created: ${roomId} by ${socket.id} (Player ${playerIndex})`);
 
         callback({ success: true, roomId, playerIndex });
         broadcastRoomList();
+        broadcastLobbyUpdate(roomId);
     });
 
     socket.on('joinRoom', (data, callback) => {
@@ -63,18 +79,30 @@ io.on('connection', (socket) => {
 
             socket.join(roomId);
             socket.roomId = roomId;
+            socket.ready = false;
             console.log(`Player ${socket.id} joined room ${roomId} (Player ${playerIndex})`);
 
             callback({ success: true, playerIndex });
             broadcastRoomList();
-
-            // Auto-start if at least 2 players
-            if (game.playerSockets.length >= 2) {
-                game.start();
-                io.to(roomId).emit('gameStart');
-            }
+            broadcastLobbyUpdate(roomId);
         } else {
             callback({ success: false, message: 'Room not found' });
+        }
+    });
+
+    socket.on('toggleReady', () => {
+        if (!socket.roomId) return;
+        socket.ready = !socket.ready;
+        broadcastLobbyUpdate(socket.roomId);
+
+        // Check if all are ready
+        const game = roomManager.getRoom(socket.roomId);
+        if (game && game.playerSockets.length >= 2) {
+            const allReady = game.playerSockets.every(s => s.ready);
+            if (allReady) {
+                game.start();
+                io.to(socket.roomId).emit('gameStart');
+            }
         }
     });
 
@@ -95,6 +123,8 @@ io.on('connection', (socket) => {
                 game.removePlayer(socket.id);
                 if (game.playerSockets.length === 0) {
                     roomManager.removeRoom(socket.roomId);
+                } else {
+                    broadcastLobbyUpdate(socket.roomId);
                 }
             }
             broadcastRoomList();
