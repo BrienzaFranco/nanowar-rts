@@ -1,12 +1,9 @@
 export class AIController {
-    constructor(game, playerId) {
+    constructor(game, playerId, difficulty = 'Normal') {
         this.game = game;
         this.playerId = playerId;
         this.timer = 0;
-
-        // Difficulty levels: affecting decision interval and aggression
-        const difficulties = ['Easy', 'Normal', 'Hard', 'Nightmare'];
-        this.difficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
+        this.difficulty = difficulty;
 
         // Personalities: Aggressive, Defensive, Expansive
         const personalities = ['aggressive', 'defensive', 'expansive'];

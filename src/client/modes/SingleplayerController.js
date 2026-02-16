@@ -9,14 +9,23 @@ export class SingleplayerController {
         this.ais = [];
     }
 
-    setup(playerCount = 1) {
+    setup(playerCount = 1, difficulty = 'intermediate') {
         this.game.state.playerCount = playerCount;
+        this.game.state.difficulty = difficulty;
         this.createLevel();
         this.createInitialEntities();
 
+        const difficultyMap = {
+            'easy': 'Easy',
+            'intermediate': 'Normal',
+            'hard': 'Hard',
+            'expert': 'Nightmare'
+        };
+
         // Create AIs for CPUs (indices > 0)
         for (let i = 1; i < playerCount; i++) {
-            this.ais.push(new AIController(this.game, i));
+            const aiDifficulty = difficultyMap[difficulty] || 'Normal';
+            this.ais.push(new AIController(this.game, i, aiDifficulty));
         }
     }
 

@@ -19,8 +19,9 @@ window.initGame = (mode) => {
     if (mode === 'singleplayer') {
         const urlParams = new URLSearchParams(window.location.search);
         const playerCount = parseInt(urlParams.get('players')) || 2;
+        const difficulty = urlParams.get('difficulty') || 'intermediate';
         game.controller = new SingleplayerController(game);
-        game.controller.setup(playerCount);
+        game.controller.setup(playerCount, difficulty);
         game.start();
     } else {
         game.controller = new MultiplayerController(game);

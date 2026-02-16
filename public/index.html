@@ -244,6 +244,17 @@
                             <option value="4" selected>1 vs 3 (3 IAs)</option>
                         </select>
                     </div>
+                    <div
+                        style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Dificultad:</label>
+                        <select id="difficulty-select"
+                            style="background: #141419; color: #2196F3; border: 1px solid rgba(33,150,243,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
+                            <option value="easy">Fácil</option>
+                            <option value="intermediate" selected>Intermedio</option>
+                            <option value="hard">Difícil</option>
+                            <option value="expert">Experto</option>
+                        </select>
+                    </div>
                     <div class="nickname-section" style="margin-bottom: 25px;">
                         <label for="nickname-input"
                             style="display: block; font-size: 10px; color: #4CAF50; margin-bottom: 5px; opacity: 0.8;">IDENTIFICACIÓN
@@ -314,6 +325,7 @@
         // Use DOMContentLoaded or put script at end to ensure elements exist
         document.addEventListener('DOMContentLoaded', () => {
             const select = document.getElementById('player-count-select');
+            const difficultySelect = document.getElementById('difficulty-select');
             const link = document.getElementById('singleplayer-link');
             const multiBtn = document.getElementById('multiplayer-mode-btn');
             const backBtn = document.getElementById('back-to-modes-btn');
@@ -338,10 +350,12 @@
             });
 
             function updateLink() {
-                link.href = `singleplayer.html?players=${select.value}`;
+                const difficulty = difficultySelect.value;
+                link.href = `singleplayer.html?players=${select.value}&difficulty=${difficulty}`;
             }
 
             select.addEventListener('change', updateLink);
+            difficultySelect.addEventListener('change', updateLink);
             updateLink(); // Initial call
 
             multiBtn.addEventListener('click', () => {
