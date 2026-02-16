@@ -21,7 +21,8 @@ export class AIController {
         if (myNodes.length === 0) return;
 
         myNodes.forEach(sourceNode => {
-            if (sourceNode.defendersInside > 10 || (sourceNode.defendersInside > 5 && Math.random() < 0.3)) {
+            const count = sourceNode.areaDefenders ? sourceNode.areaDefenders.length : 0;
+            if (count > 8 || (count > 3 && Math.random() < 0.3)) {
                 let closest = null;
                 let minDist = Infinity;
 

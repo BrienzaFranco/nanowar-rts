@@ -49,12 +49,37 @@ export class SelectionManager {
     handleDoubleClick(mx, my) {
         const clickedNode = this.game.state.nodes.find(n => n.isPointInside(mx, my, this.game.camera));
         if (clickedNode) {
-            this.game.state.nodes.filter(n => n.owner === clickedNode.owner).forEach(n => this.selectedNodes.add(n.id));
+            // Select all nodes of the same owner
+            this.game.state.nodes.filter(n => n.owner === clickedNode.owner).forEach(n => {
+                this.selectedNodes.add(n.id);
+                // Also select units around them if owner is player
+                if (n.owner === 0) {
+                    this.game.state.entities.forEach(e => {
+                        if (e.owner === 0 && !e.dead && !e.dying) {
+                            const dx = e.x - n.x, dy = e.y - n.y;
+                            if (Math.sqrt(dx * dx + dy * dy) <= n.influenceRadius) {
+                                this.selectedEntities.add(e.id);
+                            }
+                        }
+                    });
+                }
+            });
             return;
         }
         const clickedEntity = this.game.state.entities.find(e => !e.dead && !e.dying && e.isPointInside(mx, my, this.game.camera));
         if (clickedEntity) {
-            this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner === clickedEntity.owner).forEach(e => this.selectedEntities.add(e.id));
+            const cam = this.game.camera;
+            const view = cam.getViewBounds ? cam.getViewBounds() : { x: -Infinity, y: -Infinity, width: Infinity, height: Infinity };
+
+            this.game.state.entities.forEach(e => {
+                if (!e.dead && !e.dying && e.owner === clickedEntity.owner) {
+                    // Only select if within the current screen view
+                    const screen = cam.worldToScreen(e.x, e.y);
+                    if (screen.x >= 0 && screen.x <= window.innerWidth && screen.y >= 0 && screen.y <= window.innerHeight) {
+                        this.selectedEntities.add(e.id);
+                    }
+                }
+            });
         }
     }
 
@@ -87,6 +112,17 @@ export class SelectionManager {
         const clickedNode = this.game.state.nodes.find(n => n.isPointInside(mx, my, this.game.camera));
         if (clickedNode) {
             this.selectedNodes.add(clickedNode.id);
+            // Also select units in its area if owned by player
+            if (clickedNode.owner === 0) {
+                this.game.state.entities.forEach(e => {
+                    if (e.owner === 0 && !e.dead && !e.dying) {
+                        const dx = e.x - clickedNode.x, dy = e.y - clickedNode.y;
+                        if (Math.sqrt(dx * dx + dy * dy) <= clickedNode.influenceRadius) {
+                            this.selectedEntities.add(e.id);
+                        }
+                    }
+                });
+            }
             return;
         }
 
@@ -106,6 +142,15 @@ export class SelectionManager {
         this.game.state.nodes.forEach(n => {
             if (n.owner === 0 && n.isInsideRect(x1, y1, x2, y2, this.game.camera)) {
                 this.selectedNodes.add(n.id);
+                // Also select units around it
+                this.game.state.entities.forEach(e => {
+                    if (e.owner === 0 && !e.dead && !e.dying) {
+                        const dx = e.x - n.x, dy = e.y - n.y;
+                        if (Math.sqrt(dx * dx + dy * dy) <= n.influenceRadius) {
+                            this.selectedEntities.add(e.id);
+                        }
+                    }
+                });
             }
         });
     }

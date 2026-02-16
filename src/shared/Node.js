@@ -9,24 +9,24 @@ export class Node {
         if (type === 'small') {
             this.radius = 20 + Math.random() * 5;
             this.influenceRadius = this.radius * 4;
-            this.maxHp = 60;
-            this.spawnInterval = 3.5;
+            this.maxHp = 50;
+            this.spawnInterval = 4.0;
         }
         else if (type === 'large') {
             this.radius = 55 + Math.random() * 15;
             this.influenceRadius = this.radius * 3;
-            this.maxHp = 180;
-            this.spawnInterval = 7.5;
+            this.maxHp = 200;
+            this.spawnInterval = 2.0;
         }
         else {
             this.radius = 35 + Math.random() * 8;
             this.influenceRadius = this.radius * 3.5;
             this.maxHp = 100;
-            this.spawnInterval = 5.0;
+            this.spawnInterval = 3.0;
         }
 
-        // Neutral nodes start at 20% health
-        this.baseHp = (this.owner === -1) ? (this.maxHp * 0.2) : (this.maxHp * 0.33);
+        // Neutral nodes start at 10% health
+        this.baseHp = (this.owner === -1) ? (this.maxHp * 0.1) : (this.maxHp * 0.33);
         this.stock = 0;
 
         this.spawnEffect = 0;
