@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { Entity } from '../../shared/Entity.js';
+import { Node } from '../../shared/Node.js';
 
 export class MultiplayerController {
     constructor(game) {
@@ -102,12 +103,20 @@ export class MultiplayerController {
 
     syncState(serverState) {
         // Authoritative sync for Nodes
-        this.game.state.nodes.forEach(clientNode => {
-            const serverNode = serverState.nodes.find(sn => sn.id === clientNode.id);
-            if (serverNode) {
-                clientNode.owner = serverNode.owner;
-                clientNode.baseHp = serverNode.baseHp;
-                clientNode.spawnProgress = serverNode.spawnProgress;
+        serverState.nodes.forEach(sn => {
+            let clientNode = this.game.state.nodes.find(cn => cn.id === sn.id);
+            if (!clientNode) {
+                // Create node if it doesn't exist
+                clientNode = new Node(sn.id, sn.x, sn.y, sn.owner, sn.type);
+                this.game.state.nodes.push(clientNode);
+            }
+
+            // Update properties
+            clientNode.owner = sn.owner;
+            clientNode.baseHp = sn.baseHp;
+            clientNode.spawnProgress = sn.spawnProgress;
+            if (sn.rallyPoint) {
+                clientNode.rallyPoint = sn.rallyPoint;
             }
         });
 

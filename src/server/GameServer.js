@@ -34,19 +34,25 @@ export class GameServer {
         if (playerIndex === -1) return;
 
         if (action.type === 'move') {
-            const { sourceNodeId, targetNodeId, unitIds } = action;
-            const source = this.state.nodes.find(n => n.id === sourceNodeId);
-            const target = this.state.nodes.find(n => n.id === targetNodeId);
+            const { targetNodeId, targetX, targetY, unitIds } = action;
+            const target = targetNodeId ? this.state.nodes.find(n => n.id === targetNodeId) : null;
 
-            if (source && target && source.owner === playerIndex) {
-                // Execute move logic
-                unitIds.forEach(id => {
-                    const entity = this.state.entities.find(e => e.id === id);
-                    if (entity && entity.owner === playerIndex) {
-                        entity.setTarget(target.x, target.y, target);
-                    }
-                });
-            }
+            unitIds.forEach(id => {
+                const entity = this.state.entities.find(e => e.id === id);
+                if (entity && entity.owner === playerIndex) {
+                    entity.setTarget(targetX, targetY, target);
+                }
+            });
+        }
+        else if (action.type === 'path') {
+            const { unitIds, path } = action;
+            unitIds.forEach(id => {
+                const entity = this.state.entities.find(e => e.id === id);
+                if (entity && entity.owner === playerIndex) {
+                    entity.waypoints = [...path];
+                    entity.currentTarget = null;
+                }
+            });
         }
     }
 

@@ -52,15 +52,16 @@ export class SelectionManager {
     }
 
     handleDoubleClick(mx, my) {
+        const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
         const clickedNode = this.game.state.nodes.find(n => n.isPointInside(mx, my, this.game.camera));
         if (clickedNode) {
             // Select all nodes of the same owner
             this.game.state.nodes.filter(n => n.owner === clickedNode.owner).forEach(n => {
                 this.selectedNodes.add(n.id);
                 // Also select units around them if owner is player
-                if (n.owner === 0) {
+                if (n.owner === playerIndex) {
                     this.game.state.entities.forEach(e => {
-                        if (e.owner === 0 && !e.dead && !e.dying) {
+                        if (e.owner === playerIndex && !e.dead && !e.dying) {
                             const dx = e.x - n.x, dy = e.y - n.y;
                             if (Math.sqrt(dx * dx + dy * dy) <= n.influenceRadius) {
                                 this.selectedEntities.add(e.id);
@@ -74,7 +75,6 @@ export class SelectionManager {
         const clickedEntity = this.game.state.entities.find(e => !e.dead && !e.dying && e.isPointInside(mx, my, this.game.camera));
         if (clickedEntity) {
             const cam = this.game.camera;
-            const view = cam.getViewBounds ? cam.getViewBounds() : { x: -Infinity, y: -Infinity, width: Infinity, height: Infinity };
 
             this.game.state.entities.forEach(e => {
                 if (!e.dead && !e.dying && e.owner === clickedEntity.owner) {
@@ -101,26 +101,31 @@ export class SelectionManager {
 
             if (Math.sqrt(dx * dx + dy * dy) > 30) {
                 this.currentPath.push(worldPos);
-                // Dynamically add to entities
-                this.selectedEntities.forEach(id => {
-                    const ent = this.game.state.entities.find(e => e.id === id);
-                    if (ent && !ent.dead) {
-                        ent.addWaypoint(worldPos.x, worldPos.y);
-                    }
-                });
+
+                // In singleplayer, apply locally. In multiplayer, we might need a specific action.
+                // For now, waypoint painting is locally predicted but authoritative on server.
+                if (this.game.controller.playerIndex === undefined) {
+                    this.selectedEntities.forEach(id => {
+                        const ent = this.game.state.entities.find(e => e.id === id);
+                        if (ent && !ent.dead) {
+                            ent.addWaypoint(worldPos.x, worldPos.y);
+                        }
+                    });
+                }
             }
         }
     }
 
 
     selectAt(mx, my) {
+        const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
         const clickedNode = this.game.state.nodes.find(n => n.isPointInside(mx, my, this.game.camera));
         if (clickedNode) {
             this.selectedNodes.add(clickedNode.id);
             // Also select units in its area if owned by player
-            if (clickedNode.owner === 0) {
+            if (clickedNode.owner === playerIndex) {
                 this.game.state.entities.forEach(e => {
-                    if (e.owner === 0 && !e.dead && !e.dying) {
+                    if (e.owner === playerIndex && !e.dead && !e.dying) {
                         const dx = e.x - clickedNode.x, dy = e.y - clickedNode.y;
                         if (Math.sqrt(dx * dx + dy * dy) <= clickedNode.influenceRadius) {
                             this.selectedEntities.add(e.id);
@@ -139,17 +144,18 @@ export class SelectionManager {
     }
 
     selectInBox(x1, y1, x2, y2) {
+        const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
         this.game.state.entities.forEach(e => {
-            if (e.owner === 0 && !e.dead && e.isInsideRect(x1, y1, x2, y2, this.game.camera)) {
+            if (e.owner === playerIndex && !e.dead && e.isInsideRect(x1, y1, x2, y2, this.game.camera)) {
                 this.selectedEntities.add(e.id);
             }
         });
         this.game.state.nodes.forEach(n => {
-            if (n.owner === 0 && n.isInsideRect(x1, y1, x2, y2, this.game.camera)) {
+            if (n.owner === playerIndex && n.isInsideRect(x1, y1, x2, y2, this.game.camera)) {
                 this.selectedNodes.add(n.id);
                 // Also select units around it
                 this.game.state.entities.forEach(e => {
-                    if (e.owner === 0 && !e.dead && !e.dying) {
+                    if (e.owner === playerIndex && !e.dead && !e.dying) {
                         const dx = e.x - n.x, dy = e.y - n.y;
                         if (Math.sqrt(dx * dx + dy * dy) <= n.influenceRadius) {
                             this.selectedEntities.add(e.id);
@@ -187,8 +193,17 @@ export class SelectionManager {
         }
         if (event.button === 2) {
             if (this.currentPath.length > 2 && this.selectedEntities.size > 0) {
+                const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
                 // Add a visual waypoint line to the game
-                this.game.spawnWaypointLine([...this.currentPath], 0);
+                this.game.spawnWaypointLine([...this.currentPath], playerIndex);
+
+                if (this.game.controller.sendAction) {
+                    this.game.controller.sendAction({
+                        type: 'path',
+                        unitIds: Array.from(this.selectedEntities),
+                        path: this.currentPath
+                    });
+                }
             }
             this.currentPath = [];
         }
@@ -206,12 +221,26 @@ export class SelectionManager {
 
     executeCommand(worldX, worldY, targetNode) {
         this.game.spawnCommandIndicator(worldX, worldY, targetNode ? 'attack' : 'move');
-        this.selectedEntities.forEach(id => {
-            const ent = this.game.state.entities.find(e => e.id === id);
-            if (ent && !ent.dead) {
-                ent.setTarget(worldX, worldY, targetNode);
-            }
-        });
+
+        if (this.game.controller.sendAction) {
+            // Multiplayer execution via server
+            this.game.controller.sendAction({
+                type: 'move',
+                sourceNodeId: null, // Logic on server handles this if needed or uses IDs directly
+                targetNodeId: targetNode ? targetNode.id : null,
+                targetX: worldX,
+                targetY: worldY,
+                unitIds: Array.from(this.selectedEntities)
+            });
+        } else {
+            // Singleplayer local execution
+            this.selectedEntities.forEach(id => {
+                const ent = this.game.state.entities.find(e => e.id === id);
+                if (ent && !ent.dead) {
+                    ent.setTarget(worldX, worldY, targetNode);
+                }
+            });
+        }
     }
 
     clear() {
