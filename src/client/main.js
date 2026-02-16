@@ -21,12 +21,13 @@ window.initGame = (mode) => {
         const playerCount = parseInt(urlParams.get('players')) || 2;
         game.controller = new SingleplayerController(game);
         game.controller.setup(playerCount);
+        game.start();
     } else {
         game.controller = new MultiplayerController(game);
         game.controller.connect();
+        // Don't start game loop here - wait for server's gameStart event
     }
 
-    game.start();
     return game;
 };
 

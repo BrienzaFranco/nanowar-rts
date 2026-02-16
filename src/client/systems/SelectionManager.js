@@ -115,7 +115,7 @@ export class SelectionManager {
 
                 // In singleplayer, apply locally. In multiplayer, we might need a specific action.
                 // For now, waypoint painting is locally predicted but authoritative on server.
-                if (this.game.controller.playerIndex === undefined) {
+                if (!this.game.controller.sendAction) {
                     this.selectedEntities.forEach(id => {
                         const ent = this.game.state.entities.find(e => e.id === id);
                         if (ent && !ent.dead) {

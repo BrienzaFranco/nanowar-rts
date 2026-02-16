@@ -49,6 +49,9 @@ export class MultiplayerController {
             const gameScreen = document.getElementById('game-screen');
             if (lobby) lobby.style.display = 'none';
             if (gameScreen) gameScreen.style.display = 'block';
+            
+            // Resize canvas now that it's visible
+            this.game.resize();
             this.game.start();
         });
 
