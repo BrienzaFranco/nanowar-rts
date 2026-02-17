@@ -5,8 +5,7 @@ export class Renderer {
     constructor(ctx) {
         this.ctx = ctx;
         this.playerIndex = 0;
-        this.trailQueue = []; // Current frame units
-        this.trailHistory = []; // Persistent traces (the "rastro")
+        this.trailQueue = []; // Current frame units (kept for legacy support if needed)
     }
 
     setPlayerIndex(idx) {
@@ -256,23 +255,29 @@ export class Renderer {
         this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
         this.ctx.fill();
 
-        // Helper to convert hex to rgba
-        const hexToRgbaLocal = (hex, alpha) => {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        };
+        // Unit Glow: Instead of trails, make units illuminate at max speed (territorial boost)
+        const smoothedBoost = entity.speedBoost * entity.speedBoost;
+        if (!entity.dying && smoothedBoost > 0.1) {
+            const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
+            const r = parseInt(playerColor.slice(1, 3), 16);
+            const g = parseInt(playerColor.slice(3, 5), 16);
+            const b = parseInt(playerColor.slice(5, 7), 16);
 
-        // NEW: Queue trail for batch rendering instead of drawing individual expensive ones
-        const speedSq = entity.vx * entity.vx + entity.vy * entity.vy;
-        // Trigger ONLY at near-maximum speed and boost (satisfying "vel maxima")
-        // Threshold: speedBoost > 0.85 (friendly territory ramped up) OR extra high speed
-        if (!entity.dying && (entity.speedBoost > 0.85 || speedSq > 800)) {
-            this.trailQueue.push({
-                x: entity.x, y: entity.y, vx: entity.vx, vy: entity.vy,
-                owner: entity.owner, speedBoost: entity.speedBoost || 0
-            });
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'lighter';
+
+            // Outer glow bloom
+            const glowRadius = sr * (1.2 + smoothedBoost * 1.5) * camera.zoom;
+            const gradient = this.ctx.createRadialGradient(screen.x, screen.y, sr * 0.5, screen.x, screen.y, glowRadius);
+            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.6 * smoothedBoost})`);
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, glowRadius, 0, Math.PI * 2);
+            this.ctx.fillStyle = gradient;
+            this.ctx.fill();
+
+            this.ctx.restore();
         }
 
         // Body
@@ -297,114 +302,8 @@ export class Renderer {
     }
 
     renderTrails(camera, dt = 0.016) {
-        // 1. Process and group current frame units from trailQueue
-        const gridSize = 40 * camera.zoom;
-        const currentGroups = {}; // 'gx,gy_color' -> { x, y, vx, vy, boost }
-
-        this.trailQueue.forEach(ent => {
-            const gx = Math.floor(ent.x / 60); // Use world coords for stable grouping
-            const gy = Math.floor(ent.y / 60);
-            const color = PLAYER_COLORS[ent.owner % PLAYER_COLORS.length];
-            const groupKey = `${gx},${gy}_${color}`;
-
-            if (!currentGroups[groupKey]) {
-                currentGroups[groupKey] = { x: 0, y: 0, count: 0, vx: 0, vy: 0, color: color, boostSum: 0 };
-            }
-            const g = currentGroups[groupKey];
-            g.x += ent.x;
-            g.y += ent.y;
-            g.vx += ent.vx;
-            g.vy += ent.vy;
-            g.boostSum += ent.speedBoost;
-            g.count++;
-        });
-
-        // 2. Add current groups to history with life
-        for (let key in currentGroups) {
-            const g = currentGroups[key];
-            const avgBoost = g.boostSum / g.count;
-            if (avgBoost < 0.1) continue;
-
-            this.trailHistory.push({
-                x: g.x / g.count,
-                y: g.y / g.count,
-                vx: g.vx / g.count,
-                vy: g.vy / g.count,
-                color: g.color,
-                life: 0.4, // Trail lasts 0.4s
-                boost: avgBoost,
-                count: g.count
-            });
-        }
-
-        // 3. Update/Decay history
-        this.trailHistory.forEach(t => t.life -= dt);
-        this.trailHistory = this.trailHistory.filter(t => t.life > 0);
-
-        // Cap history to prevent performance death
-        if (this.trailHistory.length > 300) {
-            this.trailHistory.splice(0, this.trailHistory.length - 300);
-        }
-
-        // 4. Draw Trails
-        if (this.trailHistory.length === 0) return;
-
-        this.ctx.save();
-        this.ctx.globalCompositeOperation = 'lighter';
-
-        this.trailHistory.forEach(t => {
-            const screen = camera.worldToScreen(t.x, t.y);
-            const speed = Math.sqrt(t.vx * t.vx + t.vy * t.vy);
-            if (speed < 5) return;
-
-            const lifeNorm = t.life / 0.4; // 1.0 to 0.0
-            const smoothedBoost = t.boost * t.boost;
-
-            // Plasma Intensity: scale alpha and size with count
-            const densityMult = 1.0 + Math.min(t.count / 15, 1.5);
-            const bloomRadius = (4 + Math.min(t.count * 3, 15)) * camera.zoom * (0.5 + lifeNorm * 0.5);
-
-            // SIGNIFICANTLY shorter segments for "smooth" turns (less rigid rotation)
-            const segmentLen = (4 + (speed / 30) * 8 * t.boost * densityMult) * camera.zoom * lifeNorm;
-
-            const nx = t.vx / speed;
-            const ny = t.vy / speed;
-            const px = -ny;
-            const py = nx;
-
-            // Gradient: fast fade based on life
-            const gradient = this.ctx.createLinearGradient(screen.x, screen.y, screen.x - nx * segmentLen, screen.y - ny * segmentLen);
-            const alphaEffect = lifeNorm * smoothedBoost * 0.3 * densityMult;
-
-            gradient.addColorStop(0, hexToRgba(t.color, Math.min(0.9, alphaEffect)));
-            gradient.addColorStop(0.6, hexToRgba(t.color, alphaEffect * 0.2));
-            gradient.addColorStop(1, 'rgba(0,0,0,0)');
-
-            // Rounded-conical shape (trapezoid with shorter tail)
-            this.ctx.beginPath();
-            this.ctx.moveTo(screen.x + px * bloomRadius * 0.4, screen.y + py * bloomRadius * 0.4);
-            this.ctx.lineTo(screen.x - px * bloomRadius * 0.4, screen.y - py * bloomRadius * 0.4);
-            // Tapered tip is very close now
-            this.ctx.lineTo(screen.x - nx * segmentLen, screen.y - ny * segmentLen);
-            this.ctx.closePath();
-
-            this.ctx.fillStyle = gradient;
-            this.ctx.globalAlpha = 1.0;
-            this.ctx.fill();
-
-            // Core highlight (subtle and short)
-            if (lifeNorm > 0.8) {
-                this.ctx.beginPath();
-                this.ctx.moveTo(screen.x, screen.y);
-                this.ctx.lineTo(screen.x - nx * segmentLen * 0.3, screen.y - ny * segmentLen * 0.3);
-                this.ctx.strokeStyle = '#ffffff';
-                this.ctx.lineWidth = 1 * camera.zoom;
-                this.ctx.globalAlpha = 0.05 * lifeNorm * densityMult;
-                this.ctx.stroke();
-            }
-        });
-
-        this.ctx.restore();
+        // Trails removed in favor of direct unit glow for "satisfying" and optimized visuals
+        this.trailQueue = [];
     }
 
     drawParticle(p, camera) {
