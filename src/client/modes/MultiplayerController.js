@@ -359,6 +359,9 @@ export class MultiplayerController {
             clientNode.spawnProgress = sn.spawnProgress;
             clientNode.hitFlash = sn.hitFlash;
             clientNode.spawnEffect = sn.spawnEffect;
+            clientNode.captureBoost = sn.captureBoost;
+            clientNode.captureAura = sn.captureAura;
+            clientNode.auraOwner = sn.auraOwner;
             clientNode.enemyPressure = sn.enemyPressure;
             if (sn.rallyPoint) {
                 clientNode.rallyPoint = sn.rallyPoint;

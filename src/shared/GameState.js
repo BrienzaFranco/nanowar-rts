@@ -35,7 +35,7 @@ export class GameState {
         const timeBonus = Math.min(this.elapsedTime / 120, 1.0); // Max bonus at 2 minutes
 
         this.nodes.forEach(node => {
-            const newEntity = node.update(dt, this.entities, this.globalSpawnTimer, gameInstance);
+            const newEntity = node.update(dt, this.entities, this.globalSpawnTimer, gameInstance, this.nodes);
             if (newEntity) {
                 this.entities.push(newEntity);
                 // Track production
@@ -143,6 +143,8 @@ export class GameState {
                 hitFlash: n.hitFlash || 0,
                 spawnEffect: n.spawnEffect || 0,
                 captureBoost: n.captureBoost || 0,
+                captureAura: n.captureAura || 0,
+                auraOwner: n.auraOwner || -1,
                 enemyPressure: n.enemyPressure || false
             })),
             entities: this.entities.map(e => ({

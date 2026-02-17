@@ -35,29 +35,11 @@ export class Node {
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null; this.enemyPressure = false;
         this.areaDefenders = []; this.allAreaDefenders = [];
         this.captureBoost = 0; // 200% production boost after capture
-        this.manualSpawnReady = true; // Manual spawn mode - player must click to spawn
+        this.captureAura = 0; // Aura timer for nearby nodes boost
+        this.auraOwner = -1; // Who created the aura
     }
 
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
-
-    triggerSpawn(game) {
-        // Manual spawn - spawn one unit when called
-        const spawnThreshold = this.spawnInterval / 1.0;
-        
-        // Spawn at middle of influence radius
-        const angle = Math.random() * Math.PI * 2;
-        const spawnDist = this.influenceRadius * 0.6;
-        const ex = this.x + Math.cos(angle) * spawnDist, ey = this.y + Math.sin(angle) * spawnDist;
-        const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
-        
-        if (this.rallyPoint) {
-            entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);
-        }
-        
-        this.spawnEffect = 0.4;
-        if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
-        return entity;
-    }
 
     setRallyPoint(x, y, targetNode = null) {
         this.rallyPoint = { x, y };
@@ -117,17 +99,20 @@ export class Node {
             this.hasSpawnedThisCycle = false;
             this.rallyPoint = null;
             this.captureBoost = 15; // 15 second 200% production boost
+            this.captureAura = 5; // 5 second aura for nearby nodes
+            this.auraOwner = attackerId; // Track who created the aura
             if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
             return true;
         }
         return false;
     }
 
-    update(dt, entities, globalSpawnTimer, game) {
+    update(dt, entities, globalSpawnTimer, game, allNodes) {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
         if (this.captureBoost > 0) this.captureBoost -= dt;
+        if (this.captureAura > 0) this.captureAura -= dt;
         
         // Check if enemies outnumber us in area - pause spawning
         this.enemyPressure = false;
@@ -140,6 +125,23 @@ export class Node {
             // If enemies outnumber us, pause spawn
             if (enemyInArea > myDefenders) {
                 this.enemyPressure = true;
+            }
+        }
+        
+        // Check for nearby capture auras (from other nodes)
+        this.nearbyAuraBoost = false;
+        if (allNodes && this.owner !== -1) {
+            for (let otherNode of allNodes) {
+                if (otherNode !== this && otherNode.captureAura > 0 && otherNode.auraOwner === this.owner) {
+                    const dx = this.x - otherNode.x;
+                    const dy = this.y - otherNode.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    // Aura radius = 300 (larger than influence radius)
+                    if (dist < 300) {
+                        this.nearbyAuraBoost = true;
+                        break;
+                    }
+                }
             }
         }
 
@@ -179,7 +181,12 @@ export class Node {
                 healthScaling *= 2.0; // 200% boost
             }
             
-            // Spawn only when manually activated (no auto spawn)
+            // Nearby aura boost: 100% production for 5 seconds from captured nodes
+            if (this.nearbyAuraBoost) {
+                healthScaling *= 2.0; // 100% boost (x2 total)
+            }
+            
+            const spawnThreshold = this.spawnInterval / healthScaling;
             // Player must click to spawn units
             if (!this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 // Auto spawn is disabled - just reset timer and show progress

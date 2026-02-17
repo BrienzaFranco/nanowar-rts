@@ -97,6 +97,19 @@ export class Renderer {
             this.ctx.stroke();
         }
 
+        // Capture Aura - expanding circle animation
+        if (node.captureAura > 0) {
+            const auraProgress = 1 - (node.captureAura / 5); // 0 to 1 over 5 seconds
+            const auraRadius = sir + (auraProgress * 300 * camera.zoom); // Expand to 300 units
+            const auraAlpha = 1 - auraProgress; // Fade out
+            
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, auraRadius, 0, Math.PI * 2);
+            this.ctx.strokeStyle = `rgba(${areaColor},${auraAlpha * 0.5})`;
+            this.ctx.lineWidth = 3 * camera.zoom;
+            this.ctx.stroke();
+        }
+
         // Node Body (Radial Fill)
         const totalHp = node.getTotalHp();
         const hpPercent = Math.max(0, Math.min(1, totalHp / node.maxHp));
