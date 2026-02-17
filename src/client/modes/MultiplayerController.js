@@ -455,9 +455,12 @@ export class MultiplayerController {
             // Check if node was captured
             const oldOwner = clientNode.owner;
 
-            // Update properties from server
+            // Update properties from server (ensure maxHp is synced to fix visual fill issues)
             clientNode.owner = sn.owner;
             clientNode.baseHp = sn.baseHp;
+            clientNode.maxHp = sn.maxHp;
+            clientNode.radius = sn.radius;
+            clientNode.influenceRadius = sn.influenceRadius;
             clientNode.stock = sn.stock;
             clientNode.spawnProgress = sn.spawnProgress;
             clientNode.hitFlash = sn.hitFlash;

@@ -93,7 +93,13 @@ export class Renderer {
             const lineWidth = isFull ? (3 * camera.zoom) : (2 * camera.zoom);
 
             // Cap at 1.0 to prevent visual overflow/looping
-            const progress = Math.min(1.0, node.spawnProgress);
+            let progress = Math.min(1.0, node.spawnProgress);
+
+            // VISUAL FIX: If node just spawned (spawnEffect high), show full ring
+            // This prevents the "99% -> 0%" visual gap, making it feel perfectly synced
+            if (node.spawnEffect > 0.3) {
+                progress = 1.0;
+            }
 
             this.ctx.beginPath();
             this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
@@ -248,22 +254,55 @@ export class Renderer {
 
         // Trail Effect (Estelita) in Friendly Territory
         if (entity.hasSpeedBoost && !entity.dying) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(screen.x, screen.y);
-            // Draw a short trail opposite to velocity
-            // We don't have vx/vy normalized here easily, but we can use entity.vx/vy
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'lighter'; // Brighter (additive)
+
             const speed = Math.sqrt(entity.vx * entity.vx + entity.vy * entity.vy);
             if (speed > 10) {
-                const trailLen = 8 * camera.zoom; // Short trail
+                const trailLen = 40 * camera.zoom; // Even longer trail (Was 25)
                 const nx = entity.vx / speed;
                 const ny = entity.vy / speed;
+
+                const color = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
+
+                // Outer glow pass
+                this.ctx.beginPath();
+                this.ctx.moveTo(screen.x, screen.y);
                 this.ctx.lineTo(screen.x - nx * trailLen, screen.y - ny * trailLen);
-                this.ctx.strokeStyle = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
-                this.ctx.lineWidth = 2 * camera.zoom;
-                this.ctx.globalAlpha = 0.6;
+                this.ctx.strokeStyle = color;
+                this.ctx.lineWidth = 6 * camera.zoom;
+                this.ctx.lineCap = 'round';
+                this.ctx.shadowBlur = 15;
+                this.ctx.shadowColor = color;
+                this.ctx.globalAlpha = 0.3;
                 this.ctx.stroke();
+
+                // Clear shadow for core pass
+                this.ctx.shadowBlur = 0;
+
+                // Helper to convert hex to rgba (added for this specific change)
+                const hexToRgba = (hex, alpha) => {
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                };
+
+                // Core pass with gradient
+                const gradient = this.ctx.createLinearGradient(screen.x, screen.y, screen.x - nx * trailLen, screen.y - ny * trailLen);
+                gradient.addColorStop(0, color);
+                gradient.addColorStop(0.5, hexToRgba(color, 0.5));
+                gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(screen.x, screen.y);
+                this.ctx.lineTo(screen.x - nx * trailLen, screen.y - ny * trailLen);
+                this.ctx.strokeStyle = gradient;
+                this.ctx.lineWidth = 2 * camera.zoom;
                 this.ctx.globalAlpha = 1.0;
+                this.ctx.stroke();
             }
+            this.ctx.restore();
         }
 
         // Body
