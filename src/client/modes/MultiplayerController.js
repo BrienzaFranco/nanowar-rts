@@ -346,5 +346,10 @@ export class MultiplayerController {
         // Remove entities that no longer exist on server
         const serverEntityIds = new Set(serverState.entities.map(e => e.id));
         this.game.state.entities = this.game.state.entities.filter(e => serverEntityIds.has(e.id));
+        
+        // Sync elapsed time
+        if (serverState.elapsedTime !== undefined) {
+            this.game.state.elapsedTime = serverState.elapsedTime;
+        }
     }
 }

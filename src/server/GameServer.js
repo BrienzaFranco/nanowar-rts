@@ -11,6 +11,7 @@ export class GameServer {
         this.playerSockets = [];
         this.gameStarted = false;
         this.gameEnded = false;
+        this.GAME_TIME_LIMIT = 15 * 60; // 15 minutes in seconds
     }
 
     addPlayer(socket) {
@@ -139,6 +140,32 @@ export class GameServer {
 
     checkWinCondition() {
         if (this.gameEnded) return;
+
+        // Check time limit - winner by production
+        const elapsed = this.state.elapsedTime || 0;
+        if (elapsed >= this.GAME_TIME_LIMIT) {
+            this.gameEnded = true;
+            const stats = this.state.getStats();
+            
+            // Find player with most produced units
+            let maxProduction = -1;
+            let winnerIndex = -1;
+            for (let pid in stats.produced) {
+                const production = stats.produced[pid]?.total || 0;
+                if (production > maxProduction) {
+                    maxProduction = production;
+                    winnerIndex = parseInt(pid);
+                }
+            }
+            
+            console.log(`Time's up! Winner by production: Player ${winnerIndex} (${maxProduction} units)`);
+            this.io.to(this.roomId).emit('gameOver', { 
+                winner: winnerIndex,
+                stats: stats,
+                reason: 'time'
+            });
+            return;
+        }
 
         const activePlayers = [];
         const playerCounts = {};

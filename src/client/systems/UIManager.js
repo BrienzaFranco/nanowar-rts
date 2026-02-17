@@ -19,6 +19,12 @@ export class UIManager {
         ctx.font = 'bold 16px monospace';
         ctx.fillText(`ERES JUGADOR ${playerIndex + 1}`, 20, h - 110);
 
+        // Game timer
+        const elapsed = this.game.state.elapsedTime || 0;
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = Math.floor(elapsed % 60);
+        ctx.fillText(`TIEMPO: ${minutes}:${seconds.toString().padStart(2, '0')}`, 20, h - 130);
+
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(10, h - 100, 220, 90);
         ctx.strokeStyle = playerColor;

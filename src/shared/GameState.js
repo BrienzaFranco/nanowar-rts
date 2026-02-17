@@ -9,6 +9,7 @@ export class GameState {
         this.globalSpawnTimer = new GlobalSpawnTimer(2.5);
         this.worldWidth = GAME_SETTINGS.WORLD_WIDTH;
         this.worldHeight = GAME_SETTINGS.WORLD_HEIGHT;
+        this.elapsedTime = 0; // Track game time for escalation
         
         // Statistics tracking
         this.stats = {
@@ -21,7 +22,11 @@ export class GameState {
     }
 
     update(dt, gameInstance) {
+        this.elapsedTime += dt;
         this.globalSpawnTimer.update(dt);
+
+        // Apply time-based escalation to spawn intervals
+        const timeBonus = Math.min(this.elapsedTime / 120, 1.0); // Max bonus at 2 minutes
 
         this.nodes.forEach(node => {
             const newEntity = node.update(dt, this.entities, this.globalSpawnTimer, gameInstance);
@@ -121,6 +126,7 @@ export class GameState {
                 dying: e.dying, deathType: e.deathType, deathTime: e.deathTime
             })),
             playerCount: this.playerCount,
+            elapsedTime: this.elapsedTime,
             stats: this.getStats()
         };
     }
