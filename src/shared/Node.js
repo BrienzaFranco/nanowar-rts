@@ -10,23 +10,24 @@ export class Node {
             this.radius = 20 + Math.random() * 5;
             this.influenceRadius = this.radius * 4;
             this.maxHp = 50;
-            this.spawnInterval = 4.0;
+            this.spawnInterval = 4.5; // Was 4.0 - Slower
         }
         else if (type === 'large') {
             this.radius = 55 + Math.random() * 15;
             this.influenceRadius = this.radius * 3;
-            this.maxHp = 180; // Reduced HP - less OP
-            this.spawnInterval = 2.0; // Slower spawn
+            this.maxHp = 180;
+            this.spawnInterval = 2.4; // Was 2.0 - Slower
         }
         else {
             this.radius = 35 + Math.random() * 8;
             this.influenceRadius = this.radius * 3.5;
             this.maxHp = 100;
-            this.spawnInterval = 3.0;
+            this.spawnInterval = 3.5; // Was 3.0 - Slower
         }
 
-        // Neutral nodes start at 10% health
-        this.baseHp = (this.owner === -1) ? (this.maxHp * 0.1) : (this.maxHp * 0.33);
+        // Neutral nodes start at 10% health (same)
+        // Owned nodes (starter) start at 50% health (Was 33%) -> Stronger start
+        this.baseHp = (this.owner === -1) ? (this.maxHp * 0.1) : (this.maxHp * 0.50);
         this.stock = 0;
 
         this.spawnEffect = 0;

@@ -11,7 +11,7 @@ export class Entity {
         this.vx = 0;
         this.vy = 0;
         this.maxSpeed = 50;
-        this.acceleration = 100;
+        // Acceleration removed as per request
         this.friction = 0.975;
 
         this.hp = 1;
@@ -29,11 +29,6 @@ export class Entity {
 
         this.cohesionRadius = 30;
         this.cohesionForce = 40;
-
-        // Time-based acceleration
-        this.directionX = 0;
-        this.directionY = 0;
-        this.timeInDirection = 0;
     }
 
     addWaypoint(x, y) {
@@ -51,123 +46,146 @@ export class Entity {
         this.currentTarget = null;
         this.vx *= 0.3;
         this.vy *= 0.3;
+        this.targetNode = null;
     }
 
     update(dt, spatialGrid, nodes, camera, game) {
         if (this.dying) {
             this.deathTime += dt;
             if (this.deathTime > 0.4) { this.dead = true; }
-            // Animation logic is handled in client-side Renderer
             return;
         }
 
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         this.processWaypoints();
+        // Handle physical collisions with other units and nodes
         this.handleCollisionsAndCohesion(spatialGrid, nodes, game);
 
-        // Get game settings for speed and acceleration
+        // Movement Logic Overhaul
+        // 1. Check territory for speed boost
+        // 2. Check node proximity for Strict Absorption (target-only)
+
+        let inFriendlyTerritory = false;
         const speedMult = (game?.state?.speedMultiplier) || 1;
-        const accelEnabled = game?.state?.accelerationEnabled !== false;
 
-        // Time-based acceleration: more time going same direction = faster
-        // Direction change = penalty
-        let currentDirX = 0;
-        let currentDirY = 0;
+        if (nodes) {
+            for (let node of nodes) {
+                const dx = this.x - node.x;
+                const dy = this.y - node.y;
+                const distSq = dx * dx + dy * dy;
 
-        if (this.currentTarget) {
-            const dx = this.currentTarget.x - this.x;
-            const dy = this.currentTarget.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 5) {
-                currentDirX = dx / dist;
-                currentDirY = dy / dist;
+                // Check territory influence
+                if (node.owner === this.owner && node.owner !== -1) {
+                    if (distSq < node.influenceRadius * node.influenceRadius) {
+                        inFriendlyTerritory = true;
+                    }
+                }
+
+                // Check proximity interaction (capture/absorb/attack)
+                const dist = Math.sqrt(distSq);
+                const touchRange = node.radius + this.radius;
+
+                if (dist <= touchRange) {
+                    // Neutral node - Capture
+                    if (node.owner === -1) {
+                        if (!this.dying) {
+                            node.receiveAttack(this.owner, 1, game);
+                            this.die('attack', node, game);
+                        }
+                        return; // Unit consumed
+                    }
+
+                    // Owned node - Strict Absorption Logic
+                    if (node.owner === this.owner && node.owner !== -1) {
+                        // Only absorb if explicit target
+                        if (this.targetNode === node) {
+                            if (node.baseHp < node.maxHp && !this.dying) {
+                                node.baseHp += 1;
+                                this.die('absorbed', node, game);
+                                return; // Unit consumed
+                            }
+                            // Reached target but full health? Stop and clear target to avoid bouncing
+                            this.stop();
+                            this.targetNode = null;
+                        }
+                        // If passing through (no target or different target), doing nothing
+                        continue;
+                    }
+
+                    // Enemy node - Attack
+                    if (node.owner !== this.owner) {
+                        if (!this.dying && this.attackCooldown <= 0) {
+                            const allDefenders = node.allAreaDefenders || [];
+
+                            // Prioritize defending units first
+                            const ownerDefenders = allDefenders.filter(e => e.owner === node.owner && !e.dead && !e.dying);
+                            if (ownerDefenders.length > 0) {
+                                ownerDefenders[0].die('sacrifice', node, game);
+                                this.die('attack', node, game);
+                                return;
+                            }
+
+                            // Then rival attackers
+                            const rivalDefenders = allDefenders.filter(e => e.owner !== this.owner && e.owner !== node.owner && !e.dead && !e.dying);
+                            if (rivalDefenders.length > 0) {
+                                rivalDefenders[0].die('sacrifice', node, game);
+                                this.die('attack', node, game);
+                                return;
+                            }
+
+                            // Finally hit the node
+                            node.receiveAttack(this.owner, 1, game);
+                            this.die('attack', node, game);
+                            return;
+                        }
+                    }
+                }
             }
         }
 
-        // Calculate speed boost based on time in same direction
-        let speedBoost = 1.0;
-        if (accelEnabled) {
-            // If moving in roughly same direction, increase speed over time
-            const dirDot = currentDirX * this.directionX + currentDirY * this.directionY;
-
-            if (dirDot > 0.7) {
-                // Same direction - accelerate (slower, max 50% boost)
-                this.timeInDirection += dt;
-                speedBoost = 1.0 + Math.min(this.timeInDirection * 0.125, 0.5); // Up to 1.5x over 4 seconds
-            } else if (dirDot < -0.3) {
-                // Opposite direction - penalty
-                this.timeInDirection = 0;
-                speedBoost = 0.7; // Reduced penalty
-            } else {
-                // Changing direction somewhat
-                this.timeInDirection = Math.max(0, this.timeInDirection - dt * 2);
-                speedBoost = 1.0 + this.timeInDirection * 0.1;
-            }
-
-            this.directionX = currentDirX;
-            this.directionY = currentDirY;
-        }
-
-        // Random movement - reduced or disabled based on acceleration setting
-        const randomForce = accelEnabled ? 0 : 10;
+        // Random jitter (minimal)
+        const randomForce = 10;
         this.vx += (Math.random() - 0.5) * randomForce * dt;
         this.vy += (Math.random() - 0.5) * randomForce * dt;
 
+        // Move towards target (linear force, no ramp-up)
         if (this.currentTarget) {
             const dx = this.currentTarget.x - this.x;
             const dy = this.currentTarget.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist > 5) {
-                const baseAccel = accelEnabled ? this.acceleration : this.maxSpeed * 10;
-                this.vx += (dx / dist) * baseAccel * dt;
-                this.vy += (dy / dist) * baseAccel * dt;
+                // Strong force for responsive movement
+                const moveForce = 800;
+                this.vx += (dx / dist) * moveForce * dt;
+                this.vy += (dy / dist) * moveForce * dt;
             }
         }
 
         this.vx *= this.friction;
         this.vy *= this.friction;
 
-        if (speedMult !== 1) this.vx *= speedMult; // Apply speed mult directly? No, max speed handles it.
-        // Actually the logic was: `maxSpd = this.maxSpeed * speedMult`. 
+        // Calculate max speed
+        let currentMaxSpeed = this.maxSpeed;
+        if (inFriendlyTerritory) {
+            currentMaxSpeed *= 1.4; // 40% boost in allied territory
+        }
+        currentMaxSpeed *= speedMult;
 
+        // Cap speed
         const speedSq = this.vx * this.vx + this.vy * this.vy;
-        const maxSpd = this.maxSpeed * speedMult * speedBoost;
-        const maxSpdSq = maxSpd * maxSpd;
+        const maxSpdSq = currentMaxSpeed * currentMaxSpeed;
 
         if (speedSq > maxSpdSq) {
             const speed = Math.sqrt(speedSq);
-            this.vx = (this.vx / speed) * maxSpd;
-            this.vy = (this.vy / speed) * maxSpd;
-        } else if (speedSq < 9 && speedSq > 0) { // speed < 3
-            const speed = Math.sqrt(speedSq);
-            this.vx = (this.vx / speed) * 3;
-            this.vy = (this.vy / speed) * 3;
+            this.vx = (this.vx / speed) * currentMaxSpeed;
+            this.vy = (this.vy / speed) * currentMaxSpeed;
         }
 
-        // Better obstacle avoidance - push away from nodes
-        if (nodes) {
-            for (let node of nodes) {
-                if (node.owner !== this.owner && node.owner !== -1) {
-                    const dx = this.x - node.x;
-                    const dy = this.y - node.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const avoidDist = node.influenceRadius * 0.8;
-
-                    if (dist < avoidDist && dist > 0) {
-                        const force = (avoidDist - dist) / avoidDist * 100;
-                        this.vx += (dx / dist) * force * dt;
-                        this.vy += (dy / dist) * force * dt;
-                    }
-                }
-            }
-        }
-
+        // Apply movement
         this.x += this.vx * dt;
         this.y += this.vy * dt;
-
-        this.checkNodeProximity(nodes, game);
     }
 
     processWaypoints() {
@@ -191,7 +209,7 @@ export class Entity {
     }
 
     handleCollisionsAndCohesion(spatialGrid, nodes, game) {
-        // First, push entities out of nodes (O(M) nodes is fine, usually small)
+        // Push entities out of nodes physical radius
         if (nodes) {
             for (let node of nodes) {
                 const dx = this.x - node.x;
@@ -225,9 +243,7 @@ export class Entity {
             const dy = other.y - this.y;
             const distSq = dx * dx + dy * dy;
 
-            // Optimization: Skip if too far
             if (distSq > searchRadius * searchRadius) continue;
-
             const dist = Math.sqrt(distSq);
 
             // COHESION logic
@@ -277,10 +293,6 @@ export class Entity {
         if (this.currentTarget) this.avoidObstacles(nodes);
     }
 
-    // I need to update signature of handleCollisionsAndCohesion to accept 'game' if die() needs it.
-    // However, Entity.update() calls handleCollisionsAndCohesion(entities, nodes).
-    // I should update Entity.update() to pass 'game'.
-
     avoidObstacles(nodes) {
         const targetDx = this.currentTarget.x - this.x;
         const targetDy = this.currentTarget.y - this.y;
@@ -301,72 +313,13 @@ export class Entity {
                     const perpY = targetNx;
                     const side = (dx * targetNy - dy * targetNx) > 0 ? 1 : -1;
                     this.vx += perpX * side * 150 * 0.016;
-                    this.vy += perpY * side * 150 * 0.016;
+                    this.vy += perpY * side * 150 * 0.016; // Stronger avoidance
                 }
             }
         }
     }
 
-    checkNodeProximity(nodes, game) {
-        for (let node of nodes) {
-            const dx = node.x - this.x;
-            const dy = node.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const touchRange = node.radius + this.radius;
-
-            if (dist <= touchRange) {
-                // Neutral node - capture with HP system, cell crashes
-                if (node.owner === -1) {
-                    if (!this.dying) {
-                        node.receiveAttack(this.owner, 1, game); // Normal HP damage
-                        this.die('attack', node, game); // Cell crashes
-                    }
-                    return;
-                }
-
-                // Owned node logic - existing behavior
-                if (node.owner === this.owner && node.owner !== -1) {
-                    // Absorb cell to heal node (only when node needs healing)
-                    if (node.baseHp < node.maxHp && !this.dying) {
-                        node.baseHp += 1;
-                        this.die('absorbed', node, game);
-                        return;
-                    }
-                    if (this.targetNode === node) {
-                        this.stop();
-                        this.targetNode = null;
-                    }
-                    return;
-                }
-
-                if (node.owner !== this.owner) {
-                    if (!this.dying && this.attackCooldown <= 0) {
-                        const allDefenders = node.allAreaDefenders || [];
-
-                        const ownerDefenders = allDefenders.filter(e => e.owner === node.owner && !e.dead && !e.dying);
-                        if (ownerDefenders.length > 0) {
-                            const target = ownerDefenders[0];
-                            target.die('sacrifice', node, game);
-                            this.die('attack', node, game);
-                            return;
-                        }
-
-                        const rivalDefenders = allDefenders.filter(e => e.owner !== this.owner && e.owner !== node.owner && !e.dead && !e.dying);
-                        if (rivalDefenders.length > 0) {
-                            const target = rivalDefenders[0];
-                            target.die('sacrifice', node, game);
-                            this.die('attack', node, game);
-                            return;
-                        }
-
-                        node.receiveAttack(this.owner, 1, game);
-                        this.die('attack', node, game);
-                        return;
-                    }
-                }
-            }
-        }
-    }
+    // checkNodeProximity removed as logic is merged into update()
 
     moveTo(x, y) {
         this.setTarget(x, y);
@@ -388,9 +341,9 @@ export class Entity {
             } else if (type === 'attack') {
                 game.spawnParticles(this.x, this.y, playerColor, 5, 'hit');
             }
-            // No particles for 'sacrifice' - visual animation only
         }
     }
+
     isPointInside(mx, my, camera) {
         const screen = camera.worldToScreen(this.x, this.y);
         const dx = mx - screen.x;
