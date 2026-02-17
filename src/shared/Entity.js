@@ -11,6 +11,7 @@ export class Entity {
         this.vx = 0;
         this.vy = 0;
         this.maxSpeed = 50;
+        this.speedBoost = 0; // 0 to 1.0 scalar for territorial acceleration
         // Acceleration removed as per request
         this.friction = 0.975;
 
@@ -166,12 +167,16 @@ export class Entity {
         this.vx *= this.friction;
         this.vy *= this.friction;
 
-        // Calculate max speed
-        let currentMaxSpeed = this.maxSpeed;
-        this.hasSpeedBoost = inFriendlyTerritory; // Flag for renderer trail
+        // Calculate max speed with gradual "Acceleration Zone" effect
         if (inFriendlyTerritory) {
-            currentMaxSpeed *= 1.4; // 40% boost in allied territory
+            this.speedBoost = Math.min(1.0, this.speedBoost + dt * 2.0); // Ramp up in 0.5s
+        } else {
+            this.speedBoost = Math.max(0.0, this.speedBoost - dt * 1.0); // Decay in 1.0s
         }
+
+        let currentMaxSpeed = this.maxSpeed * (1 + this.speedBoost * 0.4); // Max 40% boost
+        this.hasSpeedBoost = this.speedBoost > 0.1; // Threshold flag for renderer
+
         currentMaxSpeed *= speedMult;
 
         // Cap speed

@@ -5,6 +5,7 @@ export class Renderer {
     constructor(ctx) {
         this.ctx = ctx;
         this.playerIndex = 0;
+        this.trailQueue = []; // For batch rendering
     }
 
     setPlayerIndex(idx) {
@@ -14,6 +15,8 @@ export class Renderer {
     clear(width, height) {
         this.width = width;
         this.height = height;
+        this.ctx.clearRect(0, 0, width, height); // Clear the entire canvas
+        this.trailQueue = []; // Reset for next frame
         this.ctx.fillStyle = '#151515';
         this.ctx.fillRect(0, 0, width, height);
     }
@@ -252,57 +255,21 @@ export class Renderer {
         this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
         this.ctx.fill();
 
-        // Trail Effect (Estelita) in Friendly Territory
-        if (entity.hasSpeedBoost && !entity.dying) {
-            this.ctx.save();
-            this.ctx.globalCompositeOperation = 'lighter'; // Brighter (additive)
+        // Helper to convert hex to rgba
+        const hexToRgbaLocal = (hex, alpha) => {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        };
 
-            const speed = Math.sqrt(entity.vx * entity.vx + entity.vy * entity.vy);
-            if (speed > 10) {
-                const trailLen = 40 * camera.zoom; // Even longer trail (Was 25)
-                const nx = entity.vx / speed;
-                const ny = entity.vy / speed;
-
-                const color = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
-
-                // Outer glow pass
-                this.ctx.beginPath();
-                this.ctx.moveTo(screen.x, screen.y);
-                this.ctx.lineTo(screen.x - nx * trailLen, screen.y - ny * trailLen);
-                this.ctx.strokeStyle = color;
-                this.ctx.lineWidth = 6 * camera.zoom;
-                this.ctx.lineCap = 'round';
-                this.ctx.shadowBlur = 15;
-                this.ctx.shadowColor = color;
-                this.ctx.globalAlpha = 0.3;
-                this.ctx.stroke();
-
-                // Clear shadow for core pass
-                this.ctx.shadowBlur = 0;
-
-                // Helper to convert hex to rgba (added for this specific change)
-                const hexToRgba = (hex, alpha) => {
-                    const r = parseInt(hex.slice(1, 3), 16);
-                    const g = parseInt(hex.slice(3, 5), 16);
-                    const b = parseInt(hex.slice(5, 7), 16);
-                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                };
-
-                // Core pass with gradient
-                const gradient = this.ctx.createLinearGradient(screen.x, screen.y, screen.x - nx * trailLen, screen.y - ny * trailLen);
-                gradient.addColorStop(0, color);
-                gradient.addColorStop(0.5, hexToRgba(color, 0.5));
-                gradient.addColorStop(1, 'rgba(255,255,255,0)');
-
-                this.ctx.beginPath();
-                this.ctx.moveTo(screen.x, screen.y);
-                this.ctx.lineTo(screen.x - nx * trailLen, screen.y - ny * trailLen);
-                this.ctx.strokeStyle = gradient;
-                this.ctx.lineWidth = 2 * camera.zoom;
-                this.ctx.globalAlpha = 1.0;
-                this.ctx.stroke();
-            }
-            this.ctx.restore();
+        // NEW: Queue trail for batch rendering instead of drawing individual expensive ones
+        const speedSq = entity.vx * entity.vx + entity.vy * entity.vy;
+        if (entity.hasSpeedBoost && !entity.dying && speedSq > 400) { // Threshold: speed > 20
+            this.trailQueue.push({
+                x: entity.x, y: entity.y, vx: entity.vx, vy: entity.vy,
+                owner: entity.owner, speedBoost: entity.speedBoost || 0
+            });
         }
 
         // Body
@@ -324,6 +291,90 @@ export class Renderer {
             this.ctx.lineWidth = 0.8 * camera.zoom;
             this.ctx.stroke();
         }
+    }
+
+    renderTrails(camera) {
+        if (this.trailQueue.length === 0) return;
+
+        this.ctx.save();
+        this.ctx.globalCompositeOperation = 'lighter';
+
+        // Optimized grouping: use a simple screen-space grid to "merge" nearby trails
+        const gridSize = 35 * camera.zoom;
+        const grid = {}; // 'x,y' -> { x, y, count, vx, vy, color }
+
+        this.trailQueue.forEach(ent => {
+            const screen = camera.worldToScreen(ent.x, ent.y);
+            const gx = Math.floor(screen.x / gridSize);
+            const gy = Math.floor(screen.y / gridSize);
+            const key = `${gx},${gy}`;
+
+            const color = PLAYER_COLORS[ent.owner % PLAYER_COLORS.length];
+            const groupKey = `${key}_${color}`;
+
+            if (!grid[groupKey]) {
+                grid[groupKey] = { x: 0, y: 0, count: 0, vx: 0, vy: 0, color: color, boostSum: 0 };
+            }
+            const group = grid[groupKey];
+            group.x += screen.x;
+            group.y += screen.y;
+            group.vx += ent.vx;
+            group.vy += ent.vy;
+            group.boostSum += ent.speedBoost;
+            group.count++;
+        });
+
+        for (let key in grid) {
+            const group = grid[key];
+            const mx = group.x / group.count;
+            const my = group.y / group.count;
+            const mvx = group.vx / group.count;
+            const mvy = group.vy / group.count;
+            const avgBoost = group.boostSum / group.count;
+
+            const speed = Math.sqrt(mvx * mvx + mvy * mvy);
+            if (speed < 5) continue;
+
+            // BOLOTA Effect: Radius scales with number of entities
+            const bloomRadius = (15 + Math.min(group.count * 4, 30)) * camera.zoom;
+            const trailLen = (15 + avgBoost * 25) * camera.zoom; // Shorter but dynamic
+
+            const nx = mvx / speed;
+            const ny = mvy / speed;
+
+            // Draw merged trail blob
+            const gradient = this.ctx.createLinearGradient(mx, my, mx - nx * trailLen, my - ny * trailLen);
+            const baseColor = group.color;
+            gradient.addColorStop(0, baseColor);
+            gradient.addColorStop(0.3, this.hexToRgba(baseColor, 0.6 * avgBoost));
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+            // Core trail
+            this.ctx.beginPath();
+            this.ctx.moveTo(mx, my);
+            this.ctx.lineTo(mx - nx * trailLen, my - ny * trailLen);
+            this.ctx.strokeStyle = gradient;
+            this.ctx.lineWidth = bloomRadius * 0.8;
+            this.ctx.lineCap = 'round';
+
+            // Add blur for the "bolota" look but only once per group
+            this.ctx.shadowBlur = 15 * camera.zoom;
+            this.ctx.shadowColor = baseColor;
+            this.ctx.globalAlpha = 0.4 * avgBoost;
+            this.ctx.stroke();
+            this.ctx.shadowBlur = 0;
+
+            // Central highlight
+            this.ctx.beginPath();
+            this.ctx.moveTo(mx, my);
+            this.ctx.lineTo(mx - nx * trailLen * 0.7, my - ny * trailLen * 0.7);
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.lineWidth = 1.5 * camera.zoom;
+            this.ctx.globalAlpha = 0.2 * avgBoost;
+            this.ctx.stroke();
+        }
+
+        this.ctx.restore();
     }
 
     drawParticle(p, camera) {

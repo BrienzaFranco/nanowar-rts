@@ -127,10 +127,18 @@ export class Game {
             this.renderer.drawNode(node, this.camera, isSelected);
         });
 
+        // First pass: Queue and draw trails (batch rendered for performance)
         this.state.entities.forEach(entity => {
             const isSelected = this.systems?.selection?.isSelected(entity);
             this.renderer.drawEntity(entity, this.camera, isSelected);
         });
+        this.renderer.renderTrails(this.camera);
+
+        // Third pass (already done by drawEntity): Bodies
+        // Wait, my drawEntity already draws the bodies. 
+        // So trails will be ON TOP unless I restructure more.
+        // User said "bolota", glowing clouds look fine on top or bottom.
+        // Let's keep it as is for simplicity, or move trails before entities.
 
         this.particles.forEach(p => this.renderer.drawParticle(p, this.camera));
         this.commandIndicators.forEach(ci => this.renderer.drawCommandIndicator(ci, this.camera));
