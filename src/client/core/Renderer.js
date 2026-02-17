@@ -359,11 +359,10 @@ export class Renderer {
             const lifeNorm = t.life / 0.4; // 1.0 to 0.0
             const smoothedBoost = t.boost * t.boost;
 
-            // Subtler and smaller "rastro" points
-            // Smaller radius than before: 4-15 instead of 8-28
-            const bloomRadius = (4 + Math.min(t.count * 2, 12)) * camera.zoom * (0.5 + lifeNorm * 0.5);
-            // Shorter trail segment: 5-15 instead of 10-45
-            const segmentLen = (5 + (speed / 25) * 10 * t.boost) * camera.zoom * lifeNorm;
+            // Plasma Intensity: scale alpha and size with count
+            const densityMult = 1.0 + Math.min(t.count / 15, 1.5); // Up to 2.5x density
+            const bloomRadius = (4 + Math.min(t.count * 3, 20)) * camera.zoom * (0.4 + lifeNorm * 0.6);
+            const segmentLen = (6 + (speed / 20) * 12 * t.boost * densityMult) * camera.zoom * lifeNorm;
 
             const nx = t.vx / speed;
             const ny = t.vy / speed;
@@ -372,16 +371,16 @@ export class Renderer {
 
             // Gradient: fast fade based on life
             const gradient = this.ctx.createLinearGradient(screen.x, screen.y, screen.x - nx * segmentLen, screen.y - ny * segmentLen);
-            const alphaEffect = lifeNorm * smoothedBoost * 0.4; // 0.4 peak alpha
+            const alphaEffect = lifeNorm * smoothedBoost * 0.35 * densityMult; // Brighter for more units
 
-            gradient.addColorStop(0, hexToRgba(t.color, alphaEffect));
-            gradient.addColorStop(0.5, hexToRgba(t.color, alphaEffect * 0.4));
+            gradient.addColorStop(0, hexToRgba(t.color, Math.min(0.9, alphaEffect)));
+            gradient.addColorStop(0.4, hexToRgba(t.color, alphaEffect * 0.3));
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
 
             // Draw tapered conical segment
             this.ctx.beginPath();
-            this.ctx.moveTo(screen.x + px * bloomRadius * 0.4, screen.y + py * bloomRadius * 0.4);
-            this.ctx.lineTo(screen.x - px * bloomRadius * 0.4, screen.y - py * bloomRadius * 0.4);
+            this.ctx.moveTo(screen.x + px * bloomRadius * 0.45, screen.y + py * bloomRadius * 0.45);
+            this.ctx.lineTo(screen.x - px * bloomRadius * 0.45, screen.y - py * bloomRadius * 0.45);
             this.ctx.lineTo(screen.x - nx * segmentLen, screen.y - ny * segmentLen);
             this.ctx.closePath();
 
@@ -389,14 +388,14 @@ export class Renderer {
             this.ctx.globalAlpha = 1.0;
             this.ctx.fill();
 
-            // Minimal core highlight
-            if (lifeNorm > 0.7) {
+            // Minimal core highlight - slightly more prominent for large groups
+            if (lifeNorm > 0.6) {
                 this.ctx.beginPath();
                 this.ctx.moveTo(screen.x, screen.y);
-                this.ctx.lineTo(screen.x - nx * segmentLen * 0.5, screen.y - ny * segmentLen * 0.5);
+                this.ctx.lineTo(screen.x - nx * segmentLen * 0.4, screen.y - ny * segmentLen * 0.4);
                 this.ctx.strokeStyle = '#ffffff';
-                this.ctx.lineWidth = 1 * camera.zoom;
-                this.ctx.globalAlpha = 0.05 * lifeNorm * smoothedBoost;
+                this.ctx.lineWidth = Math.max(1, 0.5 * densityMult) * camera.zoom;
+                this.ctx.globalAlpha = 0.08 * lifeNorm * smoothedBoost * densityMult;
                 this.ctx.stroke();
             }
         });
