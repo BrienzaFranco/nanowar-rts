@@ -43,24 +43,39 @@ export class Node {
         this.rallyTargetNode = targetNode;
     }
 
-    calculateDefenders(entities) {
+    calculateDefenders(spatialGrid) {
         this.defendersInside = 0;
         this.stockDefenders = 0;
         this.defenderCounts = {};
         this.defendingEntities = [];
         this.allAreaDefenders = [];
-        for (let e of entities) {
+
+        // Use spatial grid to find nearby entities
+        // Influence radius is the max check distance
+        const nearbyEntities = spatialGrid.retrieve(this.x, this.y, this.influenceRadius);
+
+        for (let e of nearbyEntities) {
             if (e.dead || e.dying) continue;
-            const dx = e.x - this.x, dy = e.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist <= this.influenceRadius) {
+
+            // Squared distance check is faster
+            const dx = e.x - this.x;
+            const dy = e.y - this.y;
+            const distSq = dx * dx + dy * dy;
+
+            // Area de influencia
+            const influenceRadSq = this.influenceRadius * this.influenceRadius;
+            if (distSq <= influenceRadSq) {
                 this.defenderCounts[e.owner] = (this.defenderCounts[e.owner] || 0) + 1;
                 this.allAreaDefenders.push(e);
                 if (e.owner === this.owner) {
                     this.areaDefenders.push(e);
                 }
             }
-            if (dist <= this.radius + e.radius + 5) {
+
+            // Dentro del nodo para stock
+            // Approximate radius check to avoid sqrt if possible, or just do it
+            const stockRad = this.radius + e.radius + 5;
+            if (distSq <= stockRad * stockRad) {
                 if (e.owner === this.owner) {
                     this.defendersInside++;
                     this.stockDefenders++;
@@ -101,8 +116,8 @@ export class Node {
         return false;
     }
 
-    update(dt, entities, globalSpawnTimer, game, allNodes) {
-        this.calculateDefenders(entities);
+    update(dt, spatialGrid, globalSpawnTimer, game, allNodes, canSpawn = true) {
+        this.calculateDefenders(spatialGrid);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
 
@@ -159,7 +174,8 @@ export class Node {
             }
 
             // Manual spawn - when player clicks on node
-            if (this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
+            // Added check for canSpawn to implement entity cap
+            if (canSpawn && this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 this.spawnTimer = 0;
                 this.manualSpawnReady = false;
 

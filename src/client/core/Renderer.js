@@ -12,6 +12,8 @@ export class Renderer {
     }
 
     clear(width, height) {
+        this.width = width;
+        this.height = height;
         this.ctx.fillStyle = '#151515';
         this.ctx.fillRect(0, 0, width, height);
     }
@@ -161,6 +163,11 @@ export class Renderer {
         if (entity.dead) return;
         const screen = camera.worldToScreen(entity.x, entity.y);
         const sr = entity.radius * camera.zoom;
+
+        // Culling
+        if (this.width && (screen.x < -sr || screen.x > this.width + sr || screen.y < -sr || screen.y > this.height + sr)) {
+            return;
+        }
 
         if (entity.dying) {
             const progress = entity.deathTime / 0.4;

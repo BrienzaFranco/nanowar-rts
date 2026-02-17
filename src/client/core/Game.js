@@ -41,7 +41,7 @@ export class Game {
         this.lastTime = performance.now();
         this.healSoundCooldown = 0;
         this.healSoundDelay = 5; // 5 second delay before heal sounds
-        
+
         const game = this;
         const loop = (now) => {
             if (!game.running) return;
@@ -67,21 +67,21 @@ export class Game {
     update(dt) {
         // Set player index for sounds
         sounds.setPlayerIndex(this.controller?.playerIndex ?? 0);
-        
+
         // Track node owners and HP before update for capture detection
         const nodeOwnersBefore = new Map();
         const nodeHpBefore = new Map();
         const playerIdx = this.controller?.playerIndex ?? 0;
-        
+
         this.state.nodes.forEach(n => {
             nodeOwnersBefore.set(n.id, n.owner);
             nodeHpBefore.set(n.id, n.baseHp);
         });
-        
+
         // Track entities before update for collision detection
-        const entitiesBefore = this.state.entities.length;
-        const playerEntitiesBefore = this.state.entities.filter(e => e.owner === playerIdx).length;
-        
+        // Use cached counts from previous frame (or init) to avoid O(N) filter
+        const playerEntitiesBefore = this.state.unitCounts ? (this.state.unitCounts[playerIdx] || 0) : 0;
+
         this.state.update(dt, this);
         if (this.controller && this.controller.update) {
             this.controller.update(dt);
@@ -99,7 +99,7 @@ export class Game {
         // Check for node captures - ONLY FOR OUR NODES
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
-            
+
             // Node was captured by US (from neutral)
             if (isValidPlayer && oldOwner !== undefined && oldOwner === -1 && n.owner === playerIdx) {
                 sounds.playCapture();
@@ -107,9 +107,8 @@ export class Game {
         });
 
         // Check for OUR cell collisions - play when OUR units die
-        const entityCountNow = this.state.entities.length;
-        const playerEntitiesNow = this.state.entities.filter(e => e.owner === playerIdx).length;
-        
+        const playerEntitiesNow = this.state.unitCounts ? (this.state.unitCounts[playerIdx] || 0) : 0;
+
         // If OUR units died, play collision sound
         if (playerEntitiesNow < playerEntitiesBefore && isValidPlayer) {
             sounds.playCollision();
@@ -119,7 +118,7 @@ export class Game {
     draw() {
         const playerIdx = this.controller?.playerIndex ?? 0;
         this.renderer.setPlayerIndex(playerIdx);
-        
+
         this.renderer.clear(this.canvas.width, this.canvas.height);
         this.renderer.drawGrid(this.canvas.width, this.canvas.height, this.camera);
 
@@ -135,7 +134,7 @@ export class Game {
 
         this.particles.forEach(p => this.renderer.drawParticle(p, this.camera));
         this.commandIndicators.forEach(ci => this.renderer.drawCommandIndicator(ci, this.camera));
-        
+
         // Only show waypoint lines for our player
         this.waypointLines.filter(wl => wl.owner === playerIdx).forEach(wl => this.renderer.drawWaypointLine(wl, this.camera));
 
@@ -195,6 +194,7 @@ export class Game {
     }
 
     spawnParticles(x, y, color, count, type) {
+        if (this.particles.length > 100) return; // Hard cap on particles for performance
         for (let i = 0; i < count; i++) {
             this.particles.push(new Particle(x, y, color, Math.random() * 2 + 1, type));
         }

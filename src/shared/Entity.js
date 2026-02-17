@@ -53,7 +53,7 @@ export class Entity {
         this.vy *= 0.3;
     }
 
-    update(dt, entities, nodes, camera, game) {
+    update(dt, spatialGrid, nodes, camera, game) {
         if (this.dying) {
             this.deathTime += dt;
             if (this.deathTime > 0.4) { this.dead = true; }
@@ -64,7 +64,7 @@ export class Entity {
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         this.processWaypoints();
-        this.handleCollisionsAndCohesion(entities, nodes, game);
+        this.handleCollisionsAndCohesion(spatialGrid, nodes, game);
 
         // Get game settings for speed and acceleration
         const speedMult = (game?.state?.speedMultiplier) || 1;
@@ -129,13 +129,19 @@ export class Entity {
         this.vx *= this.friction;
         this.vy *= this.friction;
 
-        const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        if (speedMult !== 1) this.vx *= speedMult; // Apply speed mult directly? No, max speed handles it.
+        // Actually the logic was: `maxSpd = this.maxSpeed * speedMult`. 
+
+        const speedSq = this.vx * this.vx + this.vy * this.vy;
         const maxSpd = this.maxSpeed * speedMult * speedBoost;
-        if (speed > maxSpd) {
+        const maxSpdSq = maxSpd * maxSpd;
+
+        if (speedSq > maxSpdSq) {
+            const speed = Math.sqrt(speedSq);
             this.vx = (this.vx / speed) * maxSpd;
             this.vy = (this.vy / speed) * maxSpd;
-        }
-        if (speed < 3 && speed > 0) {
+        } else if (speedSq < 9 && speedSq > 0) { // speed < 3
+            const speed = Math.sqrt(speedSq);
             this.vx = (this.vx / speed) * 3;
             this.vy = (this.vy / speed) * 3;
         }
@@ -184,24 +190,22 @@ export class Entity {
         }
     }
 
-    handleCollisionsAndCohesion(allEntities, nodes, game) {
-        // First, push entities out of nodes they might be inside
+    handleCollisionsAndCohesion(spatialGrid, nodes, game) {
+        // First, push entities out of nodes (O(M) nodes is fine, usually small)
         if (nodes) {
             for (let node of nodes) {
                 const dx = this.x - node.x;
                 const dy = this.y - node.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                const distSq = dx * dx + dy * dy;
                 const minDist = node.radius + this.radius;
 
-                if (dist < minDist && dist > 0) {
-                    // Push entity out of node
+                if (distSq < minDist * minDist && distSq > 0) {
+                    const dist = Math.sqrt(distSq);
                     const overlap = minDist - dist;
                     const nx = dx / dist;
                     const ny = dy / dist;
                     this.x += nx * overlap;
                     this.y += ny * overlap;
-
-                    // Bounce velocity
                     this.vx += nx * 50 * 0.016;
                     this.vy += ny * 50 * 0.016;
                 }
@@ -210,37 +214,32 @@ export class Entity {
 
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
 
-        for (let other of allEntities) {
-            if (other === this || other.dead || other.dying) continue;
+        // Optimized spatial query
+        const searchRadius = this.cohesionRadius;
+        const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
 
-            const dx = other.x - this.x;
-            const dy = other.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (other.owner === this.owner && dist < this.cohesionRadius && dist > this.radius * 2) {
-                cohesionX += dx / dist;
-                cohesionY += dy / dist;
-                cohesionCount++;
-            }
-        }
-
-        if (cohesionCount > 0) {
-            cohesionX /= cohesionCount;
-            cohesionY /= cohesionCount;
-            this.vx += cohesionX * this.cohesionForce * 0.016;
-            this.vy += cohesionY * this.cohesionForce * 0.016;
-        }
-
-        for (let other of allEntities) {
+        for (let other of neighbors) {
             if (other === this || other.dead || other.dying) continue;
 
             const dx = other.x - this.x;
             const dy = other.y - this.y;
             const distSq = dx * dx + dy * dy;
-            const minDist = this.radius + other.radius;
 
-            if (distSq < minDist * minDist && distSq > 0) {
-                const dist = Math.sqrt(distSq);
+            // Optimization: Skip if too far
+            if (distSq > searchRadius * searchRadius) continue;
+
+            const dist = Math.sqrt(distSq);
+
+            // COHESION logic
+            if (other.owner === this.owner && dist > this.radius * 2) {
+                cohesionX += dx / dist;
+                cohesionY += dy / dist;
+                cohesionCount++;
+            }
+
+            // COLLISION logic
+            const minDist = this.radius + other.radius;
+            if (dist < minDist && dist > 0) {
                 const overlap = minDist - dist;
                 const nx = dx / dist;
                 const ny = dy / dist;
@@ -259,7 +258,7 @@ export class Entity {
                 const velAlongNormal = dvx * nx + dvy * ny;
 
                 if (velAlongNormal > 0) {
-                    const j = -(1 + 0.3) * velAlongNormal * 0.5;
+                    const j = -(1.3) * velAlongNormal * 0.5;
                     this.vx -= j * nx;
                     this.vy -= j * ny;
                     other.vx += j * nx;
@@ -268,14 +267,21 @@ export class Entity {
             }
         }
 
-        if (this.currentTarget) this.avoidObstacles(nodes, allEntities);
+        if (cohesionCount > 0) {
+            cohesionX /= cohesionCount;
+            cohesionY /= cohesionCount;
+            this.vx += cohesionX * this.cohesionForce * 0.016;
+            this.vy += cohesionY * this.cohesionForce * 0.016;
+        }
+
+        if (this.currentTarget) this.avoidObstacles(nodes);
     }
 
     // I need to update signature of handleCollisionsAndCohesion to accept 'game' if die() needs it.
     // However, Entity.update() calls handleCollisionsAndCohesion(entities, nodes).
     // I should update Entity.update() to pass 'game'.
 
-    avoidObstacles(nodes, entities) {
+    avoidObstacles(nodes) {
         const targetDx = this.currentTarget.x - this.x;
         const targetDy = this.currentTarget.y - this.y;
         const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
@@ -376,7 +382,7 @@ export class Entity {
         this.deathTime = 0;
         this.absorbTarget = node;
         const playerColor = this.getColor();
-        if (game) {
+        if (game && game.spawnParticles) {
             if (type === 'explosion' || type === 'absorbed') {
                 game.spawnParticles(this.x, this.y, playerColor, 8, 'explosion');
             } else if (type === 'attack') {

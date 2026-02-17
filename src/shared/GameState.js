@@ -1,5 +1,6 @@
 import { GlobalSpawnTimer } from './GlobalSpawnTimer.js';
 import { GAME_SETTINGS } from './GameConfig.js';
+import { SpatialGrid } from './SpatialGrid.js';
 
 export class GameState {
     constructor() {
@@ -15,6 +16,11 @@ export class GameState {
         this.speedMultiplier = 1;
         this.accelerationEnabled = true;
         this.showProduction = true;
+
+        // optimizations
+        this.spatialGrid = new SpatialGrid(this.worldWidth, this.worldHeight, 80); // 80px cells
+        this.maxEntitiesPerPlayer = 150;
+        this.unitCounts = {}; // Cache unit counts per player for capping
 
         // Statistics tracking
         this.stats = {
@@ -34,13 +40,35 @@ export class GameState {
         // Apply time-based escalation to spawn intervals
         const timeBonus = Math.min(this.elapsedTime / 120, 1.0); // Max bonus at 2 minutes
 
+        // Populate spatial grid once per frame
+        this.spatialGrid.clear();
+        this.entities.forEach(ent => {
+            this.spatialGrid.addObject(ent);
+            ent.grid = this.spatialGrid; // Update ref if needed, or just pass it
+        });
+
+        // Count units for capping
+        this.unitCounts = {};
+        this.entities.forEach(ent => {
+            if (!ent.dead) {
+                this.unitCounts[ent.owner] = (this.unitCounts[ent.owner] || 0) + 1;
+            }
+        });
+
         this.nodes.forEach(node => {
-            const newEntity = node.update(dt, this.entities, this.globalSpawnTimer, gameInstance, this.nodes);
+            // Check cap before spawning
+            const canSpawn = (this.unitCounts[node.owner] || 0) < this.maxEntitiesPerPlayer;
+
+            const newEntity = node.update(dt, this.spatialGrid, this.globalSpawnTimer, gameInstance, this.nodes, canSpawn);
             if (newEntity) {
                 this.entities.push(newEntity);
                 // Track production
                 const pid = newEntity.owner;
                 this.stats.unitsProduced[pid] = (this.stats.unitsProduced[pid] || 0) + 1;
+                this.unitCounts[pid] = (this.unitCounts[pid] || 0) + 1;
+
+                // Add new entity to grid immediately so it interacts
+                this.spatialGrid.addObject(newEntity);
             }
         });
 
@@ -93,7 +121,7 @@ export class GameState {
         }
 
         this.entities.forEach(ent => {
-            ent.update(dt, this.entities, this.nodes, null, gameInstance);
+            ent.update(dt, this.spatialGrid, this.nodes, null, gameInstance);
         });
 
         // Clean up dead entities
