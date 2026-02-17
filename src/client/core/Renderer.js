@@ -5,7 +5,8 @@ export class Renderer {
     constructor(ctx) {
         this.ctx = ctx;
         this.playerIndex = 0;
-        this.trailQueue = []; // For batch rendering
+        this.trailQueue = []; // Current frame units
+        this.trailHistory = []; // Persistent traces (the "rastro")
     }
 
     setPlayerIndex(idx) {
@@ -294,92 +295,111 @@ export class Renderer {
         }
     }
 
-    renderTrails(camera) {
-        if (this.trailQueue.length === 0) return;
+    renderTrails(camera, dt = 0.016) {
+        // 1. Process and group current frame units from trailQueue
+        const gridSize = 40 * camera.zoom;
+        const currentGroups = {}; // 'gx,gy_color' -> { x, y, vx, vy, boost }
+
+        this.trailQueue.forEach(ent => {
+            const gx = Math.floor(ent.x / 60); // Use world coords for stable grouping
+            const gy = Math.floor(ent.y / 60);
+            const color = PLAYER_COLORS[ent.owner % PLAYER_COLORS.length];
+            const groupKey = `${gx},${gy}_${color}`;
+
+            if (!currentGroups[groupKey]) {
+                currentGroups[groupKey] = { x: 0, y: 0, count: 0, vx: 0, vy: 0, color: color, boostSum: 0 };
+            }
+            const g = currentGroups[groupKey];
+            g.x += ent.x;
+            g.y += ent.y;
+            g.vx += ent.vx;
+            g.vy += ent.vy;
+            g.boostSum += ent.speedBoost;
+            g.count++;
+        });
+
+        // 2. Add current groups to history with life
+        for (let key in currentGroups) {
+            const g = currentGroups[key];
+            const avgBoost = g.boostSum / g.count;
+            if (avgBoost < 0.1) continue;
+
+            this.trailHistory.push({
+                x: g.x / g.count,
+                y: g.y / g.count,
+                vx: g.vx / g.count,
+                vy: g.vy / g.count,
+                color: g.color,
+                life: 0.4, // Trail lasts 0.4s
+                boost: avgBoost,
+                count: g.count
+            });
+        }
+
+        // 3. Update/Decay history
+        this.trailHistory.forEach(t => t.life -= dt);
+        this.trailHistory = this.trailHistory.filter(t => t.life > 0);
+
+        // Cap history to prevent performance death
+        if (this.trailHistory.length > 300) {
+            this.trailHistory.splice(0, this.trailHistory.length - 300);
+        }
+
+        // 4. Draw Trails
+        if (this.trailHistory.length === 0) return;
 
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'lighter';
 
-        // Optimized grouping: use a simple screen-space grid to "merge" nearby trails
-        const gridSize = 35 * camera.zoom;
-        const grid = {}; // 'x,y' -> { x, y, count, vx, vy, color }
+        this.trailHistory.forEach(t => {
+            const screen = camera.worldToScreen(t.x, t.y);
+            const speed = Math.sqrt(t.vx * t.vx + t.vy * t.vy);
+            if (speed < 5) return;
 
-        this.trailQueue.forEach(ent => {
-            const screen = camera.worldToScreen(ent.x, ent.y);
-            const gx = Math.floor(screen.x / gridSize);
-            const gy = Math.floor(screen.y / gridSize);
-            const key = `${gx},${gy}`;
+            const lifeNorm = t.life / 0.4; // 1.0 to 0.0
+            const smoothedBoost = t.boost * t.boost;
 
-            const color = PLAYER_COLORS[ent.owner % PLAYER_COLORS.length];
-            const groupKey = `${key}_${color}`;
+            // Subtler and smaller "rastro" points
+            // Smaller radius than before: 4-15 instead of 8-28
+            const bloomRadius = (4 + Math.min(t.count * 2, 12)) * camera.zoom * (0.5 + lifeNorm * 0.5);
+            // Shorter trail segment: 5-15 instead of 10-45
+            const segmentLen = (5 + (speed / 25) * 10 * t.boost) * camera.zoom * lifeNorm;
 
-            if (!grid[groupKey]) {
-                grid[groupKey] = { x: 0, y: 0, count: 0, vx: 0, vy: 0, color: color, boostSum: 0 };
-            }
-            const group = grid[groupKey];
-            group.x += screen.x;
-            group.y += screen.y;
-            group.vx += ent.vx;
-            group.vy += ent.vy;
-            group.boostSum += ent.speedBoost;
-            group.count++;
-        });
-
-        for (let key in grid) {
-            const group = grid[key];
-            const mx = group.x / group.count;
-            const my = group.y / group.count;
-            const mvx = group.vx / group.count;
-            const mvy = group.vy / group.count;
-            const avgBoost = group.boostSum / group.count;
-
-            const speed = Math.sqrt(mvx * mvx + mvy * mvy);
-            if (speed < 5) continue;
-
-            // BOLOTA Effect: Radius scales with number of entities
-            // Scaling transition: soften transition by squaring avgBoost for alpha/size if needed
-            const smoothedBoost = Math.max(0.1, avgBoost * avgBoost);
-            const bloomRadius = (8 + Math.min(group.count * 3, 20)) * camera.zoom; // Smaller: 8-28 instead of 12-52
-
-            // Trail length scales with actual speed and boost level
-            const trailLen = (8 + (speed / 20) * 20 * (0.5 + avgBoost * 0.5)) * camera.zoom; // Shorter and sharper
-
-            const nx = mvx / speed;
-            const ny = mvy / speed;
-            const px = -ny; // Perpendicular vector
+            const nx = t.vx / speed;
+            const ny = t.vy / speed;
+            const px = -ny;
             const py = nx;
 
-            // Gradient aligned with trail direction - fader at the tip
-            const gradient = this.ctx.createLinearGradient(mx, my, mx - nx * trailLen, my - ny * trailLen);
-            const baseColor = group.color;
-            gradient.addColorStop(0, hexToRgba(baseColor, 0.6 * smoothedBoost));
-            gradient.addColorStop(0.5, hexToRgba(baseColor, 0.2 * smoothedBoost));
+            // Gradient: fast fade based on life
+            const gradient = this.ctx.createLinearGradient(screen.x, screen.y, screen.x - nx * segmentLen, screen.y - ny * segmentLen);
+            const alphaEffect = lifeNorm * smoothedBoost * 0.4; // 0.4 peak alpha
+
+            gradient.addColorStop(0, hexToRgba(t.color, alphaEffect));
+            gradient.addColorStop(0.5, hexToRgba(t.color, alphaEffect * 0.4));
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
 
-            // Draw CONICAL shape (Triangle/Trapezoid) for the "colita"
+            // Draw tapered conical segment
             this.ctx.beginPath();
-            // Start at the unit "base" (perpendicular width)
-            this.ctx.moveTo(mx + px * bloomRadius * 0.4, my + py * bloomRadius * 0.4);
-            this.ctx.lineTo(mx - px * bloomRadius * 0.4, my - py * bloomRadius * 0.4);
-            // Go to the tapered tip
-            this.ctx.lineTo(mx - nx * trailLen, my - ny * trailLen);
+            this.ctx.moveTo(screen.x + px * bloomRadius * 0.4, screen.y + py * bloomRadius * 0.4);
+            this.ctx.lineTo(screen.x - px * bloomRadius * 0.4, screen.y - py * bloomRadius * 0.4);
+            this.ctx.lineTo(screen.x - nx * segmentLen, screen.y - ny * segmentLen);
             this.ctx.closePath();
 
             this.ctx.fillStyle = gradient;
             this.ctx.globalAlpha = 1.0;
             this.ctx.fill();
 
-            // Central "core" highlight for extra punch - very thin
-            this.ctx.beginPath();
-            this.ctx.moveTo(mx + px * 1, my + py * 1);
-            this.ctx.lineTo(mx - px * 1, my - py * 1);
-            this.ctx.lineTo(mx - nx * trailLen * 0.8, my - ny * trailLen * 0.8);
-            this.ctx.closePath();
-
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.globalAlpha = 0.1 * smoothedBoost;
-            this.ctx.fill();
-        }
+            // Minimal core highlight
+            if (lifeNorm > 0.7) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(screen.x, screen.y);
+                this.ctx.lineTo(screen.x - nx * segmentLen * 0.5, screen.y - ny * segmentLen * 0.5);
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 1 * camera.zoom;
+                this.ctx.globalAlpha = 0.05 * lifeNorm * smoothedBoost;
+                this.ctx.stroke();
+            }
+        });
 
         this.ctx.restore();
     }

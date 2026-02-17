@@ -132,7 +132,7 @@ export class Game {
             const isSelected = this.systems?.selection?.isSelected(entity);
             this.renderer.drawEntity(entity, this.camera, isSelected);
         });
-        this.renderer.renderTrails(this.camera);
+        this.renderer.renderTrails(this.camera, dt);
 
         // Third pass (already done by drawEntity): Bodies
         // Wait, my drawEntity already draws the bodies. 
