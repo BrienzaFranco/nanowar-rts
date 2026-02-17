@@ -362,6 +362,7 @@ export class MultiplayerController {
             clientNode.captureBoost = sn.captureBoost;
             clientNode.captureAura = sn.captureAura;
             clientNode.auraOwner = sn.auraOwner;
+            clientNode.nearbyAuraBoost = sn.nearbyAuraBoost;
             clientNode.enemyPressure = sn.enemyPressure;
             if (sn.rallyPoint) {
                 clientNode.rallyPoint = sn.rallyPoint;

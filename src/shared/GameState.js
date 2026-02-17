@@ -145,6 +145,7 @@ export class GameState {
                 captureBoost: n.captureBoost || 0,
                 captureAura: n.captureAura || 0,
                 auraOwner: n.auraOwner || -1,
+                nearbyAuraBoost: n.nearbyAuraBoost || false,
                 enemyPressure: n.enemyPressure || false
             })),
             entities: this.entities.map(e => ({

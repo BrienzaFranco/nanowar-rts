@@ -110,6 +110,55 @@ export class Renderer {
             this.ctx.stroke();
         }
 
+        // BOOSTED NODE EFFECTS - Make buffed nodes very visible
+        const isBoosted = node.captureBoost > 0 || node.nearbyAuraBoost;
+        
+        if (isBoosted && node.owner !== -1) {
+            // Pulsing glow effect
+            const pulseSpeed = node.captureBoost > 0 ? 200 : 400; // Faster pulse for capture boost
+            const pulseIntensity = (Math.sin(Date.now() / pulseSpeed) + 1) / 2; // 0 to 1
+            const glowRadius = sr + (10 + pulseIntensity * 15) * camera.zoom;
+            const glowAlpha = 0.3 + pulseIntensity * 0.4;
+            
+            // Outer glow
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, glowRadius, 0, Math.PI * 2);
+            this.ctx.fillStyle = `rgba(${areaColor},${glowAlpha * 0.3})`;
+            this.ctx.fill();
+            
+            // Inner bright ring
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, sr + 8 * camera.zoom, 0, Math.PI * 2);
+            this.ctx.strokeStyle = `rgba(${areaColor},${glowAlpha})`;
+            this.ctx.lineWidth = 4 * camera.zoom;
+            this.ctx.stroke();
+            
+            // Rotating sparkles effect
+            const sparkleCount = node.captureBoost > 0 ? 6 : 3;
+            const sparkleSpeed = Date.now() / 300;
+            for (let i = 0; i < sparkleCount; i++) {
+                const angle = (i / sparkleCount) * Math.PI * 2 + sparkleSpeed;
+                const sparkleDist = (sr + 15 + pulseIntensity * 10) * camera.zoom;
+                const sx = screen.x + Math.cos(angle) * sparkleDist;
+                const sy = screen.y + Math.sin(angle) * sparkleDist;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(sx, sy, 2 * camera.zoom, 0, Math.PI * 2);
+                this.ctx.fillStyle = `rgba(255, 255, 255, ${0.6 + pulseIntensity * 0.4})`;
+                this.ctx.fill();
+            }
+            
+            // Boost indicator text
+            this.ctx.font = `bold ${10 * camera.zoom}px monospace`;
+            this.ctx.fillStyle = '#FFD700'; // Gold color
+            this.ctx.textAlign = 'center';
+            this.ctx.shadowColor = '#000';
+            this.ctx.shadowBlur = 3;
+            const boostText = node.captureBoost > 0 ? '⚡ 200%' : '⚡ 100%';
+            this.ctx.fillText(boostText, screen.x, screen.y - sr - 20 * camera.zoom);
+            this.ctx.shadowBlur = 0;
+        }
+
         // Node Body (Radial Fill)
         const totalHp = node.getTotalHp();
         const hpPercent = Math.max(0, Math.min(1, totalHp / node.maxHp));
