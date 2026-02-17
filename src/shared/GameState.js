@@ -109,11 +109,32 @@ export class GameState {
         const now = Date.now();
         if (now - (this.stats.lastRecord || 0) > 1000) {
             this.stats.lastRecord = now;
+
+            // Count current nodes owned
+            const nodesOwned = {};
+            this.nodes.forEach(n => {
+                if (n.owner !== -1) {
+                    nodesOwned[n.owner] = (nodesOwned[n.owner] || 0) + 1;
+                }
+            });
+
+            const elapsed = (now - this.stats.startTime) / 1000;
+
             for (let pid in currentUnits) {
                 this.stats.history.push({
-                    time: (now - this.stats.startTime) / 1000,
+                    time: elapsed,
                     playerId: parseInt(pid),
                     count: currentUnits[pid]
+                });
+            }
+
+            // Record node history
+            for (let pid in nodesOwned) {
+                if (!this.stats.nodeHistory) this.stats.nodeHistory = [];
+                this.stats.nodeHistory.push({
+                    time: elapsed,
+                    playerId: parseInt(pid),
+                    count: nodesOwned[pid]
                 });
             }
         }
@@ -153,6 +174,7 @@ export class GameState {
             current: {},
             captured: {},
             history: this.stats.history,
+            nodeHistory: this.stats.nodeHistory || [],
             productionHistory: this.stats.productionHistory
         };
 
