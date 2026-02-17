@@ -346,10 +346,10 @@ export class Renderer {
             const gradient = this.ctx.createLinearGradient(mx, my, mx - nx * trailLen, my - ny * trailLen);
             const baseColor = group.color;
             gradient.addColorStop(0, baseColor);
-            gradient.addColorStop(0.3, this.hexToRgba(baseColor, 0.6 * avgBoost));
+            gradient.addColorStop(0.3, hexToRgba(baseColor, 0.6 * avgBoost)); // Fix: use imported function
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
 
-            // Core trail
+            // Core trail (Bolota Glow)
             this.ctx.beginPath();
             this.ctx.moveTo(mx, my);
             this.ctx.lineTo(mx - nx * trailLen, my - ny * trailLen);
@@ -357,20 +357,18 @@ export class Renderer {
             this.ctx.lineWidth = bloomRadius * 0.8;
             this.ctx.lineCap = 'round';
 
-            // Add blur for the "bolota" look but only once per group
-            this.ctx.shadowBlur = 15 * camera.zoom;
-            this.ctx.shadowColor = baseColor;
-            this.ctx.globalAlpha = 0.4 * avgBoost;
+            // Optimization: Remove shadowBlur (extremely slow in Canvas 2D)
+            // Use alpha and gradient instead
+            this.ctx.globalAlpha = 0.5 * avgBoost;
             this.ctx.stroke();
-            this.ctx.shadowBlur = 0;
 
-            // Central highlight
+            // Central highlight pass (optional, but adds "smoothness")
             this.ctx.beginPath();
             this.ctx.moveTo(mx, my);
-            this.ctx.lineTo(mx - nx * trailLen * 0.7, my - ny * trailLen * 0.7);
+            this.ctx.lineTo(mx - nx * trailLen * 0.5, my - ny * trailLen * 0.5);
             this.ctx.strokeStyle = '#ffffff';
-            this.ctx.lineWidth = 1.5 * camera.zoom;
-            this.ctx.globalAlpha = 0.2 * avgBoost;
+            this.ctx.lineWidth = bloomRadius * 0.2;
+            this.ctx.globalAlpha = 0.1 * avgBoost;
             this.ctx.stroke();
         }
 
