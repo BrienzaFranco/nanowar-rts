@@ -61,8 +61,14 @@ export class Entity {
         this.processWaypoints();
         this.handleCollisionsAndCohesion(entities, nodes, game);
 
-        this.vx += (Math.random() - 0.5) * 10 * dt;
-        this.vy += (Math.random() - 0.5) * 10 * dt;
+        // Get game settings for speed and acceleration
+        const speedMult = (game?.state?.speedMultiplier) || 1;
+        const accelEnabled = game?.state?.accelerationEnabled !== false;
+        
+        // Random movement - reduced or disabled based on acceleration setting
+        const randomForce = accelEnabled ? 10 : 0;
+        this.vx += (Math.random() - 0.5) * randomForce * dt;
+        this.vy += (Math.random() - 0.5) * randomForce * dt;
 
         if (this.currentTarget) {
             const dx = this.currentTarget.x - this.x;
@@ -70,8 +76,9 @@ export class Entity {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist > 5) {
-                this.vx += (dx / dist) * this.acceleration * dt;
-                this.vy += (dy / dist) * this.acceleration * dt;
+                const accel = accelEnabled ? this.acceleration : this.maxSpeed * 10;
+                this.vx += (dx / dist) * accel * dt;
+                this.vy += (dy / dist) * accel * dt;
             }
         }
 
@@ -79,9 +86,10 @@ export class Entity {
         this.vy *= this.friction;
 
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        if (speed > this.maxSpeed) {
-            this.vx = (this.vx / speed) * this.maxSpeed;
-            this.vy = (this.vy / speed) * this.maxSpeed;
+        const maxSpd = this.maxSpeed * speedMult;
+        if (speed > maxSpd) {
+            this.vx = (this.vx / speed) * maxSpd;
+            this.vy = (this.vy / speed) * maxSpd;
         }
         if (speed < 3 && speed > 0) {
             this.vx = (this.vx / speed) * 3;

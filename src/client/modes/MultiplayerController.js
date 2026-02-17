@@ -265,7 +265,18 @@ export class MultiplayerController {
     }
 
     toggleReady() {
-        if (this.socket) this.socket.emit('toggleReady');
+        // Get settings from lobby UI
+        const speedSetting = document.getElementById('speed-setting');
+        const accelSetting = document.getElementById('accel-setting');
+        const productionSetting = document.getElementById('production-setting');
+        
+        const settings = {
+            speedMultiplier: speedSetting ? parseFloat(speedSetting.value) : 1,
+            acceleration: accelSetting ? accelSetting.checked : true,
+            showProduction: productionSetting ? productionSetting.checked : true
+        };
+        
+        if (this.socket) this.socket.emit('toggleReady', settings);
     }
 
     showLobby() {
@@ -350,6 +361,17 @@ export class MultiplayerController {
         // Sync elapsed time
         if (serverState.elapsedTime !== undefined) {
             this.game.state.elapsedTime = serverState.elapsedTime;
+        }
+        
+        // Sync game settings
+        if (serverState.speedMultiplier !== undefined) {
+            this.game.state.speedMultiplier = serverState.speedMultiplier;
+        }
+        if (serverState.accelerationEnabled !== undefined) {
+            this.game.state.accelerationEnabled = serverState.accelerationEnabled;
+        }
+        if (serverState.showProduction !== undefined) {
+            this.game.state.showProduction = serverState.showProduction;
         }
     }
 }

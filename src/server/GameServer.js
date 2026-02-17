@@ -12,6 +12,19 @@ export class GameServer {
         this.gameStarted = false;
         this.gameEnded = false;
         this.GAME_TIME_LIMIT = 15 * 60; // 15 minutes in seconds
+        this.gameSettings = {
+            speedMultiplier: 1,
+            acceleration: true,
+            showProduction: true
+        };
+    }
+
+    applySettings(settings) {
+        this.gameSettings = { ...this.gameSettings, ...settings };
+        // Apply to game state
+        this.state.speedMultiplier = this.gameSettings.speedMultiplier;
+        this.state.accelerationEnabled = this.gameSettings.acceleration;
+        this.state.showProduction = this.gameSettings.showProduction;
     }
 
     addPlayer(socket) {

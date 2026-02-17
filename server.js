@@ -95,9 +95,15 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('toggleReady', () => {
+    socket.on('toggleReady', (settings) => {
         if (!socket.roomId) return;
         socket.ready = !socket.ready;
+        
+        // Store settings from first player to set game settings
+        if (socket.ready && settings) {
+            socket.gameSettings = settings;
+        }
+        
         broadcastLobbyUpdate(socket.roomId);
 
         // Check if all are ready
@@ -105,6 +111,11 @@ io.on('connection', (socket) => {
         if (game && game.playerSockets.length >= 2) {
             const allReady = game.playerSockets.every(s => s.ready);
             if (allReady) {
+                // Apply game settings from first ready player
+                const firstReady = game.playerSockets.find(s => s.gameSettings);
+                if (firstReady && firstReady.gameSettings) {
+                    game.applySettings(firstReady.gameSettings);
+                }
                 game.start();
                 io.to(socket.roomId).emit('gameStart', game.state.getState());
             }

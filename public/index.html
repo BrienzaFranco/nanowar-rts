@@ -309,6 +309,32 @@
                     style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px;">
                     <p style="font-size: 13px; color: white;">Esperando a otros comandantes...</p>
                 </div>
+                
+                <!-- Room Settings -->
+                <div style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; text-align: left;">
+                    <h3 style="color: #4CAF50; font-size: 12px; margin-bottom: 15px; letter-spacing: 2px;">CONFIGURACIÓN</h3>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <label style="color: #888; font-size: 11px;">Velocidad de unidades</label>
+                        <select id="speed-setting" style="width: 100%; padding: 6px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; margin-top: 4px;">
+                            <option value="0.5">Lento (0.5x)</option>
+                            <option value="1" selected>Normal (1x)</option>
+                            <option value="1.5">Rápido (1.5x)</option>
+                            <option value="2">Muy rápido (2x)</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="accel-setting" checked style="width: 16px; height: 16px;">
+                        <label style="color: #888; font-size: 11px;">Aceleración enabled</label>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="production-setting" checked style="width: 16px; height: 16px;">
+                        <label style="color: #888; font-size: 11px;">Mostrar producción en vivo</label>
+                    </div>
+                </div>
+                
                 <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
                     <button id="ready-btn" class="btn-primary" style="flex: 1;">ESTOY LISTO</button>
                     <button onclick="location.reload()" class="btn-secondary" style="flex: 1;">SALIR</button>

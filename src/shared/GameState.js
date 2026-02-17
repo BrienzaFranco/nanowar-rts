@@ -11,6 +11,11 @@ export class GameState {
         this.worldHeight = GAME_SETTINGS.WORLD_HEIGHT;
         this.elapsedTime = 0; // Track game time for escalation
         
+        // Game settings (from lobby)
+        this.speedMultiplier = 1;
+        this.accelerationEnabled = true;
+        this.showProduction = true;
+        
         // Statistics tracking
         this.stats = {
             startTime: Date.now(),
@@ -127,6 +132,9 @@ export class GameState {
             })),
             playerCount: this.playerCount,
             elapsedTime: this.elapsedTime,
+            speedMultiplier: this.speedMultiplier,
+            accelerationEnabled: this.accelerationEnabled,
+            showProduction: this.showProduction,
             stats: this.getStats()
         };
     }
