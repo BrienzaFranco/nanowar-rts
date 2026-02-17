@@ -15,8 +15,8 @@ export class Node {
         else if (type === 'large') {
             this.radius = 55 + Math.random() * 15;
             this.influenceRadius = this.radius * 3;
-            this.maxHp = 250; // Balanced HP - strong but not too strong
-            this.spawnInterval = 1.8; // Slightly slower spawn
+            this.maxHp = 180; // Reduced HP - less OP
+            this.spawnInterval = 2.0; // Slower spawn
         }
         else {
             this.radius = 35 + Math.random() * 8;
@@ -168,7 +168,7 @@ export class Node {
             
             // Type bonus: large nodes produce more
             if (this.type === 'large') {
-                healthScaling += 1.0; // Large nodes get +100% production
+                healthScaling += 0.5; // Large nodes get +50% production (reduced from 100%)
             }
             
             // Cluster bonus: more defenders = more production

@@ -68,7 +68,15 @@ export class UIManager {
         ctx.fillStyle = '#fff';
 
         ctx.fillText(`UNIDADES: ${this.game.state.entities.filter(e => e.owner === playerIndex).length}`, 20, boxY + 20);
-        ctx.fillText(`SELECCIONADOS: ${this.game.systems.selection.selectedEntities.size}`, 20, boxY + 40);
+        
+        // Live production counter - simple count
+        const stats = this.game.state.stats;
+        const myProduced = stats?.unitsProduced?.[playerIndex] || 0;
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText(`PRODUCIDAS: ${myProduced}`, 20, boxY + 38);
+        ctx.fillStyle = '#fff';
+        
+        ctx.fillText(`SELECCIONADOS: ${this.game.systems.selection.selectedEntities.size}`, 20, boxY + 56);
 
         if (this.game.systems.selection.selectedNodes.size > 0) {
             ctx.fillStyle = '#ff0';
