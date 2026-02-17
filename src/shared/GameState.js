@@ -123,7 +123,8 @@ export class GameState {
                 maxStock: n.maxStock, spawnProgress: n.spawnProgress || 0,
                 rallyPoint: n.rallyPoint,
                 hitFlash: n.hitFlash || 0,
-                spawnEffect: n.spawnEffect || 0
+                spawnEffect: n.spawnEffect || 0,
+                enemyPressure: n.enemyPressure || false
             })),
             entities: this.entities.map(e => ({
                 id: e.id, x: e.x, y: e.y, owner: e.owner, radius: e.radius,

@@ -80,7 +80,14 @@ export class Renderer {
             const isFull = node.baseHp >= node.maxHp;
             
             // Use player color when full, white otherwise
-            const progressColor = isFull ? baseColor : '#ffffff';
+            let progressColor = isFull ? baseColor : '#ffffff';
+            
+            // If under enemy pressure, flash between red and normal
+            if (node.enemyPressure) {
+                const flash = Math.sin(Date.now() / 150) > 0;
+                progressColor = flash ? '#ff0000' : progressColor;
+            }
+            
             const lineWidth = isFull ? (3 * camera.zoom) : (2 * camera.zoom);
             
             this.ctx.beginPath();

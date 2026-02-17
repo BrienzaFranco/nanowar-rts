@@ -32,7 +32,7 @@ export class Node {
         this.spawnEffect = 0;
         this.spawnTimer = 0;
         this.spawnProgress = 0;
-        this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null;
+        this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null; this.enemyPressure = false;
         this.areaDefenders = []; this.allAreaDefenders = [];
     }
 
@@ -105,6 +105,20 @@ export class Node {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
+        
+        // Check if enemies outnumber us in area - pause spawning
+        this.enemyPressure = false;
+        if (this.owner !== -1 && this.areaDefenders) {
+            const myDefenders = this.areaDefenders.length;
+            let enemyInArea = 0;
+            for (let e of this.allAreaDefenders) {
+                if (e.owner !== this.owner) enemyInArea++;
+            }
+            // If enemies outnumber us, pause spawn
+            if (enemyInArea > myDefenders) {
+                this.enemyPressure = true;
+            }
+        }
 
         if (this.owner !== -1) {
             // Heal node slowly if not at max
@@ -135,7 +149,8 @@ export class Node {
             const spawnThreshold = this.spawnInterval / healthScaling;
 
             // Always spawn when ready - full nodes spawn faster (20% bonus)
-            if (this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
+            // But don't spawn if under enemy pressure
+            if (!this.enemyPressure && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 this.spawnTimer = 0;
 
                 // Spawn at middle of influence radius (not too close to edge, not too close to center)
