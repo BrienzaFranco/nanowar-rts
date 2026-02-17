@@ -19,7 +19,7 @@ export class GameState {
 
         // optimizations
         this.spatialGrid = new SpatialGrid(this.worldWidth, this.worldHeight, 80); // 80px cells
-        this.maxEntitiesPerPlayer = 800; // Increased to 800 per user feedback
+        this.maxEntitiesPerPlayer = 1000; // Increased to 1000 per user feedback
         this.unitCounts = {}; // Cache unit counts per player for capping
 
         // Statistics tracking
