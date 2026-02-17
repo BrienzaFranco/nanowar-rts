@@ -19,7 +19,7 @@ export class GameState {
 
         // optimizations
         this.spatialGrid = new SpatialGrid(this.worldWidth, this.worldHeight, 80); // 80px cells
-        this.maxEntitiesPerPlayer = 150;
+        this.maxEntitiesPerPlayer = 800; // Increased to 800 per user feedback
         this.unitCounts = {}; // Cache unit counts per player for capping
 
         // Statistics tracking
@@ -47,8 +47,9 @@ export class GameState {
             ent.grid = this.spatialGrid; // Update ref if needed, or just pass it
         });
 
-        // Count units for capping
+        // Count units and production rates per player
         this.unitCounts = {};
+        this.productionRates = {};
         this.entities.forEach(ent => {
             if (!ent.dead) {
                 this.unitCounts[ent.owner] = (this.unitCounts[ent.owner] || 0) + 1;
@@ -69,6 +70,11 @@ export class GameState {
 
                 // Add new entity to grid immediately so it interacts
                 this.spatialGrid.addObject(newEntity);
+            }
+
+            // Aggregate production rates
+            if (node.owner !== -1) {
+                this.productionRates[node.owner] = (this.productionRates[node.owner] || 0) + (node.currentProductionRate || 0);
             }
         });
 
@@ -182,7 +188,8 @@ export class GameState {
             speedMultiplier: this.speedMultiplier,
             accelerationEnabled: this.accelerationEnabled,
             showProduction: this.showProduction,
-            stats: this.getStats()
+            stats: this.getStats(),
+            productionRates: this.productionRates
         };
     }
 }

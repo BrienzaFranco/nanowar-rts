@@ -167,6 +167,10 @@ export class Node {
             healthScaling += clusterBonus;
 
             const spawnThreshold = this.spawnInterval / healthScaling;
+
+            // Store current production rate for UI (units per second)
+            // If neutral, production is effectively 0 for player stats
+            this.currentProductionRate = (this.owner !== -1) ? (1 / spawnThreshold) : 0;
             // Player must click to spawn units
             if (!this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 // Auto spawn is disabled - just reset timer and show progress
