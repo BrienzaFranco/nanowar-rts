@@ -92,8 +92,11 @@ export class Renderer {
 
             const lineWidth = isFull ? (3 * camera.zoom) : (2 * camera.zoom);
 
+            // Cap at 1.0 to prevent visual overflow/looping
+            const progress = Math.min(1.0, node.spawnProgress);
+
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + node.spawnProgress * Math.PI * 2);
+            this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
             this.ctx.strokeStyle = progressColor;
             this.ctx.lineWidth = lineWidth;
             this.ctx.stroke();
@@ -218,7 +221,10 @@ export class Renderer {
                 const g = parseInt(playerColor.slice(3, 5), 16);
                 const b = parseInt(playerColor.slice(5, 7), 16);
 
-                // Draw entity with player color
+                // Draw entity with player color - BRIGHTER
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'lighter';
+
                 this.ctx.beginPath();
                 this.ctx.arc(absorbScreen.x, absorbScreen.y, currentRadius, 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
@@ -228,6 +234,8 @@ export class Renderer {
                 this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.5})`;
                 this.ctx.lineWidth = 2 * camera.zoom;
                 this.ctx.stroke();
+
+                this.ctx.restore();
             }
             return;
         }
@@ -237,6 +245,26 @@ export class Renderer {
         this.ctx.arc(screen.x + 1, screen.y + 1, sr, 0, Math.PI * 2);
         this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
         this.ctx.fill();
+
+        // Trail Effect (Estelita) in Friendly Territory
+        if (entity.hasSpeedBoost && !entity.dying) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(screen.x, screen.y);
+            // Draw a short trail opposite to velocity
+            // We don't have vx/vy normalized here easily, but we can use entity.vx/vy
+            const speed = Math.sqrt(entity.vx * entity.vx + entity.vy * entity.vy);
+            if (speed > 10) {
+                const trailLen = 8 * camera.zoom; // Short trail
+                const nx = entity.vx / speed;
+                const ny = entity.vy / speed;
+                this.ctx.lineTo(screen.x - nx * trailLen, screen.y - ny * trailLen);
+                this.ctx.strokeStyle = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
+                this.ctx.lineWidth = 2 * camera.zoom;
+                this.ctx.globalAlpha = 0.6;
+                this.ctx.stroke();
+                this.ctx.globalAlpha = 1.0;
+            }
+        }
 
         // Body
         this.ctx.beginPath();

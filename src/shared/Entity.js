@@ -168,6 +168,7 @@ export class Entity {
 
         // Calculate max speed
         let currentMaxSpeed = this.maxSpeed;
+        this.hasSpeedBoost = inFriendlyTerritory; // Flag for renderer trail
         if (inFriendlyTerritory) {
             currentMaxSpeed *= 1.4; // 40% boost in allied territory
         }
