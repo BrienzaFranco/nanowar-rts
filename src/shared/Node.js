@@ -15,8 +15,8 @@ export class Node {
         else if (type === 'large') {
             this.radius = 55 + Math.random() * 15;
             this.influenceRadius = this.radius * 3;
-            this.maxHp = 400; // Much more HP
-            this.spawnInterval = 1.5; // Faster spawn
+            this.maxHp = 250; // Balanced HP - strong but not too strong
+            this.spawnInterval = 1.8; // Slightly slower spawn
         }
         else {
             this.radius = 35 + Math.random() * 8;

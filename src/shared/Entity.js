@@ -92,17 +92,17 @@ export class Entity {
             const dirDot = currentDirX * this.directionX + currentDirY * this.directionY;
             
             if (dirDot > 0.7) {
-                // Same direction - accelerate
+                // Same direction - accelerate (slower, max 50% boost)
                 this.timeInDirection += dt;
-                speedBoost = 1.0 + Math.min(this.timeInDirection * 0.5, 1.5); // Up to 2.5x
+                speedBoost = 1.0 + Math.min(this.timeInDirection * 0.125, 0.5); // Up to 1.5x over 4 seconds
             } else if (dirDot < -0.3) {
-                // Opposite direction - strong penalty
+                // Opposite direction - penalty
                 this.timeInDirection = 0;
-                speedBoost = 0.3; // Very slow
+                speedBoost = 0.7; // Reduced penalty
             } else {
                 // Changing direction somewhat
                 this.timeInDirection = Math.max(0, this.timeInDirection - dt * 2);
-                speedBoost = 1.0 + this.timeInDirection * 0.3;
+                speedBoost = 1.0 + this.timeInDirection * 0.1;
             }
             
             this.directionX = currentDirX;
