@@ -110,6 +110,7 @@ export class Node {
             this.stock = 0;
             this.hasSpawnedThisCycle = false;
             this.rallyPoint = null;
+            this.justCapturedBy = attackerId; // Flag for GameState stats
             if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
             return true;
         }

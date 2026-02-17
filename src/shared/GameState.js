@@ -28,6 +28,7 @@ export class GameState {
             unitsProduced: {}, // playerId -> count
             unitsLost: {}, // playerId -> count
             unitsCurrent: {}, // playerId -> current count
+            capturedNodes: {}, // playerId -> count
             history: [], // { time, playerId, count }
             productionHistory: [] // { time, playerId, rate, total }
         };
@@ -72,6 +73,13 @@ export class GameState {
                 this.spatialGrid.addObject(newEntity);
             }
 
+            // Track captures
+            if (node.justCapturedBy !== undefined) {
+                const pid = node.justCapturedBy;
+                this.stats.capturedNodes[pid] = (this.stats.capturedNodes[pid] || 0) + 1;
+                node.justCapturedBy = undefined;
+            }
+
             // Aggregate production rates
             if (node.owner !== -1) {
                 this.productionRates[node.owner] = (this.productionRates[node.owner] || 0) + (node.currentProductionRate || 0);
@@ -110,18 +118,20 @@ export class GameState {
             }
         }
 
-        // Record production rate every 15 seconds
-        if (now - (this.stats.lastProductionRecord || 0) > 15000) {
+        // Record production rate every 5 seconds (more granular for graph)
+        if (now - (this.stats.lastProductionRecord || 0) > 5000) {
             this.stats.lastProductionRecord = now;
             const elapsed = (now - this.stats.startTime) / 60000;
             for (let pid in this.stats.unitsProduced) {
-                const produced = this.stats.unitsProduced[pid] || 0;
-                const rate = elapsed > 0 ? Math.round(produced / elapsed) : 0;
+                // Use current production rate from nodes logic (units/sec -> units/min)
+                const currentRate = this.productionRates[pid] || 0;
+                const ratePerMin = Math.round(currentRate * 60);
+
                 this.stats.productionHistory.push({
                     time: elapsed,
                     playerId: parseInt(pid),
-                    rate: rate,
-                    total: produced
+                    rate: ratePerMin,
+                    total: this.stats.unitsProduced[pid] || 0
                 });
             }
         }
@@ -141,6 +151,7 @@ export class GameState {
             produced: {},
             lost: {},
             current: {},
+            captured: {},
             history: this.stats.history,
             productionHistory: this.stats.productionHistory
         };
@@ -161,6 +172,10 @@ export class GameState {
 
         for (let pid in this.stats.unitsCurrent) {
             result.current[pid] = this.stats.unitsCurrent[pid];
+        }
+
+        for (let pid in this.stats.capturedNodes) {
+            result.captured[pid] = this.stats.capturedNodes[pid];
         }
 
         return result;

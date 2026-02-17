@@ -137,6 +137,14 @@ export class AIController {
         if (this.difficulty === 'Hard') attackPercent = 0.65;
         if (this.difficulty === 'Easy') attackPercent = 0.05; // Only 5% of units attack!
 
+        // Sort units by distance to source node (descending)
+        // This ensures we send the FURTHEST units first, keeping the CLOSEST ones as defenders
+        units.sort((a, b) => {
+            const distSqA = (a.x - sourceNode.x) ** 2 + (a.y - sourceNode.y) ** 2;
+            const distSqB = (b.x - sourceNode.x) ** 2 + (b.y - sourceNode.y) ** 2;
+            return distSqB - distSqA; // Descending order
+        });
+
         const count = Math.ceil(units.length * Math.min(attackPercent, 0.95));
         const attackers = units.slice(0, count);
 

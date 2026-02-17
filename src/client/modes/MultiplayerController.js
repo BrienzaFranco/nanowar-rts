@@ -172,12 +172,20 @@ export class MultiplayerController {
                     const current = stats.current[pid] || 0;
                     const prodPerMin = stats.produced[pid]?.perMinute || 0;
 
+                    const captured = stats.captured[pid] || 0;
+
                     statsHTML += `
-                        <div style="color: ${pColor}; margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
-                            <strong>${pName}</strong><br>
-                            Producidas: ${produced} (${prodPerMin}/min)<br>
-                            Perdidas: ${lostUnits}<br>
-                            Actuales: ${current}
+                        <div style="color: ${pColor}; margin: 8px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 3px solid ${pColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <strong style="font-size: 14px;">${pName}</strong>
+                                <span style="font-size: 10px; opacity: 0.7;">CAPTURAS: ${captured}</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; opacity: 0.8;">
+                                <span>Producidas: ${produced}</span>
+                                <span>Promedio: ${prodPerMin}/m</span>
+                                <span>Perdidas: ${lostUnits}</span>
+                                <span>Actuales: ${current}</span>
+                            </div>
                         </div>
                     `;
                 }

@@ -225,7 +225,7 @@
             <div class="menu-container">
                 <h1 class="game-title">NANOWAR</h1>
                 <p class="game-subtitle">Guerra de Nodos <span id="game-version"
-                        style="opacity: 0.4; font-size: 10px;">v5.0.0</span></p>
+                        style="opacity: 0.4; font-size: 10px;">Performance Update</span></p>
 
                 <div class="player-input">
                     <label for="player-name">Comandante</label>
@@ -309,32 +309,35 @@
                     style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px;">
                     <p style="font-size: 13px; color: white;">Esperando a otros comandantes...</p>
                 </div>
-                
+
                 <!-- Room Settings -->
-                <div style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; text-align: left;">
-                    <h3 style="color: #4CAF50; font-size: 12px; margin-bottom: 15px; letter-spacing: 2px;">CONFIGURACIÓN</h3>
-                    
+                <div
+                    style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; text-align: left;">
+                    <h3 style="color: #4CAF50; font-size: 12px; margin-bottom: 15px; letter-spacing: 2px;">CONFIGURACIÓN
+                    </h3>
+
                     <div style="margin-bottom: 12px;">
                         <label style="color: #888; font-size: 11px;">Velocidad de unidades</label>
-                        <select id="speed-setting" style="width: 100%; padding: 6px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; margin-top: 4px;">
+                        <select id="speed-setting"
+                            style="width: 100%; padding: 6px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; margin-top: 4px;">
                             <option value="0.5">Lento (0.5x)</option>
                             <option value="1" selected>Normal (1x)</option>
                             <option value="1.5">Rápido (1.5x)</option>
                             <option value="2">Muy rápido (2x)</option>
                         </select>
                     </div>
-                    
+
                     <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" id="accel-setting" checked style="width: 16px; height: 16px;">
                         <label style="color: #888; font-size: 11px;">Aceleración enabled</label>
                     </div>
-                    
+
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <input type="checkbox" id="production-setting" checked style="width: 16px; height: 16px;">
                         <label style="color: #888; font-size: 11px;">Mostrar producción en vivo</label>
                     </div>
                 </div>
-                
+
                 <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
                     <button id="ready-btn" class="btn-primary" style="flex: 1;">ESTOY LISTO</button>
                     <button onclick="location.reload()" class="btn-secondary" style="flex: 1;">SALIR</button>
@@ -343,13 +346,18 @@
         </div>
 
         <div id="game-screen" class="screen" style="display: none;">
-            <div id="ui-top" style="position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">
+            <div id="ui-top"
+                style="position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">
                 <h1 style="margin: 0; color: white; font-size: 18px; text-shadow: 0 0 10px black;">NANOWAR</h1>
                 <div style="pointer-events: auto; display: flex; gap: 10px;">
-                    <button id="mute-btn" title="Silenciar" style="background: rgba(76,175,80,0.8); color: white; border: 1px solid #4CAF50; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 16px;">🔊</button>
-                    <button id="surrender-btn" style="background: rgba(244,67,54,0.8); color: white; border: 1px solid #f44336; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; display: none;">RENDIRSE</button>
-                    <button id="reset-btn" style="background: rgba(76,175,80,0.8); color: white; border: 1px solid #4CAF50; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace;">REINICIAR</button>
-                    <button id="menu-btn" style="background: rgba(128,128,128,0.8); color: white; border: 1px solid #888; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace;">MENU</button>
+                    <button id="mute-btn" title="Silenciar"
+                        style="background: rgba(76,175,80,0.8); color: white; border: 1px solid #4CAF50; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 16px;">🔊</button>
+                    <button id="surrender-btn"
+                        style="background: rgba(244,67,54,0.8); color: white; border: 1px solid #f44336; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; display: none;">RENDIRSE</button>
+                    <button id="reset-btn"
+                        style="background: rgba(76,175,80,0.8); color: white; border: 1px solid #4CAF50; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace;">REINICIAR</button>
+                    <button id="menu-btn"
+                        style="background: rgba(128,128,128,0.8); color: white; border: 1px solid #888; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace;">MENU</button>
                 </div>
             </div>
             <canvas id="game-canvas"></canvas>
@@ -410,7 +418,7 @@
                 if (!window.multiplayer) {
                     window.initGame('multiplayer');
                 }
-                
+
                 // Wait for socket to connect then list rooms
                 setTimeout(() => {
                     if (window.multiplayer && window.multiplayer.socket) {
@@ -442,8 +450,8 @@
                     </div>
                 `).join('');
             };
-            
-            window.joinRoom = function(roomId) {
+
+            window.joinRoom = function (roomId) {
                 if (window.multiplayer) {
                     window.multiplayer.joinRoom(roomId);
                 }
