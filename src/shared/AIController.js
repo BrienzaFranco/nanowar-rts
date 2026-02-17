@@ -16,7 +16,7 @@ export class AIController {
 
         // Set interval based on difficulty - Easy is VERY slow
         const baseIntervals = {
-            'Easy': 3.5,
+            'Easy': 5.0,
             'Normal': 1.2,
             'Hard': 0.8,
             'Nightmare': 0.4
@@ -57,7 +57,7 @@ export class AIController {
             // For Easy: prioritize neutrals over attacking
             if (this.difficulty === 'Easy' && neutralNodes.length > 0) {
                 // Easy AI focuses on expansion, rarely attacks
-                minDefendersToStay = 25; // Very defensive
+                minDefendersToStay = 30; // Super defensive!
             }
 
             // Heal check for Defensive
@@ -92,7 +92,7 @@ export class AIController {
                         if (this.personality === 'aggressive') attackWeight = 2.5;
                         if (this.difficulty === 'Nightmare') attackWeight = 3.0;
                         if (this.difficulty === 'Hard') attackWeight = 2.0;
-                        if (this.difficulty === 'Easy') attackWeight = 0.3; // Rarely attacks enemies!
+                        if (this.difficulty === 'Easy') attackWeight = 0.1; // Almost never attacks enemies!
                         if (this.difficulty === 'Hard' || this.difficulty === 'Nightmare') {
                             // Target weak enemy nodes
                             if (target.hp < target.maxHp * 0.4) attackWeight *= 2.0;
@@ -135,7 +135,7 @@ export class AIController {
         if (this.personality === 'aggressive') attackPercent = 0.8;
         if (this.difficulty === 'Nightmare') attackPercent = 0.9;
         if (this.difficulty === 'Hard') attackPercent = 0.65;
-        if (this.difficulty === 'Easy') attackPercent = 0.15; // Very few units attack!
+        if (this.difficulty === 'Easy') attackPercent = 0.05; // Only 5% of units attack!
 
         const count = Math.ceil(units.length * Math.min(attackPercent, 0.95));
         const attackers = units.slice(0, count);
