@@ -15,8 +15,8 @@ export class Node {
         else if (type === 'large') {
             this.radius = 55 + Math.random() * 15;
             this.influenceRadius = this.radius * 3;
-            this.maxHp = 200;
-            this.spawnInterval = 2.0;
+            this.maxHp = 400; // Much more HP
+            this.spawnInterval = 1.5; // Faster spawn
         }
         else {
             this.radius = 35 + Math.random() * 8;
@@ -35,9 +35,29 @@ export class Node {
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null; this.enemyPressure = false;
         this.areaDefenders = []; this.allAreaDefenders = [];
         this.captureBoost = 0; // 200% production boost after capture
+        this.manualSpawnReady = true; // Manual spawn mode - player must click to spawn
     }
 
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
+
+    triggerSpawn(game) {
+        // Manual spawn - spawn one unit when called
+        const spawnThreshold = this.spawnInterval / 1.0;
+        
+        // Spawn at middle of influence radius
+        const angle = Math.random() * Math.PI * 2;
+        const spawnDist = this.influenceRadius * 0.6;
+        const ex = this.x + Math.cos(angle) * spawnDist, ey = this.y + Math.sin(angle) * spawnDist;
+        const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
+        
+        if (this.rallyPoint) {
+            entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);
+        }
+        
+        this.spawnEffect = 0.4;
+        if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
+        return entity;
+    }
 
     setRallyPoint(x, y, targetNode = null) {
         this.rallyPoint = { x, y };
@@ -144,6 +164,11 @@ export class Node {
                 healthScaling += 0.5;
             }
             
+            // Type bonus: large nodes produce more
+            if (this.type === 'large') {
+                healthScaling += 1.0; // Large nodes get +100% production
+            }
+            
             // Cluster bonus: more defenders = more production
             const defenderCount = this.areaDefenders ? this.areaDefenders.length : 0;
             const clusterBonus = Math.min(defenderCount * 0.1, 0.5); // Up to 0.5 extra with 5+ defenders
@@ -154,12 +179,17 @@ export class Node {
                 healthScaling *= 2.0; // 200% boost
             }
             
-            const spawnThreshold = this.spawnInterval / healthScaling;
-
-            // Always spawn when ready - full nodes spawn faster (20% bonus)
-            // But don't spawn if under enemy pressure
-            if (!this.enemyPressure && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
+            // Spawn only when manually activated (no auto spawn)
+            // Player must click to spawn units
+            if (!this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
+                // Auto spawn is disabled - just reset timer and show progress
+                this.manualSpawnReady = true;
+            }
+            
+            // Manual spawn - when player clicks on node
+            if (this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 this.spawnTimer = 0;
+                this.manualSpawnReady = false;
 
                 // Spawn at middle of influence radius (not too close to edge, not too close to center)
                 const angle = Math.random() * Math.PI * 2;

@@ -140,6 +140,24 @@ export class Entity {
             this.vy = (this.vy / speed) * 3;
         }
 
+        // Better obstacle avoidance - push away from nodes
+        if (nodes) {
+            for (let node of nodes) {
+                if (node.owner !== this.owner && node.owner !== -1) {
+                    const dx = this.x - node.x;
+                    const dy = this.y - node.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const avoidDist = node.influenceRadius * 0.8;
+                    
+                    if (dist < avoidDist && dist > 0) {
+                        const force = (avoidDist - dist) / avoidDist * 100;
+                        this.vx += (dx / dist) * force * dt;
+                        this.vy += (dy / dist) * force * dt;
+                    }
+                }
+            }
+        }
+        
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
