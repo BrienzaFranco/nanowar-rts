@@ -58,37 +58,36 @@ export class SingleplayerController {
 
     update(dt) {
         this.ais.forEach(ai => ai.update(dt));
-        
+
         if (this.gameOverShown) return;
-        
+
         const playerNodes = this.game.state.nodes.filter(n => n.owner === 0);
         const enemyNodes = this.game.state.nodes.filter(n => n.owner > 0);
-        const playerEntities = this.game.state.entities.filter(e => e.owner === 0 && !e.dead && !e.dying);
-        const enemyEntities = this.game.state.entities.filter(e => e.owner > 0 && !e.dead && !e.dying);
-        
-        const playerHasUnits = playerNodes.length > 0 || playerEntities.length > 0;
-        const enemiesAlive = enemyNodes.length > 0 || enemyEntities.length > 0;
-        
-        if (!playerHasUnits) {
+
+        // Victory/defeat based on nodes only (units don't matter)
+        const playerHasNodes = playerNodes.length > 0;
+        const enemiesHaveNodes = enemyNodes.length > 0;
+
+        if (!playerHasNodes) {
             this.showGameOver(false);
-        } else if (!enemiesAlive) {
+        } else if (!enemiesHaveNodes) {
             this.showGameOver(true);
         }
     }
-    
+
     showGameOver(won) {
         this.gameOverShown = true;
         this.game.gameOverShown = true;
-        
+
         if (won) {
             sounds.playWin();
         } else {
             sounds.playLose();
         }
-        
+
         const msg = won ? '¡VICTORIA!' : 'DERROTA';
         const color = won ? '#4CAF50' : '#f44336';
-        
+
         const overlay = document.createElement('div');
         overlay.id = 'game-over-overlay';
         overlay.style.cssText = `
@@ -98,10 +97,10 @@ export class SingleplayerController {
             align-items: center; justify-content: center;
             font-family: 'Courier New', monospace;
         `;
-        
+
         overlay.innerHTML = `
             <h1 style="color: ${color}; font-size: 48px; margin-bottom: 20px; letter-spacing: 8px;">${msg}</h1>
-            <p style="color: #888; font-size: 14px;">${won ? 'Has vencido a todos los enemigos!' : 'Has perdido todas tus unidades...'}</p>
+            <p style="color: #888; font-size: 14px;">${won ? 'Has capturado todos los nodos enemigos!' : 'Has perdido todos tus nodos...'}</p>
             <button onclick="location.reload()" style="
                 margin-top: 30px; padding: 15px 40px;
                 background: ${color}; border: none; border-radius: 4px;
@@ -110,7 +109,7 @@ export class SingleplayerController {
                 JUGAR DE NUEVO
             </button>
         `;
-        
+
         document.body.appendChild(overlay);
     }
 }

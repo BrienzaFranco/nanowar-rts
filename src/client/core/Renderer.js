@@ -78,91 +78,23 @@ export class Renderer {
         // Spawn Progress - player color when full, white otherwise
         if (node.owner !== -1 && node.spawnProgress > 0) {
             const isFull = node.baseHp >= node.maxHp;
-            
+
             // Use player color when full, white otherwise
             let progressColor = isFull ? baseColor : '#ffffff';
-            
+
             // If under enemy pressure, flash between red and normal
             if (node.enemyPressure) {
                 const flash = Math.sin(Date.now() / 150) > 0;
                 progressColor = flash ? '#ff0000' : progressColor;
             }
-            
+
             const lineWidth = isFull ? (3 * camera.zoom) : (2 * camera.zoom);
-            
+
             this.ctx.beginPath();
             this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + node.spawnProgress * Math.PI * 2);
             this.ctx.strokeStyle = progressColor;
             this.ctx.lineWidth = lineWidth;
             this.ctx.stroke();
-        }
-
-        // Capture Aura - expanding circle animation
-        if (node.captureAura > 0) {
-            const auraProgress = 1 - (node.captureAura / 5); // 0 to 1 over 5 seconds
-            const auraRadius = sir + (auraProgress * 300 * camera.zoom); // Expand to 300 units
-            const auraAlpha = 1 - auraProgress; // Fade out
-            
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, auraRadius, 0, Math.PI * 2);
-            this.ctx.strokeStyle = `rgba(${areaColor},${auraAlpha * 0.5})`;
-            this.ctx.lineWidth = 3 * camera.zoom;
-            this.ctx.stroke();
-        }
-
-        // BOOSTED NODE EFFECTS - Make buffed nodes very visible
-        const isBoosted = node.captureBoost > 0 || node.nearbyAuraBoost;
-        
-        if (isBoosted && node.owner !== -1) {
-            // Pulsing glow effect - LARGER
-            const pulseSpeed = node.captureBoost > 0 ? 200 : 400; // Faster pulse for capture boost
-            const pulseIntensity = (Math.sin(Date.now() / pulseSpeed) + 1) / 2; // 0 to 1
-            const glowRadius = sr + (15 + pulseIntensity * 25) * camera.zoom; // Increased size
-            const glowAlpha = 0.4 + pulseIntensity * 0.5; // More visible
-            
-            // Outer glow - LARGER and more visible
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, glowRadius, 0, Math.PI * 2);
-            this.ctx.fillStyle = `rgba(${areaColor},${glowAlpha * 0.4})`;
-            this.ctx.fill();
-            
-            // Second outer ring
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, glowRadius * 0.7, 0, Math.PI * 2);
-            this.ctx.fillStyle = `rgba(${areaColor},${glowAlpha * 0.3})`;
-            this.ctx.fill();
-            
-            // Inner bright ring - THICKER
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr + 12 * camera.zoom, 0, Math.PI * 2);
-            this.ctx.strokeStyle = `rgba(${areaColor},${glowAlpha})`;
-            this.ctx.lineWidth = 6 * camera.zoom; // Thicker
-            this.ctx.stroke();
-            
-            // Rotating sparkles effect - MORE and BIGGER
-            const sparkleCount = node.captureBoost > 0 ? 8 : 5; // More sparkles
-            const sparkleSpeed = Date.now() / 300;
-            for (let i = 0; i < sparkleCount; i++) {
-                const angle = (i / sparkleCount) * Math.PI * 2 + sparkleSpeed;
-                const sparkleDist = (sr + 20 + pulseIntensity * 15) * camera.zoom; // Further out
-                const sx = screen.x + Math.cos(angle) * sparkleDist;
-                const sy = screen.y + Math.sin(angle) * sparkleDist;
-                
-                this.ctx.beginPath();
-                this.ctx.arc(sx, sy, 3 * camera.zoom, 0, Math.PI * 2); // Larger sparkles
-                this.ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulseIntensity * 0.3})`;
-                this.ctx.fill();
-            }
-            
-            // Boost indicator text - BIGGER
-            this.ctx.font = `bold ${14 * camera.zoom}px monospace`; // Larger font
-            this.ctx.fillStyle = '#FFD700'; // Gold color
-            this.ctx.textAlign = 'center';
-            this.ctx.shadowColor = '#000';
-            this.ctx.shadowBlur = 4;
-            const boostText = node.captureBoost > 0 ? '⚡ 200%' : '⚡ 100%';
-            this.ctx.fillText(boostText, screen.x, screen.y - sr - 28 * camera.zoom); // Higher up
-            this.ctx.shadowBlur = 0;
         }
 
         // Node Body (Radial Fill)
@@ -246,12 +178,49 @@ export class Renderer {
                 this.ctx.arc(screen.x, screen.y, sr * (1 - progress * 0.8), 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
                 this.ctx.fill();
-            } else if (entity.deathType === 'attack' || entity.deathType === 'sacrifice') {
+            } else if (entity.deathType === 'attack') {
                 const flash = Math.sin(progress * Math.PI * 6) * 0.5 + 0.5;
                 this.ctx.beginPath();
                 this.ctx.arc(screen.x, screen.y, sr * (1 + progress * 2), 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 100, 100, ${flash * 0.4 * (1 - progress)})`;
                 this.ctx.fill();
+            } else if (entity.deathType === 'sacrifice' && entity.absorbTarget) {
+                // Absorption animation - move toward node center and fade out
+                const node = entity.absorbTarget;
+
+                // Calculate position moving toward node center
+                const startX = entity.x;
+                const startY = entity.y;
+                const targetX = node.x;
+                const targetY = node.y;
+
+                // Quadratic easing for acceleration effect
+                const easeProgress = progress * progress;
+                const currentX = startX + (targetX - startX) * easeProgress;
+                const currentY = startY + (targetY - startY) * easeProgress;
+
+                const absorbScreen = camera.worldToScreen(currentX, currentY);
+
+                // Shrink and fade
+                const currentRadius = sr * (1 - progress * 0.7); // Shrink to 30%
+                const alpha = 1 - progress; // Fade out
+
+                // Get player color
+                const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
+                const r = parseInt(playerColor.slice(1, 3), 16);
+                const g = parseInt(playerColor.slice(3, 5), 16);
+                const b = parseInt(playerColor.slice(5, 7), 16);
+
+                // Draw entity with player color
+                this.ctx.beginPath();
+                this.ctx.arc(absorbScreen.x, absorbScreen.y, currentRadius, 0, Math.PI * 2);
+                this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                this.ctx.fill();
+
+                // Trail effect
+                this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.5})`;
+                this.ctx.lineWidth = 2 * camera.zoom;
+                this.ctx.stroke();
             }
             return;
         }

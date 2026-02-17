@@ -34,9 +34,6 @@ export class Node {
         this.spawnProgress = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null; this.enemyPressure = false;
         this.areaDefenders = []; this.allAreaDefenders = [];
-        this.captureBoost = 0; // 200% production boost after capture
-        this.captureAura = 0; // Aura timer for nearby nodes boost
-        this.auraOwner = -1; // Who created the aura
     }
 
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
@@ -85,7 +82,7 @@ export class Node {
                 return false; // Can't capture nodes
             }
         }
-        
+
         this.hitFlash = 0.3;
         const attackerColor = PLAYER_COLORS[attackerId % PLAYER_COLORS.length];
         if (game) game.spawnParticles(this.x, this.y, attackerColor, 3, 'hit');
@@ -98,9 +95,6 @@ export class Node {
             this.stock = 0;
             this.hasSpawnedThisCycle = false;
             this.rallyPoint = null;
-            this.captureBoost = 15; // 15 second 200% production boost
-            this.captureAura = 5; // 5 second aura for nearby nodes
-            this.auraOwner = attackerId; // Track who created the aura
             if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
             return true;
         }
@@ -111,9 +105,7 @@ export class Node {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
-        if (this.captureBoost > 0) this.captureBoost -= dt;
-        if (this.captureAura > 0) this.captureAura -= dt;
-        
+
         // Check if enemies outnumber us in area - pause spawning
         this.enemyPressure = false;
         if (this.owner !== -1 && this.areaDefenders) {
@@ -127,23 +119,6 @@ export class Node {
                 this.enemyPressure = true;
             }
         }
-        
-        // Check for nearby capture auras (from other nodes)
-        this.nearbyAuraBoost = false;
-        if (allNodes && this.owner !== -1) {
-            for (let otherNode of allNodes) {
-                if (otherNode !== this && otherNode.captureAura > 0 && otherNode.auraOwner === this.owner) {
-                    const dx = this.x - otherNode.x;
-                    const dy = this.y - otherNode.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    // Aura radius = 300 (larger than influence radius)
-                    if (dist < 300) {
-                        this.nearbyAuraBoost = true;
-                        break;
-                    }
-                }
-            }
-        }
 
         if (this.owner !== -1) {
             // Heal node slowly if not at max
@@ -154,45 +129,35 @@ export class Node {
 
             // Check if node is full (100%+ health = bonus production)
             const isFull = this.baseHp >= this.maxHp;
-            
+
             this.spawnTimer += dt;
             const healthPercent = Math.min(this.baseHp / this.maxHp, 1.0);
-            
+
             // Base generation: 0.5 at 0% HP, up to 1.5 at 100% HP (3x faster)
             let healthScaling = 0.5 + healthPercent * 1.0;
-            
+
             // Extra bonus at full health (0.5 extra = up to 2x total)
             if (isFull) {
                 healthScaling += 0.5;
             }
-            
+
             // Type bonus: large nodes produce more
             if (this.type === 'large') {
                 healthScaling += 0.5; // Large nodes get +50% production (reduced from 100%)
             }
-            
+
             // Cluster bonus: more defenders = more production
             const defenderCount = this.areaDefenders ? this.areaDefenders.length : 0;
             const clusterBonus = Math.min(defenderCount * 0.1, 0.5); // Up to 0.5 extra with 5+ defenders
             healthScaling += clusterBonus;
-            
-            // Capture boost: 200% production for 15 seconds after capture
-            if (this.captureBoost > 0) {
-                healthScaling *= 2.0; // 200% boost
-            }
-            
-            // Nearby aura boost: 100% production for 5 seconds from captured nodes
-            if (this.nearbyAuraBoost) {
-                healthScaling *= 2.0; // 100% boost (x2 total)
-            }
-            
+
             const spawnThreshold = this.spawnInterval / healthScaling;
             // Player must click to spawn units
             if (!this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 // Auto spawn is disabled - just reset timer and show progress
                 this.manualSpawnReady = true;
             }
-            
+
             // Manual spawn - when player clicks on node
             if (this.manualSpawnReady && this.spawnTimer >= spawnThreshold && this.baseHp > (this.maxHp * 0.1)) {
                 this.spawnTimer = 0;
@@ -203,19 +168,19 @@ export class Node {
                 const spawnDist = this.influenceRadius * 0.6; // 60% from center
                 const ex = this.x + Math.cos(angle) * spawnDist, ey = this.y + Math.sin(angle) * spawnDist;
                 const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
-                
+
                 // If no rally point, just stay there floating (no target)
                 if (!this.rallyPoint) {
                     // No target - will float in place with random movement
                 } else {
                     entity.setTarget(this.rallyPoint.x, this.rallyPoint.y, this.rallyTargetNode);
                 }
-                
+
                 this.spawnEffect = 0.4;
                 if (game) game.spawnParticles(this.x, this.y, this.getColor(), 6, 'explosion');
                 return entity;
             }
-            
+
             // Show progress
             this.spawnProgress = this.spawnTimer / spawnThreshold;
         } else {

@@ -57,13 +57,13 @@ export class MultiplayerController {
 
         this.socket.on('gameStart', (initialState) => {
             console.log('Game starting!');
-            
+
             // Clear existing state and initialize from server
             this.game.state = new GameState();
             this.game.state.nodes = [];
             this.game.state.entities = [];
             this.game.state.playerCount = initialState.playerCount || this.game.state.playerCount;
-            
+
             // Apply initial state
             if (initialState.nodes) {
                 initialState.nodes.forEach(sn => {
@@ -77,7 +77,7 @@ export class MultiplayerController {
                     this.game.state.nodes.push(node);
                 });
             }
-            
+
             // Spawn initial entities for all players - MORE units for multiplayer
             this.game.state.nodes.forEach(node => {
                 if (node.owner !== -1) {
@@ -99,14 +99,14 @@ export class MultiplayerController {
             const gameScreen = document.getElementById('game-screen');
             if (lobby) lobby.style.display = 'none';
             if (gameScreen) gameScreen.style.display = 'block';
-            
+
             this.game.resize();
             this.game.start();
         });
 
         this.socket.on('playerDefeated', (data) => {
             const isMe = data.playerIndex === this.playerIndex;
-            
+
             if (isMe) {
                 this.playerDefeated = true;
                 // Show small notification
@@ -125,7 +125,7 @@ export class MultiplayerController {
         this.socket.on('gameState', (serverState) => {
             // Stop syncing after game over
             if (this.game.gameOverShown) return;
-            
+
             // Keep syncing always for defeated players who can still play
             if (this.game.running || this.playerDefeated) {
                 this.syncState(serverState);
@@ -135,34 +135,34 @@ export class MultiplayerController {
         this.socket.on('gameOver', (data) => {
             const won = data.winner === this.playerIndex;
             const lost = data.winner !== -1 && data.winner !== this.playerIndex;
-            
+
             // Keep game running even if lost - players can still move units
             this.gameLost = lost;
-            
+
             // Mark game as over to stop receiving states
             if (this.game) this.game.gameOverShown = true;
-            
+
             // Play win/lose sound
             if (won) {
                 sounds.playWin();
             } else {
                 sounds.playLose();
             }
-            
+
             // Show overlay
             const msg = won ? '¡VICTORIA!' : (data.winner === -1 ? 'EMPATE' : 'DERROTA');
             const color = won ? '#4CAF50' : '#f44336';
-            
+
             const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4'];
-            
+
             // Generate stats HTML
             let statsHTML = '<div style="margin: 20px 0; text-align: left; font-size: 12px;">';
-            
+
             const stats = data.stats || this.game.state.getStats();
-            
+
             if (stats && stats.produced) {
                 statsHTML += `<p style="color: #888; margin-bottom: 10px;">Duración: ${Math.floor(stats.elapsed)}m ${Math.floor((stats.elapsed % 1) * 60)}s</p>`;
-                
+
                 for (let pid in stats.produced) {
                     const p = parseInt(pid);
                     const pColor = playerColors[p % playerColors.length];
@@ -171,7 +171,7 @@ export class MultiplayerController {
                     const lostUnits = stats.lost[pid]?.total || 0;
                     const current = stats.current[pid] || 0;
                     const prodPerMin = stats.produced[pid]?.perMinute || 0;
-                    
+
                     statsHTML += `
                         <div style="color: ${pColor}; margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
                             <strong>${pName}</strong><br>
@@ -183,12 +183,12 @@ export class MultiplayerController {
                 }
             }
             statsHTML += '</div>';
-            
+
             // Generate graph with production history
             const graphWidth = 400;
             const graphHeight = 150;
             let graphHTML = `<canvas id="stats-graph" width="${graphWidth}" height="${graphHeight}" style="margin: 15px 0; border: 1px solid #333; background: rgba(0,0,0,0.3);"></canvas>`;
-            
+
             const overlay = document.createElement('div');
             overlay.id = 'game-over-overlay';
             overlay.style.cssText = `
@@ -196,14 +196,14 @@ export class MultiplayerController {
                 background: rgba(0,0,0,0.85); display: flex;
                 justify-content: center; align-items: center; z-index: 1000;
             `;
-            
+
             const box = document.createElement('div');
             box.style.cssText = `
                 padding: 40px 60px; background: #141419;
                 border: 3px solid ${color}; border-radius: 12px;
                 text-align: center; position: relative;
             `;
-            
+
             box.innerHTML = `
                 <button onclick="this.parentElement.parentElement.remove(); location.href='index.html';" style="
                     position: absolute; top: 10px; right: 15px;
@@ -219,10 +219,10 @@ export class MultiplayerController {
                     border-radius: 4px; font-family: 'Courier New', monospace;
                 ">VOLVER AL MENU</button>
             `;
-            
+
             overlay.appendChild(box);
             document.body.appendChild(overlay);
-            
+
             // Draw production history graph
             setTimeout(() => {
                 const canvas = document.getElementById('stats-graph');
@@ -231,22 +231,22 @@ export class MultiplayerController {
                     const w = canvas.width;
                     const h = canvas.height;
                     const prodHistory = stats.productionHistory;
-                    
+
                     ctx.clearRect(0, 0, w, h);
-                    
+
                     // Find max rate
                     let maxRate = 10;
                     prodHistory.forEach(p => { if (p.rate > maxRate) maxRate = p.rate; });
-                    
+
                     const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4'];
-                    
+
                     // Group by player
                     const playerData = {};
                     prodHistory.forEach(p => {
                         if (!playerData[p.playerId]) playerData[p.playerId] = [];
                         playerData[p.playerId].push(p);
                     });
-                    
+
                     // Draw lines for each player
                     for (let pid in playerData) {
                         const data = playerData[pid];
@@ -254,7 +254,7 @@ export class MultiplayerController {
                         ctx.strokeStyle = color;
                         ctx.lineWidth = 2;
                         ctx.beginPath();
-                        
+
                         data.forEach((p, i) => {
                             const x = (p.time / (stats.elapsed || 1)) * w;
                             const y = h - (p.rate / maxRate) * h * 0.9 - 5;
@@ -263,14 +263,14 @@ export class MultiplayerController {
                         });
                         ctx.stroke();
                     }
-                    
+
                     // Draw legend
                     ctx.font = '10px monospace';
                     ctx.fillStyle = '#888';
                     ctx.fillText('Producción/min en el tiempo', 5, 12);
                 }
             }, 100);
-            
+
             // Click outside to close
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) {
@@ -278,7 +278,7 @@ export class MultiplayerController {
                     location.href = 'index.html';
                 }
             });
-            
+
             document.getElementById('restart-btn').addEventListener('click', () => {
                 overlay.remove();
                 location.reload();
@@ -317,13 +317,13 @@ export class MultiplayerController {
         const speedSetting = document.getElementById('speed-setting');
         const accelSetting = document.getElementById('accel-setting');
         const productionSetting = document.getElementById('production-setting');
-        
+
         const settings = {
             speedMultiplier: speedSetting ? parseFloat(speedSetting.value) : 1,
             acceleration: accelSetting ? accelSetting.checked : true,
             showProduction: productionSetting ? productionSetting.checked : true
         };
-        
+
         if (this.socket) this.socket.emit('toggleReady', settings);
     }
 
@@ -348,10 +348,10 @@ export class MultiplayerController {
                 clientNode = new Node(sn.id, sn.x, sn.y, sn.owner, sn.type);
                 this.game.state.nodes.push(clientNode);
             }
-            
+
             // Check if node was captured
             const oldOwner = clientNode.owner;
-            
+
             // Update properties from server
             clientNode.owner = sn.owner;
             clientNode.baseHp = sn.baseHp;
@@ -359,15 +359,11 @@ export class MultiplayerController {
             clientNode.spawnProgress = sn.spawnProgress;
             clientNode.hitFlash = sn.hitFlash;
             clientNode.spawnEffect = sn.spawnEffect;
-            clientNode.captureBoost = sn.captureBoost;
-            clientNode.captureAura = sn.captureAura;
-            clientNode.auraOwner = sn.auraOwner;
-            clientNode.nearbyAuraBoost = sn.nearbyAuraBoost;
             clientNode.enemyPressure = sn.enemyPressure;
             if (sn.rallyPoint) {
                 clientNode.rallyPoint = sn.rallyPoint;
             }
-            
+
             // Play capture sound ONLY if WE captured it
             if (oldOwner !== sn.owner && sn.owner === this.playerIndex) {
                 sounds.playCapture();
@@ -393,7 +389,7 @@ export class MultiplayerController {
                 ent = new Entity(se.x, se.y, se.owner, se.id);
                 this.game.state.entities.push(ent);
             }
-            
+
             // Update from server (authoritative)
             ent.x = se.x;
             ent.y = se.y;
@@ -403,19 +399,19 @@ export class MultiplayerController {
             ent.dying = se.dying;
             ent.deathType = se.deathType;
             ent.deathTime = se.deathTime;
-            
+
             entityMap.set(se.id, ent);
         });
 
         // Remove entities that no longer exist on server
         const serverEntityIds = new Set(serverState.entities.map(e => e.id));
         this.game.state.entities = this.game.state.entities.filter(e => serverEntityIds.has(e.id));
-        
+
         // Sync elapsed time
         if (serverState.elapsedTime !== undefined) {
             this.game.state.elapsedTime = serverState.elapsedTime;
         }
-        
+
         // Sync game settings
         if (serverState.speedMultiplier !== undefined) {
             this.game.state.speedMultiplier = serverState.speedMultiplier;

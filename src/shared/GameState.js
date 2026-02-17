@@ -10,12 +10,12 @@ export class GameState {
         this.worldWidth = GAME_SETTINGS.WORLD_WIDTH;
         this.worldHeight = GAME_SETTINGS.WORLD_HEIGHT;
         this.elapsedTime = 0; // Track game time for escalation
-        
+
         // Game settings (from lobby)
         this.speedMultiplier = 1;
         this.accelerationEnabled = true;
         this.showProduction = true;
-        
+
         // Statistics tracking
         this.stats = {
             startTime: Date.now(),
@@ -75,7 +75,7 @@ export class GameState {
                 });
             }
         }
-        
+
         // Record production rate every 15 seconds
         if (now - (this.stats.lastProductionRecord || 0) > 15000) {
             this.stats.lastProductionRecord = now;
@@ -110,25 +110,25 @@ export class GameState {
             history: this.stats.history,
             productionHistory: this.stats.productionHistory
         };
-        
+
         for (let pid in this.stats.unitsProduced) {
             result.produced[pid] = {
                 total: this.stats.unitsProduced[pid],
                 perMinute: elapsed > 0 ? Math.round(this.stats.unitsProduced[pid] / elapsed) : 0
             };
         }
-        
+
         for (let pid in this.stats.unitsLost) {
             result.lost[pid] = {
                 total: this.stats.unitsLost[pid],
                 perMinute: elapsed > 0 ? Math.round(this.stats.unitsLost[pid] / elapsed) : 0
             };
         }
-        
+
         for (let pid in this.stats.unitsCurrent) {
             result.current[pid] = this.stats.unitsCurrent[pid];
         }
-        
+
         return result;
     }
 
@@ -142,10 +142,6 @@ export class GameState {
                 rallyPoint: n.rallyPoint,
                 hitFlash: n.hitFlash || 0,
                 spawnEffect: n.spawnEffect || 0,
-                captureBoost: n.captureBoost || 0,
-                captureAura: n.captureAura || 0,
-                auraOwner: n.auraOwner || -1,
-                nearbyAuraBoost: n.nearbyAuraBoost || false,
                 enemyPressure: n.enemyPressure || false
             })),
             entities: this.entities.map(e => ({

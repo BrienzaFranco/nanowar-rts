@@ -41,10 +41,10 @@ export class GameServer {
         if (idx !== -1) {
             const removedPlayerIndex = idx;
             this.playerSockets.splice(idx, 1);
-            
+
             // Reassign player indices
             this.playerSockets.forEach((s, i) => s.playerIndex = i);
-            
+
             // Make disconnected player's nodes neutral
             this.state.nodes.forEach(n => {
                 if (n.owner === removedPlayerIndex) {
@@ -52,7 +52,7 @@ export class GameServer {
                     n.baseHp = n.maxHp;
                 }
             });
-            
+
             // Remove all entities from disconnected player
             this.state.entities = this.state.entities.filter(e => e.owner !== removedPlayerIndex);
         }
@@ -106,7 +106,7 @@ export class GameServer {
                 }
             });
         }
-        
+
         // Check if player is defeated - restrict actions
         if (this.playerSockets[playerIndex]?.defeated) {
             // Defeated players can only move/attack, not capture nodes
@@ -124,14 +124,25 @@ export class GameServer {
     handleSurrender(socketId) {
         const playerIndex = this.playerSockets.findIndex(s => s.id === socketId);
         if (playerIndex === -1) return;
-        
+
         // Mark player as defeated
         const player = this.playerSockets[playerIndex];
         player.defeated = true;
         player.surrendered = true;
-        
-        console.log(`Player ${playerIndex} surrendered - can only move/attack now`);
-        
+
+        // Convert all player nodes to neutral (gray)
+        this.state.nodes.forEach(n => {
+            if (n.owner === playerIndex) {
+                n.owner = -1; // Neutral
+                // Keep current HP, don't reset
+            }
+        });
+
+        // Remove all player entities
+        this.state.entities = this.state.entities.filter(e => e.owner !== playerIndex);
+
+        console.log(`Player ${playerIndex} surrendered - nodes neutralized, units removed`);
+
         // Notify other players
         this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: true });
     }
@@ -139,14 +150,13 @@ export class GameServer {
     checkPlayerDefeated(playerIndex) {
         const player = this.playerSockets[playerIndex];
         if (!player || player.defeated) return;
-        
+
         const playerNodes = this.state.nodes.filter(n => n.owner === playerIndex);
-        const playerEntities = this.state.entities.filter(e => e.owner === playerIndex && !e.dead && !e.dying);
-        
-        // Player is defeated if no nodes and no entities
-        if (playerNodes.length === 0 && playerEntities.length === 0) {
+
+        // Player is defeated if no nodes (units don't matter)
+        if (playerNodes.length === 0) {
             player.defeated = true;
-            console.log(`Player ${playerIndex} defeated - no nodes or units`);
+            console.log(`Player ${playerIndex} defeated - no nodes`);
             this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: false });
         }
     }
@@ -159,7 +169,7 @@ export class GameServer {
         if (elapsed >= this.GAME_TIME_LIMIT) {
             this.gameEnded = true;
             const stats = this.state.getStats();
-            
+
             // Find player with most produced units
             let maxProduction = -1;
             let winnerIndex = -1;
@@ -170,9 +180,9 @@ export class GameServer {
                     winnerIndex = parseInt(pid);
                 }
             }
-            
+
             console.log(`Time's up! Winner by production: Player ${winnerIndex} (${maxProduction} units)`);
-            this.io.to(this.roomId).emit('gameOver', { 
+            this.io.to(this.roomId).emit('gameOver', {
                 winner: winnerIndex,
                 stats: stats,
                 reason: 'time'
@@ -182,18 +192,17 @@ export class GameServer {
 
         const activePlayers = [];
         const playerCounts = {};
-        
+
         for (let i = 0; i < this.playerSockets.length; i++) {
             // Skip surrendered players
             if (this.playerSockets[i].surrendered) continue;
-            
+
             const playerNodes = this.state.nodes.filter(n => n.owner === i);
-            const playerEntities = this.state.entities.filter(e => e.owner === i && !e.dead && !e.dying);
-            
-            const totalUnits = playerNodes.length * 5 + playerEntities.length;
-            playerCounts[i] = totalUnits;
-            
-            if (playerNodes.length > 0 || playerEntities.length > 0) {
+
+            playerCounts[i] = playerNodes.length;
+
+            // Player is active if they have nodes (units don't matter)
+            if (playerNodes.length > 0) {
                 activePlayers.push(i);
             }
         }
@@ -203,7 +212,7 @@ export class GameServer {
             this.gameEnded = true;
             const winnerIndex = activePlayers[0];
             console.log(`Game Over! Winner: Player ${winnerIndex}`);
-            this.io.to(this.roomId).emit('gameOver', { 
+            this.io.to(this.roomId).emit('gameOver', {
                 winner: winnerIndex,
                 stats: this.state.getStats()
             });
@@ -213,7 +222,7 @@ export class GameServer {
         // If no active players left
         if (activePlayers.length === 0) {
             this.gameEnded = true;
-            this.io.to(this.roomId).emit('gameOver', { 
+            this.io.to(this.roomId).emit('gameOver', {
                 winner: -1,
                 stats: this.state.getStats()
             });
@@ -235,12 +244,12 @@ export class GameServer {
 
             this.state.update(dt, this);
             this.io.to(this.roomId).emit('gameState', this.state.getState());
-            
+
             // Check if any player is defeated
             for (let i = 0; i < this.playerSockets.length; i++) {
                 this.checkPlayerDefeated(i);
             }
-            
+
             // Check win condition every second (every 30 frames)
             this.checkWinCondition();
 
@@ -254,7 +263,7 @@ export class GameServer {
     initLevel() {
         const actualPlayers = this.playerSockets.length;
         this.state.playerCount = actualPlayers;
-        
+
         // Generate map with actual player count
         this.state.nodes = MapGenerator.generate(
             actualPlayers,

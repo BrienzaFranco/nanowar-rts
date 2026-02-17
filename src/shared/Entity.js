@@ -29,7 +29,7 @@ export class Entity {
 
         this.cohesionRadius = 30;
         this.cohesionForce = 40;
-        
+
         // Time-based acceleration
         this.directionX = 0;
         this.directionY = 0;
@@ -69,12 +69,12 @@ export class Entity {
         // Get game settings for speed and acceleration
         const speedMult = (game?.state?.speedMultiplier) || 1;
         const accelEnabled = game?.state?.accelerationEnabled !== false;
-        
+
         // Time-based acceleration: more time going same direction = faster
         // Direction change = penalty
         let currentDirX = 0;
         let currentDirY = 0;
-        
+
         if (this.currentTarget) {
             const dx = this.currentTarget.x - this.x;
             const dy = this.currentTarget.y - this.y;
@@ -84,13 +84,13 @@ export class Entity {
                 currentDirY = dy / dist;
             }
         }
-        
+
         // Calculate speed boost based on time in same direction
         let speedBoost = 1.0;
         if (accelEnabled) {
             // If moving in roughly same direction, increase speed over time
             const dirDot = currentDirX * this.directionX + currentDirY * this.directionY;
-            
+
             if (dirDot > 0.7) {
                 // Same direction - accelerate (slower, max 50% boost)
                 this.timeInDirection += dt;
@@ -104,11 +104,11 @@ export class Entity {
                 this.timeInDirection = Math.max(0, this.timeInDirection - dt * 2);
                 speedBoost = 1.0 + this.timeInDirection * 0.1;
             }
-            
+
             this.directionX = currentDirX;
             this.directionY = currentDirY;
         }
-        
+
         // Random movement - reduced or disabled based on acceleration setting
         const randomForce = accelEnabled ? 0 : 10;
         this.vx += (Math.random() - 0.5) * randomForce * dt;
@@ -148,7 +148,7 @@ export class Entity {
                     const dy = this.y - node.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     const avoidDist = node.influenceRadius * 0.8;
-                    
+
                     if (dist < avoidDist && dist > 0) {
                         const force = (avoidDist - dist) / avoidDist * 100;
                         this.vx += (dx / dist) * force * dt;
@@ -157,7 +157,7 @@ export class Entity {
                 }
             }
         }
-        
+
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
@@ -192,7 +192,7 @@ export class Entity {
                 const dy = this.y - node.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 const minDist = node.radius + this.radius;
-                
+
                 if (dist < minDist && dist > 0) {
                     // Push entity out of node
                     const overlap = minDist - dist;
@@ -200,14 +200,14 @@ export class Entity {
                     const ny = dy / dist;
                     this.x += nx * overlap;
                     this.y += ny * overlap;
-                    
+
                     // Bounce velocity
                     this.vx += nx * 50 * 0.016;
                     this.vy += ny * 50 * 0.016;
                 }
             }
         }
-        
+
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
 
         for (let other of allEntities) {
@@ -340,7 +340,7 @@ export class Entity {
                         const ownerDefenders = allDefenders.filter(e => e.owner === node.owner && !e.dead && !e.dying);
                         if (ownerDefenders.length > 0) {
                             const target = ownerDefenders[0];
-                            target.die('sacrifice', null, game);
+                            target.die('sacrifice', node, game);
                             this.die('attack', node, game);
                             return;
                         }
@@ -348,7 +348,7 @@ export class Entity {
                         const rivalDefenders = allDefenders.filter(e => e.owner !== this.owner && e.owner !== node.owner && !e.dead && !e.dying);
                         if (rivalDefenders.length > 0) {
                             const target = rivalDefenders[0];
-                            target.die('sacrifice', null, game);
+                            target.die('sacrifice', node, game);
                             this.die('attack', node, game);
                             return;
                         }
@@ -381,9 +381,8 @@ export class Entity {
                 game.spawnParticles(this.x, this.y, playerColor, 8, 'explosion');
             } else if (type === 'attack') {
                 game.spawnParticles(this.x, this.y, playerColor, 5, 'hit');
-            } else if (type === 'sacrifice') {
-                game.spawnParticles(this.x, this.y, playerColor, 4, 'hit');
             }
+            // No particles for 'sacrifice' - visual animation only
         }
     }
     isPointInside(mx, my, camera) {
