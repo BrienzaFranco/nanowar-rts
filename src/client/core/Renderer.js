@@ -114,48 +114,54 @@ export class Renderer {
         const isBoosted = node.captureBoost > 0 || node.nearbyAuraBoost;
         
         if (isBoosted && node.owner !== -1) {
-            // Pulsing glow effect
+            // Pulsing glow effect - LARGER
             const pulseSpeed = node.captureBoost > 0 ? 200 : 400; // Faster pulse for capture boost
             const pulseIntensity = (Math.sin(Date.now() / pulseSpeed) + 1) / 2; // 0 to 1
-            const glowRadius = sr + (10 + pulseIntensity * 15) * camera.zoom;
-            const glowAlpha = 0.3 + pulseIntensity * 0.4;
+            const glowRadius = sr + (15 + pulseIntensity * 25) * camera.zoom; // Increased size
+            const glowAlpha = 0.4 + pulseIntensity * 0.5; // More visible
             
-            // Outer glow
+            // Outer glow - LARGER and more visible
             this.ctx.beginPath();
             this.ctx.arc(screen.x, screen.y, glowRadius, 0, Math.PI * 2);
+            this.ctx.fillStyle = `rgba(${areaColor},${glowAlpha * 0.4})`;
+            this.ctx.fill();
+            
+            // Second outer ring
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, glowRadius * 0.7, 0, Math.PI * 2);
             this.ctx.fillStyle = `rgba(${areaColor},${glowAlpha * 0.3})`;
             this.ctx.fill();
             
-            // Inner bright ring
+            // Inner bright ring - THICKER
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr + 8 * camera.zoom, 0, Math.PI * 2);
+            this.ctx.arc(screen.x, screen.y, sr + 12 * camera.zoom, 0, Math.PI * 2);
             this.ctx.strokeStyle = `rgba(${areaColor},${glowAlpha})`;
-            this.ctx.lineWidth = 4 * camera.zoom;
+            this.ctx.lineWidth = 6 * camera.zoom; // Thicker
             this.ctx.stroke();
             
-            // Rotating sparkles effect
-            const sparkleCount = node.captureBoost > 0 ? 6 : 3;
+            // Rotating sparkles effect - MORE and BIGGER
+            const sparkleCount = node.captureBoost > 0 ? 8 : 5; // More sparkles
             const sparkleSpeed = Date.now() / 300;
             for (let i = 0; i < sparkleCount; i++) {
                 const angle = (i / sparkleCount) * Math.PI * 2 + sparkleSpeed;
-                const sparkleDist = (sr + 15 + pulseIntensity * 10) * camera.zoom;
+                const sparkleDist = (sr + 20 + pulseIntensity * 15) * camera.zoom; // Further out
                 const sx = screen.x + Math.cos(angle) * sparkleDist;
                 const sy = screen.y + Math.sin(angle) * sparkleDist;
                 
                 this.ctx.beginPath();
-                this.ctx.arc(sx, sy, 2 * camera.zoom, 0, Math.PI * 2);
-                this.ctx.fillStyle = `rgba(255, 255, 255, ${0.6 + pulseIntensity * 0.4})`;
+                this.ctx.arc(sx, sy, 3 * camera.zoom, 0, Math.PI * 2); // Larger sparkles
+                this.ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulseIntensity * 0.3})`;
                 this.ctx.fill();
             }
             
-            // Boost indicator text
-            this.ctx.font = `bold ${10 * camera.zoom}px monospace`;
+            // Boost indicator text - BIGGER
+            this.ctx.font = `bold ${14 * camera.zoom}px monospace`; // Larger font
             this.ctx.fillStyle = '#FFD700'; // Gold color
             this.ctx.textAlign = 'center';
             this.ctx.shadowColor = '#000';
-            this.ctx.shadowBlur = 3;
+            this.ctx.shadowBlur = 4;
             const boostText = node.captureBoost > 0 ? '⚡ 200%' : '⚡ 100%';
-            this.ctx.fillText(boostText, screen.x, screen.y - sr - 20 * camera.zoom);
+            this.ctx.fillText(boostText, screen.x, screen.y - sr - 28 * camera.zoom); // Higher up
             this.ctx.shadowBlur = 0;
         }
 
