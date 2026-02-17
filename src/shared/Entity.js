@@ -29,6 +29,11 @@ export class Entity {
 
         this.cohesionRadius = 30;
         this.cohesionForce = 40;
+        
+        // Time-based acceleration
+        this.directionX = 0;
+        this.directionY = 0;
+        this.timeInDirection = 0;
     }
 
     addWaypoint(x, y) {
@@ -65,8 +70,47 @@ export class Entity {
         const speedMult = (game?.state?.speedMultiplier) || 1;
         const accelEnabled = game?.state?.accelerationEnabled !== false;
         
+        // Time-based acceleration: more time going same direction = faster
+        // Direction change = penalty
+        let currentDirX = 0;
+        let currentDirY = 0;
+        
+        if (this.currentTarget) {
+            const dx = this.currentTarget.x - this.x;
+            const dy = this.currentTarget.y - this.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 5) {
+                currentDirX = dx / dist;
+                currentDirY = dy / dist;
+            }
+        }
+        
+        // Calculate speed boost based on time in same direction
+        let speedBoost = 1.0;
+        if (accelEnabled) {
+            // If moving in roughly same direction, increase speed over time
+            const dirDot = currentDirX * this.directionX + currentDirY * this.directionY;
+            
+            if (dirDot > 0.7) {
+                // Same direction - accelerate
+                this.timeInDirection += dt;
+                speedBoost = 1.0 + Math.min(this.timeInDirection * 0.5, 1.5); // Up to 2.5x
+            } else if (dirDot < -0.3) {
+                // Opposite direction - strong penalty
+                this.timeInDirection = 0;
+                speedBoost = 0.3; // Very slow
+            } else {
+                // Changing direction somewhat
+                this.timeInDirection = Math.max(0, this.timeInDirection - dt * 2);
+                speedBoost = 1.0 + this.timeInDirection * 0.3;
+            }
+            
+            this.directionX = currentDirX;
+            this.directionY = currentDirY;
+        }
+        
         // Random movement - reduced or disabled based on acceleration setting
-        const randomForce = accelEnabled ? 10 : 0;
+        const randomForce = accelEnabled ? 0 : 10;
         this.vx += (Math.random() - 0.5) * randomForce * dt;
         this.vy += (Math.random() - 0.5) * randomForce * dt;
 
@@ -76,9 +120,9 @@ export class Entity {
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist > 5) {
-                const accel = accelEnabled ? this.acceleration : this.maxSpeed * 10;
-                this.vx += (dx / dist) * accel * dt;
-                this.vy += (dy / dist) * accel * dt;
+                const baseAccel = accelEnabled ? this.acceleration : this.maxSpeed * 10;
+                this.vx += (dx / dist) * baseAccel * dt;
+                this.vy += (dy / dist) * baseAccel * dt;
             }
         }
 
@@ -86,7 +130,7 @@ export class Entity {
         this.vy *= this.friction;
 
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-        const maxSpd = this.maxSpeed * speedMult;
+        const maxSpd = this.maxSpeed * speedMult * speedBoost;
         if (speed > maxSpd) {
             this.vx = (this.vx / speed) * maxSpd;
             this.vy = (this.vy / speed) * maxSpd;
