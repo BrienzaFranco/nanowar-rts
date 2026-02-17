@@ -266,8 +266,9 @@ export class Renderer {
 
         // NEW: Queue trail for batch rendering instead of drawing individual expensive ones
         const speedSq = entity.vx * entity.vx + entity.vy * entity.vy;
-        // Trigger even in neutral territory (speedBoost > 0) if going fast enough
-        if (!entity.dying && (speedSq > 250 || entity.speedBoost > 0.1)) {
+        // Trigger ONLY at near-maximum speed and boost (satisfying "vel maxima")
+        // Threshold: speedBoost > 0.85 (friendly territory ramped up) OR extra high speed
+        if (!entity.dying && (entity.speedBoost > 0.85 || speedSq > 800)) {
             this.trailQueue.push({
                 x: entity.x, y: entity.y, vx: entity.vx, vy: entity.vy,
                 owner: entity.owner, speedBoost: entity.speedBoost || 0
@@ -360,9 +361,11 @@ export class Renderer {
             const smoothedBoost = t.boost * t.boost;
 
             // Plasma Intensity: scale alpha and size with count
-            const densityMult = 1.0 + Math.min(t.count / 15, 1.5); // Up to 2.5x density
-            const bloomRadius = (4 + Math.min(t.count * 3, 20)) * camera.zoom * (0.4 + lifeNorm * 0.6);
-            const segmentLen = (6 + (speed / 20) * 12 * t.boost * densityMult) * camera.zoom * lifeNorm;
+            const densityMult = 1.0 + Math.min(t.count / 15, 1.5);
+            const bloomRadius = (4 + Math.min(t.count * 3, 15)) * camera.zoom * (0.5 + lifeNorm * 0.5);
+
+            // SIGNIFICANTLY shorter segments for "smooth" turns (less rigid rotation)
+            const segmentLen = (4 + (speed / 30) * 8 * t.boost * densityMult) * camera.zoom * lifeNorm;
 
             const nx = t.vx / speed;
             const ny = t.vy / speed;
@@ -371,16 +374,17 @@ export class Renderer {
 
             // Gradient: fast fade based on life
             const gradient = this.ctx.createLinearGradient(screen.x, screen.y, screen.x - nx * segmentLen, screen.y - ny * segmentLen);
-            const alphaEffect = lifeNorm * smoothedBoost * 0.35 * densityMult; // Brighter for more units
+            const alphaEffect = lifeNorm * smoothedBoost * 0.3 * densityMult;
 
             gradient.addColorStop(0, hexToRgba(t.color, Math.min(0.9, alphaEffect)));
-            gradient.addColorStop(0.4, hexToRgba(t.color, alphaEffect * 0.3));
+            gradient.addColorStop(0.6, hexToRgba(t.color, alphaEffect * 0.2));
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
 
-            // Draw tapered conical segment
+            // Rounded-conical shape (trapezoid with shorter tail)
             this.ctx.beginPath();
-            this.ctx.moveTo(screen.x + px * bloomRadius * 0.45, screen.y + py * bloomRadius * 0.45);
-            this.ctx.lineTo(screen.x - px * bloomRadius * 0.45, screen.y - py * bloomRadius * 0.45);
+            this.ctx.moveTo(screen.x + px * bloomRadius * 0.4, screen.y + py * bloomRadius * 0.4);
+            this.ctx.lineTo(screen.x - px * bloomRadius * 0.4, screen.y - py * bloomRadius * 0.4);
+            // Tapered tip is very close now
             this.ctx.lineTo(screen.x - nx * segmentLen, screen.y - ny * segmentLen);
             this.ctx.closePath();
 
@@ -388,14 +392,14 @@ export class Renderer {
             this.ctx.globalAlpha = 1.0;
             this.ctx.fill();
 
-            // Minimal core highlight - slightly more prominent for large groups
-            if (lifeNorm > 0.6) {
+            // Core highlight (subtle and short)
+            if (lifeNorm > 0.8) {
                 this.ctx.beginPath();
                 this.ctx.moveTo(screen.x, screen.y);
-                this.ctx.lineTo(screen.x - nx * segmentLen * 0.4, screen.y - ny * segmentLen * 0.4);
+                this.ctx.lineTo(screen.x - nx * segmentLen * 0.3, screen.y - ny * segmentLen * 0.3);
                 this.ctx.strokeStyle = '#ffffff';
-                this.ctx.lineWidth = Math.max(1, 0.5 * densityMult) * camera.zoom;
-                this.ctx.globalAlpha = 0.08 * lifeNorm * smoothedBoost * densityMult;
+                this.ctx.lineWidth = 1 * camera.zoom;
+                this.ctx.globalAlpha = 0.05 * lifeNorm * densityMult;
                 this.ctx.stroke();
             }
         });
