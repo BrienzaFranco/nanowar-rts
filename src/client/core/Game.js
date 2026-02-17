@@ -49,7 +49,7 @@ export class Game {
             game.lastTime = now;
 
             game.update(dt);
-            game.draw();
+            game.draw(dt);
 
             game.animationId = requestAnimationFrame(loop);
         };
@@ -115,7 +115,7 @@ export class Game {
         }
     }
 
-    draw() {
+    draw(dt) {
         const playerIdx = this.controller?.playerIndex ?? 0;
         this.renderer.setPlayerIndex(playerIdx);
 
