@@ -265,7 +265,8 @@ export class Renderer {
 
         // NEW: Queue trail for batch rendering instead of drawing individual expensive ones
         const speedSq = entity.vx * entity.vx + entity.vy * entity.vy;
-        if (entity.hasSpeedBoost && !entity.dying && speedSq > 400) { // Threshold: speed > 20
+        // Trigger even in neutral territory (speedBoost > 0) if going fast enough
+        if (!entity.dying && (speedSq > 250 || entity.speedBoost > 0.1)) {
             this.trailQueue.push({
                 x: entity.x, y: entity.y, vx: entity.vx, vy: entity.vy,
                 owner: entity.owner, speedBoost: entity.speedBoost || 0
@@ -337,29 +338,29 @@ export class Renderer {
 
             // BOLOTA Effect: Radius scales with number of entities
             // Scaling transition: soften transition by squaring avgBoost for alpha/size if needed
-            const smoothedBoost = avgBoost * avgBoost; // Quieter at low boost
-            const bloomRadius = (12 + Math.min(group.count * 5, 40)) * camera.zoom;
+            const smoothedBoost = Math.max(0.1, avgBoost * avgBoost);
+            const bloomRadius = (8 + Math.min(group.count * 3, 20)) * camera.zoom; // Smaller: 8-28 instead of 12-52
 
             // Trail length scales with actual speed and boost level
-            const trailLen = (10 + (speed / 15) * 35 * avgBoost) * camera.zoom;
+            const trailLen = (8 + (speed / 20) * 20 * (0.5 + avgBoost * 0.5)) * camera.zoom; // Shorter and sharper
 
             const nx = mvx / speed;
             const ny = mvy / speed;
             const px = -ny; // Perpendicular vector
             const py = nx;
 
-            // Gradient aligned with trail direction
+            // Gradient aligned with trail direction - fader at the tip
             const gradient = this.ctx.createLinearGradient(mx, my, mx - nx * trailLen, my - ny * trailLen);
             const baseColor = group.color;
-            gradient.addColorStop(0, hexToRgba(baseColor, 0.8 * smoothedBoost));
-            gradient.addColorStop(0.4, hexToRgba(baseColor, 0.4 * smoothedBoost));
+            gradient.addColorStop(0, hexToRgba(baseColor, 0.6 * smoothedBoost));
+            gradient.addColorStop(0.5, hexToRgba(baseColor, 0.2 * smoothedBoost));
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
 
             // Draw CONICAL shape (Triangle/Trapezoid) for the "colita"
             this.ctx.beginPath();
             // Start at the unit "base" (perpendicular width)
-            this.ctx.moveTo(mx + px * bloomRadius * 0.5, my + py * bloomRadius * 0.5);
-            this.ctx.lineTo(mx - px * bloomRadius * 0.5, my - py * bloomRadius * 0.5);
+            this.ctx.moveTo(mx + px * bloomRadius * 0.4, my + py * bloomRadius * 0.4);
+            this.ctx.lineTo(mx - px * bloomRadius * 0.4, my - py * bloomRadius * 0.4);
             // Go to the tapered tip
             this.ctx.lineTo(mx - nx * trailLen, my - ny * trailLen);
             this.ctx.closePath();
@@ -368,15 +369,15 @@ export class Renderer {
             this.ctx.globalAlpha = 1.0;
             this.ctx.fill();
 
-            // Central "core" highlight for extra punch
+            // Central "core" highlight for extra punch - very thin
             this.ctx.beginPath();
-            this.ctx.moveTo(mx + px * bloomRadius * 0.2, my + py * bloomRadius * 0.2);
-            this.ctx.lineTo(mx - px * bloomRadius * 0.2, my - py * bloomRadius * 0.2);
-            this.ctx.lineTo(mx - nx * trailLen * 0.6, my - ny * trailLen * 0.6);
+            this.ctx.moveTo(mx + px * 1, my + py * 1);
+            this.ctx.lineTo(mx - px * 1, my - py * 1);
+            this.ctx.lineTo(mx - nx * trailLen * 0.8, my - ny * trailLen * 0.8);
             this.ctx.closePath();
 
             this.ctx.fillStyle = '#ffffff';
-            this.ctx.globalAlpha = 0.15 * smoothedBoost;
+            this.ctx.globalAlpha = 0.1 * smoothedBoost;
             this.ctx.fill();
         }
 
