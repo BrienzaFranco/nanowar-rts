@@ -117,6 +117,9 @@ export class Game {
     }
 
     draw() {
+        const playerIdx = this.controller?.playerIndex ?? 0;
+        this.renderer.setPlayerIndex(playerIdx);
+        
         this.renderer.clear(this.canvas.width, this.canvas.height);
         this.renderer.drawGrid(this.canvas.width, this.canvas.height, this.camera);
 
@@ -132,7 +135,9 @@ export class Game {
 
         this.particles.forEach(p => this.renderer.drawParticle(p, this.camera));
         this.commandIndicators.forEach(ci => this.renderer.drawCommandIndicator(ci, this.camera));
-        this.waypointLines.forEach(wl => this.renderer.drawWaypointLine(wl, this.camera));
+        
+        // Only show waypoint lines for our player
+        this.waypointLines.filter(wl => wl.owner === playerIdx).forEach(wl => this.renderer.drawWaypointLine(wl, this.camera));
 
         // Draw selection box
         if (this.systems.selection.isSelectingBox) {
@@ -150,8 +155,8 @@ export class Game {
             this.renderer.drawPath(this.systems.selection.currentPath, this.camera, 'rgba(255, 255, 255, 0.6)', 3);
         }
 
-        // Draw waypoints for selected units
-        this.state.entities.forEach(e => {
+        // Draw waypoints for selected units (only our own)
+        this.state.entities.filter(e => e.owner === playerIdx).forEach(e => {
             if (this.systems.selection.isSelected(e) && e.waypoints.length > 0) {
                 // Combine current position with waypoints for a complete line
                 this.renderer.drawPath([e, ...e.waypoints], this.camera, 'rgba(255, 255, 255, 0.15)', 1.2, true);

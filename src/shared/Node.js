@@ -119,9 +119,19 @@ export class Node {
             this.spawnTimer += dt;
             const healthPercent = Math.min(this.baseHp / this.maxHp, 1.0);
             
-            // Higher health = faster generation (up to 2x speed)
-            // + 0.2 extra boost if at or above 100% health (full)
-            const healthScaling = 0.5 + healthPercent + (isFull ? 0.2 : 0);
+            // Base generation: 0.5 at 0% HP, up to 1.5 at 100% HP (3x faster)
+            let healthScaling = 0.5 + healthPercent * 1.0;
+            
+            // Extra bonus at full health (0.5 extra = up to 2x total)
+            if (isFull) {
+                healthScaling += 0.5;
+            }
+            
+            // Cluster bonus: more defenders = more production
+            const defenderCount = this.areaDefenders ? this.areaDefenders.length : 0;
+            const clusterBonus = Math.min(defenderCount * 0.1, 0.5); // Up to 0.5 extra with 5+ defenders
+            healthScaling += clusterBonus;
+            
             const spawnThreshold = this.spawnInterval / healthScaling;
 
             // Always spawn when ready - full nodes spawn faster (20% bonus)

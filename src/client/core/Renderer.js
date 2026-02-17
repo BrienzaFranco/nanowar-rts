@@ -4,6 +4,11 @@ import { hexToRgba } from '../utils/helpers.js';
 export class Renderer {
     constructor(ctx) {
         this.ctx = ctx;
+        this.playerIndex = 0;
+    }
+
+    setPlayerIndex(idx) {
+        this.playerIndex = idx;
     }
 
     clear(width, height) {
@@ -53,8 +58,8 @@ export class Renderer {
         this.ctx.stroke();
         this.ctx.setLineDash([]);
 
-        // Rally Line
-        if (node.rallyPoint && node.owner !== -1) {
+        // Rally Line - only show for our own nodes
+        if (node.rallyPoint && node.owner !== -1 && node.owner === this.playerIndex) {
             const rx = (node.rallyPoint.x - camera.x) * camera.zoom;
             const ry = (node.rallyPoint.y - camera.y) * camera.zoom;
             this.ctx.beginPath();

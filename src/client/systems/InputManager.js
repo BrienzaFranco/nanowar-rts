@@ -87,7 +87,7 @@ export class InputManager {
         }
         if (e.code === 'KeyS') {
             const sel = this.game.systems.selection;
-            if (this.game.controller.sendAction) {
+            if (this.game.controller && this.game.controller.sendAction) {
                 this.game.controller.sendAction({
                     type: 'stop',
                     unitIds: Array.from(sel.selectedEntities)
