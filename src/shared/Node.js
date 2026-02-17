@@ -34,6 +34,7 @@ export class Node {
         this.spawnProgress = 0;
         this.defendersInside = 0; this.defenderCounts = {}; this.hitFlash = 0; this.selected = false; this.hasSpawnedThisCycle = false; this.rallyPoint = null; this.enemyPressure = false;
         this.areaDefenders = []; this.allAreaDefenders = [];
+        this.captureBoost = 0; // 200% production boost after capture
     }
 
     getColor() { return this.owner === -1 ? '#757575' : PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; }
@@ -95,6 +96,7 @@ export class Node {
             this.stock = 0;
             this.hasSpawnedThisCycle = false;
             this.rallyPoint = null;
+            this.captureBoost = 15; // 15 second 200% production boost
             if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
             return true;
         }
@@ -105,6 +107,7 @@ export class Node {
         this.calculateDefenders(entities);
         if (this.hitFlash > 0) this.hitFlash -= dt;
         if (this.spawnEffect > 0) this.spawnEffect -= dt;
+        if (this.captureBoost > 0) this.captureBoost -= dt;
         
         // Check if enemies outnumber us in area - pause spawning
         this.enemyPressure = false;
@@ -145,6 +148,11 @@ export class Node {
             const defenderCount = this.areaDefenders ? this.areaDefenders.length : 0;
             const clusterBonus = Math.min(defenderCount * 0.1, 0.5); // Up to 0.5 extra with 5+ defenders
             healthScaling += clusterBonus;
+            
+            // Capture boost: 200% production for 15 seconds after capture
+            if (this.captureBoost > 0) {
+                healthScaling *= 2.0; // 200% boost
+            }
             
             const spawnThreshold = this.spawnInterval / healthScaling;
 

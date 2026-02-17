@@ -22,7 +22,8 @@ export class GameState {
             unitsProduced: {}, // playerId -> count
             unitsLost: {}, // playerId -> count
             unitsCurrent: {}, // playerId -> current count
-            history: [] // { time, playerId, count }
+            history: [], // { time, playerId, count }
+            productionHistory: [] // { time, playerId, rate, total }
         };
     }
 
@@ -74,6 +75,22 @@ export class GameState {
                 });
             }
         }
+        
+        // Record production rate every 15 seconds
+        if (now - (this.stats.lastProductionRecord || 0) > 15000) {
+            this.stats.lastProductionRecord = now;
+            const elapsed = (now - this.stats.startTime) / 60000;
+            for (let pid in this.stats.unitsProduced) {
+                const produced = this.stats.unitsProduced[pid] || 0;
+                const rate = elapsed > 0 ? Math.round(produced / elapsed) : 0;
+                this.stats.productionHistory.push({
+                    time: elapsed,
+                    playerId: parseInt(pid),
+                    rate: rate,
+                    total: produced
+                });
+            }
+        }
 
         this.entities.forEach(ent => {
             ent.update(dt, this.entities, this.nodes, null, gameInstance);
@@ -90,7 +107,8 @@ export class GameState {
             produced: {},
             lost: {},
             current: {},
-            history: this.stats.history
+            history: this.stats.history,
+            productionHistory: this.stats.productionHistory
         };
         
         for (let pid in this.stats.unitsProduced) {
@@ -124,6 +142,7 @@ export class GameState {
                 rallyPoint: n.rallyPoint,
                 hitFlash: n.hitFlash || 0,
                 spawnEffect: n.spawnEffect || 0,
+                captureBoost: n.captureBoost || 0,
                 enemyPressure: n.enemyPressure || false
             })),
             entities: this.entities.map(e => ({

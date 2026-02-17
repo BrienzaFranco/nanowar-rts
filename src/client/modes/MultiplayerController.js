@@ -184,7 +184,7 @@ export class MultiplayerController {
             }
             statsHTML += '</div>';
             
-            // Generate graph
+            // Generate graph with production history
             const graphWidth = 400;
             const graphHeight = 150;
             let graphHTML = `<canvas id="stats-graph" width="${graphWidth}" height="${graphHeight}" style="margin: 15px 0; border: 1px solid #333; background: rgba(0,0,0,0.3);"></canvas>`;
@@ -222,6 +222,54 @@ export class MultiplayerController {
             
             overlay.appendChild(box);
             document.body.appendChild(overlay);
+            
+            // Draw production history graph
+            setTimeout(() => {
+                const canvas = document.getElementById('stats-graph');
+                if (canvas && stats.productionHistory) {
+                    const ctx = canvas.getContext('2d');
+                    const w = canvas.width;
+                    const h = canvas.height;
+                    const prodHistory = stats.productionHistory;
+                    
+                    ctx.clearRect(0, 0, w, h);
+                    
+                    // Find max rate
+                    let maxRate = 10;
+                    prodHistory.forEach(p => { if (p.rate > maxRate) maxRate = p.rate; });
+                    
+                    const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4'];
+                    
+                    // Group by player
+                    const playerData = {};
+                    prodHistory.forEach(p => {
+                        if (!playerData[p.playerId]) playerData[p.playerId] = [];
+                        playerData[p.playerId].push(p);
+                    });
+                    
+                    // Draw lines for each player
+                    for (let pid in playerData) {
+                        const data = playerData[pid];
+                        const color = playerColors[pid % playerColors.length];
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        
+                        data.forEach((p, i) => {
+                            const x = (p.time / (stats.elapsed || 1)) * w;
+                            const y = h - (p.rate / maxRate) * h * 0.9 - 5;
+                            if (i === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        });
+                        ctx.stroke();
+                    }
+                    
+                    // Draw legend
+                    ctx.font = '10px monospace';
+                    ctx.fillStyle = '#888';
+                    ctx.fillText('Producción/min en el tiempo', 5, 12);
+                }
+            }, 100);
             
             // Click outside to close
             overlay.addEventListener('click', (e) => {
