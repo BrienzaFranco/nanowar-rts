@@ -83,8 +83,8 @@ export class Renderer {
             this.ctx.stroke();
         }
 
-        // Very subtle map boundary ring - barely visible
-        const worldRadius = 1200;
+        // Map boundary ring - more visible warning
+        const worldRadius = 1500;
         const centerX = 1200;
         const centerY = 900;
         const screenCenter = camera.worldToScreen(centerX, centerY);
@@ -92,9 +92,9 @@ export class Renderer {
         
         this.ctx.beginPath();
         this.ctx.arc(screenCenter.x, screenCenter.y, boundaryRadius, 0, Math.PI * 2);
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
-        this.ctx.lineWidth = 1;
-        this.ctx.setLineDash([20 * camera.zoom, 30 * camera.zoom]);
+        this.ctx.strokeStyle = 'rgba(255, 80, 80, 0.15)';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([15 * camera.zoom, 25 * camera.zoom]);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
     }
@@ -340,11 +340,12 @@ export class Renderer {
             this.ctx.restore();
         }
 
-        // Very subtle warning effect when outside map boundary
+        // Warning effect when outside map boundary - red tint
         let entityAlpha = 1;
         if (entity.outsideWarning) {
-            // Subtle flicker - use sine wave for smooth pulsing
-            entityAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+            // More visible flicker with red tint
+            const flash = Math.sin(Date.now() * 0.008) > 0;
+            entityAlpha = flash ? 1 : 0.4;
         }
 
         // Body
