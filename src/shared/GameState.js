@@ -225,7 +225,8 @@ export class GameState {
             entities: this.entities.map(e => ({
                 id: e.id, x: e.x, y: e.y, owner: e.owner, radius: e.radius,
                 vx: e.vx, vy: e.vy,
-                dying: e.dying, deathType: e.deathType, deathTime: e.deathTime
+                dying: e.dying, deathType: e.deathType, deathTime: e.deathTime,
+                outsideWarning: e.outsideWarning || false
             })),
             playerCount: this.playerCount,
             elapsedTime: this.elapsedTime,

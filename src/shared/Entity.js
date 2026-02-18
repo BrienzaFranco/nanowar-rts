@@ -1,4 +1,4 @@
-import { PLAYER_COLORS } from './GameConfig.js';
+import { PLAYER_COLORS, GAME_SETTINGS } from './GameConfig.js';
 
 export class Entity {
     constructor(x, y, ownerId, id) {
@@ -30,6 +30,10 @@ export class Entity {
 
         this.cohesionRadius = 30;
         this.cohesionForce = 40;
+        
+        // Map boundary tracking
+        this.outsideTime = 0;
+        this.outsideWarning = false;
     }
 
     addWaypoint(x, y) {
@@ -196,6 +200,24 @@ export class Entity {
         // Apply movement
         this.x += this.vx * dt;
         this.y += this.vy * dt;
+
+        // Check map boundary - die if outside for too long
+        const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 1200;
+        const centerX = (GAME_SETTINGS.WORLD_WIDTH || 2400) / 2;
+        const centerY = (GAME_SETTINGS.WORLD_HEIGHT || 1800) / 2;
+        const distFromCenter = Math.sqrt((this.x - centerX) ** 2 + (this.y - centerY) ** 2);
+        
+        if (distFromCenter > worldRadius) {
+            this.outsideTime += dt;
+            this.outsideWarning = true;
+            if (this.outsideTime >= (GAME_SETTINGS.OUTSIDE_DEATH_TIME || 5)) {
+                this.die('outOfBounds', null, game);
+                return;
+            }
+        } else {
+            this.outsideTime = 0;
+            this.outsideWarning = false;
+        }
     }
 
     processWaypoints() {

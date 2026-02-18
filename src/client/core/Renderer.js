@@ -82,6 +82,21 @@ export class Renderer {
             this.ctx.lineTo(width, y);
             this.ctx.stroke();
         }
+
+        // Very subtle map boundary ring - barely visible
+        const worldRadius = 1200;
+        const centerX = 1200;
+        const centerY = 900;
+        const screenCenter = camera.worldToScreen(centerX, centerY);
+        const boundaryRadius = worldRadius * camera.zoom;
+        
+        this.ctx.beginPath();
+        this.ctx.arc(screenCenter.x, screenCenter.y, boundaryRadius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([20 * camera.zoom, 30 * camera.zoom]);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
     }
 
     drawNode(node, camera, isSelected = false) {
@@ -325,7 +340,15 @@ export class Renderer {
             this.ctx.restore();
         }
 
+        // Very subtle warning effect when outside map boundary
+        let entityAlpha = 1;
+        if (entity.outsideWarning) {
+            // Subtle flicker - use sine wave for smooth pulsing
+            entityAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+        }
+
         // Body
+        this.ctx.globalAlpha = entityAlpha;
         this.ctx.beginPath();
         this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
         this.ctx.fillStyle = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
@@ -336,6 +359,8 @@ export class Renderer {
         this.ctx.arc(screen.x - sr * 0.3, screen.y - sr * 0.3, sr * 0.4, 0, Math.PI * 2);
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         this.ctx.fill();
+
+        this.ctx.globalAlpha = 1;
 
         if (isSelected) {
             this.ctx.beginPath();
