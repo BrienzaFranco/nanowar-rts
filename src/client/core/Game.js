@@ -122,37 +122,6 @@ export class Game {
         this.renderer.clear(this.canvas.width, this.canvas.height);
         this.renderer.draw(this.camera, this.state, this.systems);
 
-        this.waypointLines.filter(wl => wl.owner === playerIdx).forEach(wl => this.renderer.drawWaypointLine(wl, this.camera));
-
-        if (this.systems.selection.isSelectingBox) {
-            const input = this.systems.input;
-            this.renderer.drawSelectionBox(
-                this.systems.selection.boxStart.x,
-                this.systems.selection.boxStart.y,
-                input.mouse.x,
-                input.mouse.y
-            );
-        }
-
-        if (this.systems.selection.currentPath.length > 0) {
-            this.renderer.drawPath(this.systems.selection.currentPath, this.camera, 'rgba(255, 255, 255, 0.6)', 3);
-        }
-
-        this.state.entities.filter(e => e.owner === playerIdx).forEach(e => {
-            if (this.systems.selection.isSelected(e) && e.waypoints.length > 0) {
-                this.renderer.drawPath([e, ...e.waypoints], this.camera, 'rgba(255, 255, 255, 0.15)', 1.2, true);
-
-                const target = e.currentTarget || e.waypoints[0];
-                const screen = this.camera.worldToScreen(target.x, target.y);
-                if (this.renderer.ctx) {
-                    this.renderer.ctx.beginPath();
-                    this.renderer.ctx.arc(screen.x, screen.y, 2 * this.camera.zoom, 0, Math.PI * 2);
-                    this.renderer.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                    this.renderer.ctx.fill();
-                }
-            }
-        });
-
         if (this.systems && this.systems.ui) {
             this.systems.ui.draw(this.renderer);
         }
