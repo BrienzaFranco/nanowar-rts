@@ -202,7 +202,7 @@ export class Entity {
         this.y += this.vy * dt;
 
         // Check map boundary - die if outside
-        const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 800;
+        const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 1800;
         const centerX = (GAME_SETTINGS.WORLD_WIDTH || 2400) / 2;
         const centerY = (GAME_SETTINGS.WORLD_HEIGHT || 1800) / 2;
         const dx = this.x - centerX;

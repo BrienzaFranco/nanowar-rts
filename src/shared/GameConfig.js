@@ -6,7 +6,7 @@ export const PLAYER_COLORS = [
 export const GAME_SETTINGS = {
     WORLD_WIDTH: 2400,
     WORLD_HEIGHT: 1800,
-    WORLD_RADIUS: 800, // Smaller circular boundary - more centered
+    WORLD_RADIUS: 1800, // Larger than map - units won't reach it often
     OUTSIDE_DEATH_TIME: 5, // Seconds before unit dies outside boundary
 };
 

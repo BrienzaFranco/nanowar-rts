@@ -88,7 +88,7 @@ export class Renderer {
         }
 
         // Map boundary ring - only visible when units approach
-        const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 800;
+        const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 1800;
         const centerX = (GAME_SETTINGS.WORLD_WIDTH || 2400) / 2;
         const centerY = (GAME_SETTINGS.WORLD_HEIGHT || 1800) / 2;
         
