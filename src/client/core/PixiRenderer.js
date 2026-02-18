@@ -6,8 +6,16 @@ export class PixiRenderer {
         this.canvas = canvas;
         this.game = game;
         
-        // Create PixiJS Application
-        this.app = new PIXI.Application({
+        // In PixiJS v7, we need to use the async init
+        this.app = null;
+        this._init(canvas);
+    }
+    
+    async _init(canvas) {
+        // Create PixiJS Application - v7 style
+        this.app = new PIXI.Application();
+        
+        await this.app.init({
             view: canvas,
             width: window.innerWidth,
             height: window.innerHeight,
