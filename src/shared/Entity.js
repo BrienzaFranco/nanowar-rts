@@ -50,7 +50,7 @@ export class Entity {
         this.targetNode = null;
     }
 
-    update(dt, spatialGrid, nodes, camera, game) {
+    update(dt, spatialGrid, spatialGridNodes, nodes, camera, game) {
         if (this.dying) {
             this.deathTime += dt;
             if (this.deathTime > 0.4) { this.dead = true; }
@@ -70,8 +70,12 @@ export class Entity {
         let inFriendlyTerritory = false;
         const speedMult = (game?.state?.speedMultiplier) || 1;
 
-        if (nodes) {
-            for (let node of nodes) {
+        // OPTIMIZATION: Use spatial grid to find nearby nodes instead of iterating all
+        // Use a search radius that covers the largest possible influence radius (165px max)
+        const nearbyNodes = spatialGridNodes ? spatialGridNodes.retrieveNodes(this.x, this.y, 200) : nodes;
+        
+        if (nearbyNodes) {
+            for (let node of nearbyNodes) {
                 const dx = this.x - node.x;
                 const dy = this.y - node.y;
                 const distSq = dx * dx + dy * dy;

@@ -93,4 +93,40 @@ export class SpatialGrid {
             }
         }
     }
+
+    /**
+     * Retrieve only nodes from nearby cells - optimized for node lookups
+     * Nodes have larger influence radius, so we use a bigger search radius
+     * @param {number} x - World X position
+     * @param {number} y - World Y position  
+     * @param {number} searchRadius - Radius to search for nodes (use node.influenceRadius)
+     * @returns {Array} Array of nearby nodes
+     */
+    retrieveNodes(x, y, searchRadius) {
+        const found = [];
+        const startCol = Math.floor((x - searchRadius) / this.cellSize);
+        const endCol = Math.floor((x + searchRadius) / this.cellSize);
+        const startRow = Math.floor((y - searchRadius) / this.cellSize);
+        const endRow = Math.floor((y + searchRadius) / this.cellSize);
+
+        for (let c = startCol; c <= endCol; c++) {
+            if (c < 0 || c >= this.cols) continue;
+            for (let r = startRow; r <= endRow; r++) {
+                if (r < 0 || r >= this.rows) continue;
+
+                const key = this._getKey(c, r);
+                const cellObjects = this.cells.get(key);
+                if (cellObjects) {
+                    for (let i = 0; i < cellObjects.length; i++) {
+                        const node = cellObjects[i];
+                        // Only include nodes (they have influenceRadius property)
+                        if (node && node.influenceRadius !== undefined) {
+                            found.push(node);
+                        }
+                    }
+                }
+            }
+        }
+        return found;
+    }
 }

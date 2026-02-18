@@ -18,7 +18,8 @@ export class GameState {
         this.showProduction = true;
 
         // optimizations
-        this.spatialGrid = new SpatialGrid(this.worldWidth, this.worldHeight, 80); // 80px cells
+        this.spatialGrid = new SpatialGrid(this.worldWidth, this.worldHeight, 80); // 80px cells for units
+        this.spatialGridNodes = new SpatialGrid(this.worldWidth, this.worldHeight, 200); // 200px cells for nodes (larger radius)
         this.maxEntitiesPerPlayer = 1000; // Increased to 1000 per user feedback
         this.unitCounts = {}; // Cache unit counts per player for capping
 
@@ -40,6 +41,12 @@ export class GameState {
 
         // Apply time-based escalation to spawn intervals
         const timeBonus = Math.min(this.elapsedTime / 120, 1.0); // Max bonus at 2 minutes
+
+        // Populate spatial grid for nodes once (nodes don't move)
+        this.spatialGridNodes.clear();
+        this.nodes.forEach(node => {
+            this.spatialGridNodes.addObject(node);
+        });
 
         // Populate spatial grid once per frame
         this.spatialGrid.clear();
@@ -158,7 +165,7 @@ export class GameState {
         }
 
         this.entities.forEach(ent => {
-            ent.update(dt, this.spatialGrid, this.nodes, null, gameInstance);
+            ent.update(dt, this.spatialGrid, this.spatialGridNodes, this.nodes, null, gameInstance);
         });
 
         // Clean up dead entities
