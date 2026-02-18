@@ -248,7 +248,7 @@ export class GameState {
     _detectFlocks() {
         const FLOCK_RADIUS = 50; // Units within this distance form a flock
         const MIN_FLOCK_SIZE = 10; // Minimum units to form a flock
-        const MAX_FLOCK_SIZE = 25; // Max units per flock
+        const MAX_FLOCK_SIZE = 40; // Max units per flock
         
         // Reset flock assignments
         for (const ent of this.entities) {
