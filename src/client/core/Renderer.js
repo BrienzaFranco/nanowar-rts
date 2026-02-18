@@ -1,4 +1,4 @@
-import { PLAYER_COLORS } from '../../shared/GameConfig.js';
+import { PLAYER_COLORS, GAME_SETTINGS } from '../../shared/GameConfig.js';
 import { hexToRgba } from '../utils/helpers.js';
 
 export class Renderer {
@@ -88,9 +88,9 @@ export class Renderer {
         }
 
         // Map boundary ring - only visible when units approach
-        const worldRadius = 1700;
-        const centerX = 1200;
-        const centerY = 900;
+        const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 800;
+        const centerX = (GAME_SETTINGS.WORLD_WIDTH || 2400) / 2;
+        const centerY = (GAME_SETTINGS.WORLD_HEIGHT || 1800) / 2;
         
         // Only draw boundary if any unit is near it
         let nearBoundary = false;
