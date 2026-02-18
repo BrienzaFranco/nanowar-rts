@@ -201,26 +201,13 @@ export class Entity {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
-        // Check map boundary - die if outside for too long
+        // Check map boundary - die if outside
         const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 1200;
         const centerX = (GAME_SETTINGS.WORLD_WIDTH || 2400) / 2;
         const centerY = (GAME_SETTINGS.WORLD_HEIGHT || 1800) / 2;
         const dx = this.x - centerX;
         const dy = this.y - centerY;
         const distFromCenter = Math.sqrt(dx * dx + dy * dy);
-        
-        // Boundary repulsion force - push units back inside before they hit the wall
-        const warningZone = 200; // Start pushing 200px before boundary
-        if (distFromCenter > worldRadius - warningZone) {
-            // Calculate normalized direction from center to unit
-            const nx = dx / distFromCenter;
-            const ny = dy / distFromCenter;
-            
-            // Apply strong repulsion force toward center
-            const pushStrength = 400;
-            this.vx -= nx * pushStrength * dt;
-            this.vy -= ny * pushStrength * dt;
-        }
         
         if (distFromCenter > worldRadius) {
             this.outsideTime += dt;

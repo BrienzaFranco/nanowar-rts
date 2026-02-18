@@ -83,8 +83,8 @@ export class Renderer {
             this.ctx.stroke();
         }
 
-        // Map boundary ring - more visible warning
-        const worldRadius = 1500;
+        // Map boundary ring - more prominent warning
+        const worldRadius = 1700;
         const centerX = 1200;
         const centerY = 900;
         const screenCenter = camera.worldToScreen(centerX, centerY);
@@ -92,9 +92,9 @@ export class Renderer {
         
         this.ctx.beginPath();
         this.ctx.arc(screenCenter.x, screenCenter.y, boundaryRadius, 0, Math.PI * 2);
-        this.ctx.strokeStyle = 'rgba(255, 80, 80, 0.15)';
-        this.ctx.lineWidth = 2;
-        this.ctx.setLineDash([15 * camera.zoom, 25 * camera.zoom]);
+        this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.4)';
+        this.ctx.lineWidth = 3;
+        this.ctx.setLineDash([10 * camera.zoom, 20 * camera.zoom]);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
     }
@@ -340,12 +340,12 @@ export class Renderer {
             this.ctx.restore();
         }
 
-        // Warning effect when outside map boundary - red tint
+        // Warning effect when outside map boundary - bright flash
         let entityAlpha = 1;
         if (entity.outsideWarning) {
-            // More visible flicker with red tint
-            const flash = Math.sin(Date.now() * 0.008) > 0;
-            entityAlpha = flash ? 1 : 0.4;
+            // Bright flashing warning - yellow/white flash
+            const flash = Math.sin(Date.now() * 0.015) > 0;
+            entityAlpha = flash ? 1 : 0.3;
         }
 
         // Body
@@ -354,6 +354,20 @@ export class Renderer {
         this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
         this.ctx.fillStyle = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
         this.ctx.fill();
+
+        // Warning glow when outside boundary
+        if (entity.outsideWarning) {
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'lighter';
+            const warningGlow = this.ctx.createRadialGradient(screen.x, screen.y, sr, screen.x, screen.y, sr * 2.5);
+            warningGlow.addColorStop(0, 'rgba(255, 255, 100, 0.8)');
+            warningGlow.addColorStop(1, 'rgba(255, 255, 100, 0)');
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, sr * 2.5, 0, Math.PI * 2);
+            this.ctx.fillStyle = warningGlow;
+            this.ctx.fill();
+            this.ctx.restore();
+        }
 
         // Highlight
         this.ctx.beginPath();

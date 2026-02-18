@@ -120,28 +120,6 @@
             height: 100%;
         }
 
-        #instructions {
-            position: absolute;
-            bottom: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(20, 20, 25, 0.95);
-            color: rgba(255, 255, 255, 0.7);
-            padding: 10px 16px;
-            border-radius: 4px;
-            font-size: 10px;
-            text-align: center;
-            line-height: 1.6;
-            max-width: 95%;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            font-family: 'Courier New', monospace;
-            cursor: pointer;
-        }
-
-        #instructions:hover {
-            background: rgba(30, 30, 40, 0.98);
-        }
-
         #tutorial-overlay {
             position: fixed;
             top: 0;
@@ -326,13 +304,6 @@
             </div>
         </div>
         <canvas id="game-canvas"></canvas>
-        <div id="instructions" onclick="this.style.display='none'">
-            <strong>RALLY:</strong> Selecciona + T + Click | <strong>STOP:</strong> S | <strong>LINEA:</strong> Click
-            Der<br>
-            <strong>DOUBLE CLICK:</strong> Seleccionar todo | <strong>ZOOM:</strong> Rueda | <strong>PAN:</strong>
-            Space<br>
-            <small style="opacity: 0.5;">Click para cerrar</small>
-        </div>
     </div>
 
     <div id="tutorial-overlay">
