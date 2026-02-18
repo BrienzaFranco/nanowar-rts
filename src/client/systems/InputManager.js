@@ -8,6 +8,7 @@ export class InputManager {
         this.mouseDownPos = { x: 0, y: 0 };
         this.isPanning = false;
         this.spaceDown = false;
+        this.nodeUnderMouse = null; // Track if mouse is over a node
         this.setupEvents();
     }
 
@@ -32,6 +33,13 @@ export class InputManager {
             this.isPanning = true;
             return;
         }
+
+        // Check if mouse is over a node
+        const worldPos = this.game.camera.screenToWorld(this.mouse.x, this.mouse.y);
+        this.nodeUnderMouse = this.game.state.nodes.find(n => {
+            const dx = n.x - worldPos.x, dy = n.y - worldPos.y;
+            return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
+        }) || null;
 
         if (e.button === 0) this.mouse.down = true;
         if (e.button === 2) this.mouse.rightDown = true;
