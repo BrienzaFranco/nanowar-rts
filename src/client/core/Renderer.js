@@ -6,6 +6,49 @@ export class Renderer {
         this.ctx = ctx;
         this.playerIndex = 0;
         this.trailQueue = []; // Current frame units (kept for legacy support if needed)
+        
+        // Pre-rendered glow cache for each player color
+        // Key: "#RRGGBB", Value: { canvas, scale }
+        this.glowCache = new Map();
+    }
+    
+    /**
+     * Pre-render glow sprite for a player color
+     * Creates an offscreen canvas with the glow effect cached
+     */
+    _getOrCreateGlow(color) {
+        if (this.glowCache.has(color)) {
+            return this.glowCache.get(color);
+        }
+        
+        // Create offscreen canvas for the glow sprite
+        // Size: 64x64 for good resolution with some margin
+        const size = 64;
+        const center = size / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        
+        // Parse color components
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        
+        // Create glow using radial gradient (once, not per frame!)
+        const gradient = ctx.createRadialGradient(center, center, 4, center, center, size / 2 - 2);
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.6)`);
+        gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.3)`);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillRect(0, 0, size, size);
+        ctx.globalCompositeOperation = 'source-over';
+        
+        const glowData = { canvas, size };
+        this.glowCache.set(color, glowData);
+        return glowData;
     }
 
     setPlayerIndex(idx) {
@@ -255,28 +298,30 @@ export class Renderer {
         this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
         this.ctx.fill();
 
-        // Unit Glow: Instead of trails, make units illuminate at max speed (territorial boost)
+        // Unit Glow: Pre-rendered cached sprite (MUCH faster than createRadialGradient each frame)
         const smoothedBoost = entity.speedBoost * entity.speedBoost;
         if (!entity.dying && smoothedBoost > 0.1) {
             const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
-            const r = parseInt(playerColor.slice(1, 3), 16);
-            const g = parseInt(playerColor.slice(3, 5), 16);
-            const b = parseInt(playerColor.slice(5, 7), 16);
-
+            const glowData = this._getOrCreateGlow(playerColor);
+            
+            // Scale based on unit radius and boost level
+            // Original glow radius: sr * (1.2 + smoothedBoost * 1.5) * camera.zoom
+            const glowRadius = sr * (1.2 + smoothedBoost * 1.5) * camera.zoom;
+            const scale = (glowRadius * 2) / glowData.size; // Scale to desired radius
+            
             this.ctx.save();
             this.ctx.globalCompositeOperation = 'lighter';
-
-            // Outer glow bloom
-            const glowRadius = sr * (1.2 + smoothedBoost * 1.5) * camera.zoom;
-            const gradient = this.ctx.createRadialGradient(screen.x, screen.y, sr * 0.5, screen.x, screen.y, glowRadius);
-            gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${0.6 * smoothedBoost})`);
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, glowRadius, 0, Math.PI * 2);
-            this.ctx.fillStyle = gradient;
-            this.ctx.fill();
-
+            this.ctx.globalAlpha = smoothedBoost;
+            
+            // Draw pre-rendered glow sprite instead of expensive gradient
+            this.ctx.drawImage(
+                glowData.canvas,
+                screen.x - glowRadius,
+                screen.y - glowRadius,
+                glowRadius * 2,
+                glowRadius * 2
+            );
+            
             this.ctx.restore();
         }
 
