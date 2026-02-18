@@ -66,6 +66,9 @@ export class Renderer {
     }
 
     drawGrid(width, height, camera) {
+        // Skip grid drawing if zoomed out too far (performance)
+        if (camera.zoom < 0.15) return;
+        
         const gridSize = 100 * camera.zoom;
         const offsetX = (-camera.x * camera.zoom) % gridSize;
         const offsetY = (-camera.y * camera.zoom) % gridSize;
@@ -122,6 +125,13 @@ export class Renderer {
         const screen = camera.worldToScreen(node.x, node.y);
         const sr = node.radius * camera.zoom;
         const sir = node.influenceRadius * camera.zoom;
+        
+        // Culling for nodes - skip if completely off screen
+        const margin = sir * 2;
+        if (this.width && (screen.x < -margin || screen.x > this.width + margin || screen.y < -margin || screen.y > this.height + margin)) {
+            return;
+        }
+        
         const baseColor = node.getColor();
 
         const c = baseColor.slice(1);

@@ -6,7 +6,11 @@ export class SpatialGrid {
         this.cols = Math.ceil(width / cellSize);
         this.rows = Math.ceil(height / cellSize);
         this.cells = new Map();
-        this.queryIds = 0; // To avoid duplicate checks in a single query
+        this.queryIds = 0;
+        
+        // Pre-allocated array for retrieve() to avoid GC
+        this._resultArray = [];
+        this._resultLength = 0;
     }
 
     clear() {
@@ -18,14 +22,8 @@ export class SpatialGrid {
     }
 
     addObject(obj) {
-        // Assume obj has x and y
         const col = Math.floor(obj.x / this.cellSize);
         const row = Math.floor(obj.y / this.cellSize);
-
-        // Add to the specific cell
-        // We could handle objects spanning multiple cells if they have large radius, 
-        // but for point-like entities, center cell is usually enough if we query neighbors.
-        // For logic consistency with "retrieve", simpler to just put in one cell and search neighbors.
 
         if (col >= 0 && col < this.cols && row >= 0 && row < this.rows) {
             const key = this._getKey(col, row);
@@ -36,16 +34,15 @@ export class SpatialGrid {
         }
     }
 
-    // Retrieve objects in the cells surrounding the given area
+    // Retrieve objects - optimized with pre-allocated array
     retrieve(x, y, radius) {
-        const found = [];
+        // Reset result array without allocation
+        this._resultLength = 0;
+        
         const startCol = Math.floor((x - radius) / this.cellSize);
         const endCol = Math.floor((x + radius) / this.cellSize);
         const startRow = Math.floor((y - radius) / this.cellSize);
         const endRow = Math.floor((y + radius) / this.cellSize);
-
-        // Optimization: Single bucket lookup for small radii inside one cell?
-        // Standard loop is robust.
 
         for (let c = startCol; c <= endCol; c++) {
             if (c < 0 || c >= this.cols) continue;
@@ -56,22 +53,15 @@ export class SpatialGrid {
                 const cellObjects = this.cells.get(key);
                 if (cellObjects) {
                     for (let i = 0; i < cellObjects.length; i++) {
-                        found.push(cellObjects[i]);
+                        this._resultArray[this._resultLength++] = cellObjects[i];
                     }
                 }
             }
         }
-        return found;
+        return this._resultArray;
     }
 
-    /**
-     * More optimized retrieval that calls a callback for each potential neighbor
-     * eliminating array allocations.
-     * @param {number} x 
-     * @param {number} y 
-     * @param {number} radius 
-     * @param {function} callback - Called with (object)
-     */
+    // Callback-based query - most efficient, no allocations
     query(x, y, radius, callback) {
         const startCol = Math.floor((x - radius) / this.cellSize);
         const endCol = Math.floor((x + radius) / this.cellSize);
@@ -94,16 +84,10 @@ export class SpatialGrid {
         }
     }
 
-    /**
-     * Retrieve only nodes from nearby cells - optimized for node lookups
-     * Nodes have larger influence radius, so we use a bigger search radius
-     * @param {number} x - World X position
-     * @param {number} y - World Y position  
-     * @param {number} searchRadius - Radius to search for nodes (use node.influenceRadius)
-     * @returns {Array} Array of nearby nodes
-     */
+    // Retrieve only nodes - also optimized
     retrieveNodes(x, y, searchRadius) {
-        const found = [];
+        this._resultLength = 0;
+        
         const startCol = Math.floor((x - searchRadius) / this.cellSize);
         const endCol = Math.floor((x + searchRadius) / this.cellSize);
         const startRow = Math.floor((y - searchRadius) / this.cellSize);
@@ -119,14 +103,13 @@ export class SpatialGrid {
                 if (cellObjects) {
                     for (let i = 0; i < cellObjects.length; i++) {
                         const node = cellObjects[i];
-                        // Only include nodes (they have influenceRadius property)
                         if (node && node.influenceRadius !== undefined) {
-                            found.push(node);
+                            this._resultArray[this._resultLength++] = node;
                         }
                     }
                 }
             }
         }
-        return found;
+        return this._resultArray;
     }
 }
