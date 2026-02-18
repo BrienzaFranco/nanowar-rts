@@ -15,8 +15,8 @@ export class PixiRenderer {
             width: window.innerWidth,
             height: window.innerHeight,
             backgroundColor: 0x151515,
-            antialias: false,
-            resolution: 1,
+            antialias: true,
+            resolution: window.devicePixelRatio || 1,
             autoDensity: true,
         });
         
