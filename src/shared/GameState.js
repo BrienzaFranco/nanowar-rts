@@ -242,13 +242,13 @@ export class GameState {
     }
 
     /**
-     * Detect flocks - optimized version using spatial grid more efficiently
+     * Detect flocks - only for very small groups to avoid visual issues
      * Units in a flock skip expensive individual collision physics
      */
     _detectFlocks() {
-        const FLOCK_RADIUS = 50; // Units within this distance form a flock
-        const MIN_FLOCK_SIZE = 10; // Minimum units to form a flock
-        const MAX_FLOCK_SIZE = 40; // Max units per flock
+        const FLOCK_RADIUS = 40; // Smaller radius
+        const MIN_FLOCK_SIZE = 15; // Minimum units to form a flock
+        const MAX_FLOCK_SIZE = 20; // Max units per flock - small to preserve ball shape
         
         // Reset flock assignments
         for (const ent of this.entities) {

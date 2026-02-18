@@ -265,13 +265,9 @@ export class Entity {
         }
 
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
-  
         // Optimized spatial query
         const searchRadius = this.cohesionRadius;
         const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
-
-        // Early exit if in a flock - just apply cohesion, skip individual collisions
-        const inFlock = !!this.flockId;
         
         for (let other of neighbors) {
             if (other === this || other.dead || other.dying) continue;
@@ -281,34 +277,16 @@ export class Entity {
             const distSq = dx * dx + dy * dy;
 
             if (distSq > searchRadius * searchRadius) continue;
-            
-            // Same owner - cohesion only (no collision for same flock)
-            if (other.owner === this.owner) {
-                if (inFlock && other.flockId === this.flockId) {
-                    // Same flock: apply cohesion but keep minimum distance (don't overlap too much)
-                    if (distSq > 0) {
-                        const dist = Math.sqrt(distSq);
-                        // Only apply cohesion if far enough - keeps them as a ball, not a point
-                        if (dist > this.radius * 1.5 && dist < this.radius * 8) {
-                            cohesionX += dx / dist;
-                            cohesionY += dy / dist;
-                            cohesionCount++;
-                        }
-                    }
-                } else {
-                    // Different flock or no flock: normal cohesion
-                    const dist = Math.sqrt(distSq);
-                    if (dist > this.radius * 2) {
-                        cohesionX += dx / dist;
-                        cohesionY += dy / dist;
-                        cohesionCount++;
-                    }
-                }
-                continue;
+            const dist = Math.sqrt(distSq);
+
+            // COHESION logic - always apply for same owner
+            if (other.owner === this.owner && dist > this.radius * 2) {
+                cohesionX += dx / dist;
+                cohesionY += dy / dist;
+                cohesionCount++;
             }
 
-            // Different owner - always check collision
-            const dist = Math.sqrt(distSq);
+            // COLLISION logic - always check (no flock skipping for better visuals)
             const minDist = this.radius + other.radius;
             if (dist < minDist && dist > 0) {
                 const overlap = minDist - dist;
