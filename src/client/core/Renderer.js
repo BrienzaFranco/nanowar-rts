@@ -312,10 +312,6 @@ export class Renderer {
             return;
         }
 
-        // Check if we have many entities - disable expensive effects
-        const entityCount = this.game?.state?.entities?.length || 0;
-        const manyEntities = entityCount > 500;
-        
         // Get player color
         const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
 
@@ -387,19 +383,15 @@ export class Renderer {
             return;
         }
 
-        // Shadow - skip with many entities for performance
-        if (!manyEntities) {
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x + 1, screen.y + 1, sr, 0, Math.PI * 2);
-            this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            this.ctx.fill();
-        }
+        // Shadow
+        this.ctx.beginPath();
+        this.ctx.arc(screen.x + 1, screen.y + 1, sr, 0, Math.PI * 2);
+        this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        this.ctx.fill();
 
         // Unit Glow: Pre-rendered cached sprite (MUCH faster than createRadialGradient each frame)
-        // Skip glow with many entities for performance
         const smoothedBoost = entity.speedBoost * entity.speedBoost;
-        if (!manyEntities && !entity.dying && smoothedBoost > 0.1) {
-            const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
+        if (!entity.dying && smoothedBoost > 0.1) {
             const glowData = this._getOrCreateGlow(playerColor);
             
             // Scale based on unit radius and boost level
@@ -431,30 +423,15 @@ export class Renderer {
             entityAlpha = flash ? 1 : 0.3;
         }
 
-        // Body - use cached sprite for performance
+        // Body
         this.ctx.globalAlpha = entityAlpha;
-        
-        if (manyEntities) {
-            // Fast path: just draw a simple circle (much faster for many entities)
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
-            this.ctx.fillStyle = playerColor;
-            this.ctx.fill();
-        } else {
-            // Normal path: use cached sprite for better visuals
-            const unitSprite = this._getOrCreateUnitSprite(playerColor, entity.radius);
-            const drawSize = sr * 2 + 4;
-            this.ctx.drawImage(
-                unitSprite,
-                screen.x - drawSize / 2,
-                screen.y - drawSize / 2,
-                drawSize,
-                drawSize
-            );
-        }
+        this.ctx.beginPath();
+        this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
+        this.ctx.fillStyle = playerColor;
+        this.ctx.fill();
 
-        // Warning glow when outside boundary - skip with many entities
-        if (!manyEntities && entity.outsideWarning) {
+        // Warning glow when outside boundary
+        if (entity.outsideWarning) {
             this.ctx.save();
             this.ctx.globalCompositeOperation = 'lighter';
             const warningGlow = this.ctx.createRadialGradient(screen.x, screen.y, sr, screen.x, screen.y, sr * 2.5);
@@ -467,13 +444,11 @@ export class Renderer {
             this.ctx.restore();
         }
 
-        // Highlight - skip with many entities for performance
-        if (!manyEntities) {
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x - sr * 0.3, screen.y - sr * 0.3, sr * 0.4, 0, Math.PI * 2);
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            this.ctx.fill();
-        }
+        // Highlight
+        this.ctx.beginPath();
+        this.ctx.arc(screen.x - sr * 0.3, screen.y - sr * 0.3, sr * 0.4, 0, Math.PI * 2);
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        this.ctx.fill();
 
         this.ctx.globalAlpha = 1;
 
