@@ -6,7 +6,6 @@ export class PixiRenderer {
         this.canvas = canvas;
         this.game = game;
         this.sprites = new Map();
-        this.nodeSprites = new Map();
         
         this.app = new PIXI.Application({
             view: canvas,
@@ -22,18 +21,18 @@ export class PixiRenderer {
         this.app.stage.addChild(this.world);
         
         this.gridLayer = new PIXI.Graphics();
-        this.boundaryLayer = new PIXI.Graphics();
-        this.nodeLayer = new PIXI.Container();
+        this.nodeLayer = new PIXI.Graphics();
         this.unitLayer = new PIXI.Container();
+        this.glowLayer = new PIXI.Container();
         this.effectsLayer = new PIXI.Graphics();
         
         this.world.addChild(this.gridLayer);
-        this.world.addChild(this.boundaryLayer);
         this.world.addChild(this.nodeLayer);
+        this.world.addChild(this.glowLayer);
         this.world.addChild(this.unitLayer);
         this.world.addChild(this.effectsLayer);
         
-        this.generateTextures();
+        this.glowCache = new Map();
         
         this.uiCanvas = document.createElement('canvas');
         this.uiCanvas.style.position = 'absolute';
@@ -45,27 +44,6 @@ export class PixiRenderer {
         this.uiCanvas.style.zIndex = '10';
         canvas.parentElement.appendChild(this.uiCanvas);
         this.ctx = this.uiCanvas.getContext('2d');
-    }
-    
-    generateTextures() {
-        const gr = new PIXI.Graphics();
-        
-        gr.clear();
-        gr.beginFill(0xFFFFFF);
-        gr.drawCircle(0, 0, 16);
-        gr.endFill();
-        this.unitTexture = this.app.renderer.generateTexture(gr);
-
-        this.colorTextures = new Map();
-        for (let i = 0; i < PLAYER_COLORS.length; i++) {
-            const color = PLAYER_COLORS[i];
-            const colorInt = parseInt(color.slice(1), 16);
-            const sprite = new PIXI.Sprite(this.unitTexture);
-            sprite.tint = colorInt;
-            this.colorTextures.set(i, this.app.renderer.generateTexture(sprite));
-        }
-        
-        this.glowCache = new Map();
     }
     
     _getOrCreateGlow(color) {
@@ -109,7 +87,7 @@ export class PixiRenderer {
         this.height = height;
         
         this.gridLayer.clear();
-        this.boundaryLayer.clear();
+        this.nodeLayer.clear();
         this.effectsLayer.clear();
         
         if (this.ctx) {
@@ -123,8 +101,6 @@ export class PixiRenderer {
     }
     
     draw(camera, state, systems) {
-        const playerIdx = this.playerIndex;
-        
         this.world.scale.set(camera.zoom);
         this.world.position.set(
             -camera.x * camera.zoom,
@@ -132,7 +108,6 @@ export class PixiRenderer {
         );
         
         this._drawGrid(camera);
-        this._drawBoundary(camera, state.entities);
         this._drawNodes(camera, state.nodes, systems?.selection);
         this._drawEntities(camera, state.entities, systems?.selection);
         
@@ -184,25 +159,29 @@ export class PixiRenderer {
         }
     }
     
-    _drawBoundary(camera, entities) {
-        // Boundary is drawn in _drawGrid
+    _hexToInt(hex) {
+        if (!hex || typeof hex !== 'string') return 0x757575;
+        const c = hex.replace('#', '');
+        if (c.length !== 6) return 0x757575;
+        const num = parseInt(c, 16);
+        return isNaN(num) ? 0x757575 : num;
     }
     
     _drawNodes(camera, nodes, selection) {
         const screenW = this.width / camera.zoom;
         const screenH = this.height / camera.zoom;
         
-        // Clear and rebuild node graphics
-        this.nodeLayer.removeChildren();
+        this.nodeLayer.clear();
         
         for (const node of nodes) {
             const isSelected = selection?.isSelected(node);
             
-            const baseColor = node.getColor();
-            const c = baseColor.slice(1);
-            const r = parseInt(c.slice(0, 2), 16);
-            const g = parseInt(c.slice(2, 4), 16);
-            const b = parseInt(c.slice(4, 6), 16);
+            const baseColor = node.getColor() || '#757575';
+            const colorInt = this._hexToInt(baseColor);
+            const c = baseColor.replace('#', '');
+            const r = parseInt(c.slice(0, 2), 16) || 117;
+            const g = parseInt(c.slice(2, 4), 16) || 117;
+            const b = parseInt(c.slice(4, 6), 16) || 117;
             const areaColor = [r, g, b].join(',');
             
             const screen = camera.worldToScreen(node.x, node.y);
@@ -214,48 +193,42 @@ export class PixiRenderer {
                 continue;
             }
             
-            const gfx = new PIXI.Graphics();
+            this.nodeLayer.beginFill(colorInt, 0.08);
+            this.nodeLayer.drawCircle(node.x, node.y, sir);
+            this.nodeLayer.endFill();
             
-            // Aura
-            gfx.beginFill(parseInt(`0x${c}`), 0.08);
-            gfx.drawCircle(node.x, node.y, sir);
-            gfx.endFill();
+            this.nodeLayer.lineStyle(1.5 * camera.zoom, colorInt, 0.25);
+            this.nodeLayer.drawCircle(node.x, node.y, sir);
             
-            gfx.lineStyle(1.5 * camera.zoom, parseInt(`0x${c}`), 0.25);
-            gfx.drawCircle(node.x, node.y, sir);
-            
-            // Rally line
             if (node.rallyPoint && node.owner !== -1 && node.owner === this.playerIndex) {
                 const rx = node.rallyPoint.x;
                 const ry = node.rallyPoint.y;
-                gfx.lineStyle(4 * camera.zoom, parseInt(`0x${c}`), 0.5);
-                gfx.moveTo(node.x, node.y);
-                gfx.lineTo(rx, ry);
-                gfx.lineStyle(0);
-                gfx.beginFill(parseInt(`0x${c}`), 0.7);
-                gfx.drawCircle(rx, ry, 5 * camera.zoom);
-                gfx.endFill();
+                this.nodeLayer.lineStyle(4 * camera.zoom, colorInt, 0.5);
+                this.nodeLayer.moveTo(node.x, node.y);
+                this.nodeLayer.lineTo(rx, ry);
+                this.nodeLayer.lineStyle(0);
+                this.nodeLayer.beginFill(colorInt, 0.7);
+                this.nodeLayer.drawCircle(rx, ry, 5 * camera.zoom);
+                this.nodeLayer.endFill();
             }
             
-            // Spawn progress
             if (node.owner !== -1 && node.spawnProgress > 0) {
                 const isFull = node.baseHp >= node.maxHp;
-                let progressColor = isFull ? baseColor : '#ffffff';
+                let progressColor = isFull ? colorInt : 0xFFFFFF;
                 
                 if (node.enemyPressure) {
                     const flash = Math.sin(Date.now() / 150) > 0;
-                    progressColor = flash ? '#ff0000' : progressColor;
+                    progressColor = flash ? 0xFF0000 : progressColor;
                 }
                 
                 let progress = Math.min(1.0, node.spawnProgress);
                 if (node.spawnEffect > 0.3) progress = 1.0;
                 
                 const lineW = isFull ? 3 * camera.zoom : 2 * camera.zoom;
-                gfx.lineStyle(lineW, parseInt(progressColor.slice(1), 16), 1);
-                gfx.arc(node.x, node.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+                this.nodeLayer.lineStyle(lineW, progressColor, 1);
+                this.nodeLayer.arc(node.x, node.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
             }
             
-            // Node body
             const totalHp = node.getTotalHp();
             const hpPercent = Math.max(0, Math.min(1, totalHp / node.maxHp));
             const currentRadius = sr * hpPercent;
@@ -267,12 +240,11 @@ export class PixiRenderer {
                 brightness = 1 + (node.baseHp / node.maxHp) * 0.3;
             }
             
-            // Background
-            gfx.beginFill(0x282828, 0.4);
-            gfx.drawCircle(node.x, node.y, sr);
-            gfx.endFill();
-            gfx.lineStyle(1 * camera.zoom, 0xFFFFFF, 0.1);
-            gfx.drawCircle(node.x, node.y, sr);
+            this.nodeLayer.beginFill(0x282828, 0.4);
+            this.nodeLayer.drawCircle(node.x, node.y, sr);
+            this.nodeLayer.endFill();
+            this.nodeLayer.lineStyle(1 * camera.zoom, 0xFFFFFF, 0.1);
+            this.nodeLayer.drawCircle(node.x, node.y, sr);
             
             if (hpPercent > 0) {
                 const brightR = Math.min(255, Math.floor(r * brightness));
@@ -280,31 +252,25 @@ export class PixiRenderer {
                 const brightB = Math.min(255, Math.floor(b * brightness));
                 const brightColor = (brightR << 16) | (brightG << 8) | brightB;
                 
-                gfx.beginFill(brightColor, 1);
-                gfx.drawCircle(node.x, node.y, currentRadius);
-                gfx.endFill();
+                this.nodeLayer.beginFill(brightColor, 1);
+                this.nodeLayer.drawCircle(node.x, node.y, currentRadius);
+                this.nodeLayer.endFill();
             }
             
-            // Border
-            const borderColorStr = isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${areaColor},0.5)`;
-            const borderColor = parseInt(borderColorStr.slice(1, 7), 16);
+            const borderColor = isSelected ? 0xFFFFFF : colorInt;
             const borderAlpha = isSelected ? 0.9 : 0.5;
-            gfx.lineStyle(isSelected ? 3 * camera.zoom : 1.5 * camera.zoom, borderColor, borderAlpha);
-            gfx.drawCircle(node.x, node.y, sr);
+            this.nodeLayer.lineStyle(isSelected ? 3 * camera.zoom : 1.5 * camera.zoom, borderColor, borderAlpha);
+            this.nodeLayer.drawCircle(node.x, node.y, sr);
             
-            // Hit flash
             if (node.hitFlash > 0) {
-                gfx.lineStyle(5 * camera.zoom, 0xFF6464, node.hitFlash);
-                gfx.drawCircle(node.x, node.y, sr);
+                this.nodeLayer.lineStyle(5 * camera.zoom, 0xFF6464, node.hitFlash);
+                this.nodeLayer.drawCircle(node.x, node.y, sr);
             }
             
-            // Spawn effect
             if (node.spawnEffect > 0) {
-                gfx.lineStyle(3 * camera.zoom, 0xFFFFFF, node.spawnEffect * 1.5);
-                gfx.drawCircle(node.x, node.y, sr * (1.3 + (0.5 - node.spawnEffect) * 0.6));
+                this.nodeLayer.lineStyle(3 * camera.zoom, 0xFFFFFF, node.spawnEffect * 1.5);
+                this.nodeLayer.drawCircle(node.x, node.y, sr * (1.3 + (0.5 - node.spawnEffect) * 0.6));
             }
-            
-            this.nodeLayer.addChild(gfx);
         }
     }
     
@@ -313,35 +279,36 @@ export class PixiRenderer {
         const screenW = this.width / camera.zoom;
         const screenH = this.height / camera.zoom;
         
+        this.effectsLayer.clear();
+        
         for (const ent of entities) {
             if (ent.dead) continue;
             
             currentIds.add(ent.id);
             
-            const screen = camera.worldToScreen(ent.x, ent.y);
             const sr = ent.radius * camera.zoom;
             
-            if (screen.x < -sr || screen.x > screenW + sr || screen.y < -sr || screen.y > screenH + sr) {
+            if (ent.x < camera.x - screenW - sr || ent.x > camera.x + screenW + sr ||
+                ent.y < camera.y - screenH - sr || ent.y > camera.y + screenH + sr) {
                 continue;
             }
             
-            const playerColor = PLAYER_COLORS[ent.owner % PLAYER_COLORS.length];
-            const colorInt = parseInt(playerColor.slice(1), 16);
-            const c = playerColor.slice(1);
-            const r = parseInt(c.slice(0, 2), 16);
-            const g = parseInt(c.slice(2, 4), 16);
-            const b = parseInt(c.slice(4, 6), 16);
+            const playerColor = PLAYER_COLORS[ent.owner % PLAYER_COLORS.length] || '#757575';
+            const colorInt = this._hexToInt(playerColor);
             
             let spriteData = this.sprites.get(ent.id);
             if (!spriteData) {
-                const texture = this.colorTextures.get(ent.owner % PLAYER_COLORS.length) || this.unitTexture;
+                const texture = PIXI.Texture.WHITE;
                 const sprite = new PIXI.Sprite(texture);
                 sprite.anchor.set(0.5);
                 
-                const glowSprite = new PIXI.Sprite(this._getOrCreateGlow(playerColor));
+                const glowSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
                 glowSprite.anchor.set(0.5);
                 glowSprite.blendMode = PIXI.BLEND_MODES.ADD;
                 glowSprite.visible = false;
+                
+                this.unitLayer.addChild(sprite);
+                this.glowLayer.addChild(glowSprite);
                 
                 spriteData = { sprite, glowSprite };
                 this.sprites.set(ent.id, spriteData);
@@ -349,11 +316,11 @@ export class PixiRenderer {
             
             const { sprite, glowSprite } = spriteData;
             
-            // Handle dying
             if (ent.dying) {
-                const progress = ent.deathTime / 0.4;
                 sprite.visible = false;
                 glowSprite.visible = false;
+                
+                const progress = ent.deathTime / 0.4;
                 
                 if (ent.deathType === 'explosion') {
                     const maxRadius = sr * 4;
@@ -372,20 +339,6 @@ export class PixiRenderer {
                     this.effectsLayer.beginFill(0xFF6464, flash * 0.4 * (1 - progress));
                     this.effectsLayer.drawCircle(ent.x, ent.y, sr * (1 + progress * 2));
                     this.effectsLayer.endFill();
-                } else if (ent.deathType === 'sacrifice' && ent.absorbTarget) {
-                    const node = ent.absorbTarget;
-                    const startX = ent.x;
-                    const startY = ent.y;
-                    const targetX = node.x;
-                    const targetY = node.y;
-                    const easeProgress = progress * progress;
-                    const currentX = startX + (targetX - startX) * easeProgress;
-                    const currentY = startY + (targetY - startY) * easeProgress;
-                    const alpha = 1 - progress;
-                    
-                    this.effectsLayer.beginFill(colorInt, alpha);
-                    this.effectsLayer.drawCircle(currentX, currentY, sr * (1 - progress * 0.7));
-                    this.effectsLayer.endFill();
                 }
                 continue;
             }
@@ -393,10 +346,9 @@ export class PixiRenderer {
             sprite.visible = true;
             sprite.x = ent.x;
             sprite.y = ent.y;
-            sprite.scale.set(sr / 16);
+            sprite.scale.set(sr * 2);
             sprite.tint = colorInt;
             
-            // Warning when outside
             let entityAlpha = 1;
             if (ent.outsideWarning) {
                 const flash = Math.sin(Date.now() * 0.015) > 0;
@@ -409,32 +361,29 @@ export class PixiRenderer {
             
             sprite.alpha = entityAlpha;
             
-            // Glow for speed boost
             const smoothedBoost = ent.speedBoost * ent.speedBoost;
             if (smoothedBoost > 0.1) {
                 glowSprite.visible = true;
                 glowSprite.x = ent.x;
                 glowSprite.y = ent.y;
                 const glowRadius = sr * (1.2 + smoothedBoost * 1.5);
-                glowSprite.scale.set((glowRadius * 2) / 64);
+                glowSprite.scale.set(glowRadius * 2 / 64);
                 glowSprite.alpha = smoothedBoost;
                 glowSprite.tint = colorInt;
             } else {
                 glowSprite.visible = false;
             }
             
-            // Selection
             if (selection?.isSelected(ent)) {
                 this.effectsLayer.lineStyle(0.8 * camera.zoom, 0xFFFFFF, 0.7);
                 this.effectsLayer.drawCircle(ent.x, ent.y, sr + 2 * camera.zoom);
             }
         }
         
-        // Remove dead sprites
         for (const [id, spriteData] of this.sprites) {
             if (!currentIds.has(id)) {
                 this.unitLayer.removeChild(spriteData.sprite);
-                this.unitLayer.removeChild(spriteData.glowSprite);
+                this.glowLayer.removeChild(spriteData.glowSprite);
                 spriteData.sprite.destroy();
                 spriteData.glowSprite.destroy();
                 this.sprites.delete(id);
@@ -442,7 +391,6 @@ export class PixiRenderer {
         }
     }
     
-    // Legacy methods
     drawGrid() { }
     drawNode() { }
     drawEntity() { }
@@ -477,10 +425,10 @@ export class PixiRenderer {
     drawWaypointLine(wl, camera) {
         if (!this.ctx || wl.points.length < 2) return;
         const alpha = Math.max(0, wl.life / wl.maxLife) * 0.7;
-        const color = PLAYER_COLORS[wl.owner % PLAYER_COLORS.length];
-        const r = parseInt(color.slice(1, 3), 16);
-        const g = parseInt(color.slice(3, 5), 16);
-        const b = parseInt(color.slice(5, 7), 16);
+        const color = PLAYER_COLORS[wl.owner % PLAYER_COLORS.length] || '#757575';
+        const r = parseInt(color.slice(1, 3), 16) || 117;
+        const g = parseInt(color.slice(3, 5), 16) || 117;
+        const b = parseInt(color.slice(5, 7), 16) || 117;
         
         this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
         this.ctx.lineWidth = 4 * camera.zoom;
