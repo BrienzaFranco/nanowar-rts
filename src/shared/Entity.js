@@ -29,7 +29,7 @@ export class Entity {
         this.targetNode = null;
 
         this.cohesionRadius = 30;
-        this.cohesionForce = 40;
+        this.cohesionForce = 60; // Increased for tighter ball formation
         
         // Map boundary tracking
         this.outsideTime = 0;
@@ -269,6 +269,9 @@ export class Entity {
         const searchRadius = this.cohesionRadius;
         const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
         
+        // Check if in flock for stronger cohesion
+        const inFlock = !!this.flockId;
+        
         for (let other of neighbors) {
             if (other === this || other.dead || other.dying) continue;
 
@@ -279,14 +282,22 @@ export class Entity {
             if (distSq > searchRadius * searchRadius) continue;
             const dist = Math.sqrt(distSq);
 
-            // COHESION logic - always apply for same owner
-            if (other.owner === this.owner && dist > this.radius * 2) {
-                cohesionX += dx / dist;
-                cohesionY += dy / dist;
-                cohesionCount++;
+            // COHESION logic - stronger for flocks to create intimidating balls
+            if (other.owner === this.owner && dist > this.radius * 1.5) {
+                if (inFlock && other.flockId === this.flockId) {
+                    // Flock: much stronger cohesion (2.5x) for tight ball formation
+                    cohesionX += (dx / dist) * 2.5;
+                    cohesionY += (dy / dist) * 2.5;
+                    cohesionCount++;
+                } else {
+                    // Normal cohesion
+                    cohesionX += dx / dist;
+                    cohesionY += dy / dist;
+                    cohesionCount++;
+                }
             }
 
-            // COLLISION logic - always check (no flock skipping for better visuals)
+            // COLLISION logic - always check to prevent overlapping
             const minDist = this.radius + other.radius;
             if (dist < minDist && dist > 0) {
                 const overlap = minDist - dist;

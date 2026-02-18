@@ -242,13 +242,12 @@ export class GameState {
     }
 
     /**
-     * Detect flocks - only for very small groups to avoid visual issues
-     * Units in a flock skip expensive individual collision physics
+     * Detect flocks - for medium groups to create intimidating balls
      */
     _detectFlocks() {
-        const FLOCK_RADIUS = 40; // Smaller radius
-        const MIN_FLOCK_SIZE = 15; // Minimum units to form a flock
-        const MAX_FLOCK_SIZE = 20; // Max units per flock - small to preserve ball shape
+        const FLOCK_RADIUS = 45; // Medium radius for ball formation
+        const MIN_FLOCK_SIZE = 12; // Minimum units
+        const MAX_FLOCK_SIZE = 25; // Max units per flock - creates big intimidating balls
         
         // Reset flock assignments
         for (const ent of this.entities) {
