@@ -1,5 +1,5 @@
 import { Camera } from './Camera.js';
-import { Renderer } from './Renderer.js';
+import { PixiRenderer } from './PixiRenderer.js';
 import { GameState } from '../../shared/GameState.js';
 import { GAME_SETTINGS } from '../../shared/GameConfig.js';
 import { Particle } from './Particle.js';
@@ -12,9 +12,8 @@ export class Game {
             console.error('Canvas not found:', canvasId);
             return;
         }
-        this.ctx = this.canvas.getContext('2d');
         this.camera = new Camera();
-        this.renderer = new Renderer(this.ctx, this);
+        this.renderer = new PixiRenderer(this.canvas, this);
         this.state = new GameState();
         this.particles = [];
         this.commandIndicators = [];
@@ -33,6 +32,7 @@ export class Game {
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        this.renderer.resize(this.canvas.width, this.canvas.height);
     }
 
     start() {
@@ -120,21 +120,7 @@ export class Game {
         this.renderer.setPlayerIndex(playerIdx);
 
         this.renderer.clear(this.canvas.width, this.canvas.height);
-        this.renderer.drawGrid(this.canvas.width, this.canvas.height, this.camera);
-
-        this.state.nodes.forEach(node => {
-            const isSelected = this.systems?.selection?.isSelected(node);
-            this.renderer.drawNode(node, this.camera, isSelected);
-        });
-
-        this.state.entities.forEach(entity => {
-            const isSelected = this.systems?.selection?.isSelected(entity);
-            this.renderer.drawEntity(entity, this.camera, isSelected);
-        });
-        this.renderer.renderTrails(this.camera, dt);
-
-        this.particles.forEach(p => this.renderer.drawParticle(p, this.camera));
-        this.commandIndicators.forEach(ci => this.renderer.drawCommandIndicator(ci, this.camera));
+        this.renderer.draw(this.camera, this.state, this.systems);
 
         this.waypointLines.filter(wl => wl.owner === playerIdx).forEach(wl => this.renderer.drawWaypointLine(wl, this.camera));
 
@@ -158,10 +144,12 @@ export class Game {
 
                 const target = e.currentTarget || e.waypoints[0];
                 const screen = this.camera.worldToScreen(target.x, target.y);
-                this.ctx.beginPath();
-                this.ctx.arc(screen.x, screen.y, 2 * this.camera.zoom, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                this.ctx.fill();
+                if (this.renderer.ctx) {
+                    this.renderer.ctx.beginPath();
+                    this.renderer.ctx.arc(screen.x, screen.y, 2 * this.camera.zoom, 0, Math.PI * 2);
+                    this.renderer.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    this.renderer.ctx.fill();
+                }
             }
         });
 
