@@ -202,13 +202,6 @@ export class PixiRenderer {
             const sr = node.radius * camera.zoom;
             const sir = node.influenceRadius * camera.zoom;
             
-            const margin = sir * 2;
-            if (screen.x < -margin || screen.x > screenW + margin || screen.y < -margin || screen.y > screenH + margin) {
-                const ns = this.nodeCache.get(node.id);
-                if (ns) ns.container.visible = false;
-                continue;
-            }
-            
             const ns = this._getNodeSprite(node.id);
             const { aura, body, progress, border } = ns;
             
