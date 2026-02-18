@@ -7,13 +7,8 @@ export class PixiRenderer {
         this.game = game;
         this.sprites = new Map();
         
-        // Create PixiJS Application - v7 async init
-        this.app = new PIXI.Application();
-        this._init(canvas);
-    }
-    
-    async _init(canvas) {
-        await this.app.init({
+        // Create PixiJS Application - v7 synchronous constructor
+        this.app = new PIXI.Application({
             view: canvas,
             width: window.innerWidth,
             height: window.innerHeight,
