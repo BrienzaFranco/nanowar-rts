@@ -242,15 +242,23 @@ export class GameState {
     }
 
     /**
-     * Detect flocks - group nearby units of the same player
-     * Units in a flock share a flockId and skip expensive individual collision physics
+     * Detect flocks - optimized version using spatial grid more efficiently
+     * Units in a flock skip expensive individual collision physics
      */
     _detectFlocks() {
-        const FLOCK_RADIUS = 60; // Units within this distance form a flock
-        const MIN_FLOCK_SIZE = 8; // Minimum units to form a flock
-        const MAX_FLOCK_SIZE = 30; // Max units per flock
+        const FLOCK_RADIUS = 50; // Units within this distance form a flock
+        const MIN_FLOCK_SIZE = 10; // Minimum units to form a flock
+        const MAX_FLOCK_SIZE = 25; // Max units per flock
         
-        // Group entities by owner
+        // Reset flock assignments
+        for (const ent of this.entities) {
+            if (!ent.dead && !ent.dying) {
+                ent.flockId = null;
+                ent.isFlockLeader = false;
+            }
+        }
+        
+        // Group entities by owner and mark unassigned units
         const byOwner = {};
         for (const ent of this.entities) {
             if (ent.dead || ent.dying) continue;
@@ -258,42 +266,39 @@ export class GameState {
             byOwner[ent.owner].push(ent);
         }
         
-        // For each owner, find flocks
+        // For each owner, find flocks using spatial grid
         for (const ownerId in byOwner) {
             const ownerEnts = byOwner[ownerId];
             let flockCounter = 0;
             
-            // Mark visited
-            const visited = new Set();
-            
             for (const ent of ownerEnts) {
-                if (visited.has(ent.id)) continue;
+                // Skip if already assigned to a flock
+                if (ent.flockId) continue;
                 
-                // Find all units in this potential flock
+                // Find all units in this potential flock using spatial grid
+                const nearby = this.spatialGrid.retrieve(ent.x, ent.y, FLOCK_RADIUS);
                 const flock = [];
-                const queue = [ent];
                 
-                while (queue.length > 0 && flock.length < MAX_FLOCK_SIZE) {
-                    const current = queue.shift();
-                    if (visited.has(current.id)) continue;
-                    visited.add(current.id);
-                    flock.push(current);
+                for (const other of nearby) {
+                    if (other.owner !== parseInt(ownerId)) continue;
+                    if (other.flockId) continue;
+                    if (other.dead || other.dying) continue;
                     
-                    // Find neighbors within flock radius
-                    const neighbors = this.spatialGrid.retrieve(current.x, current.y, FLOCK_RADIUS);
-                    for (const neighbor of neighbors) {
-                        if (neighbor.owner === ownerId && !visited.has(neighbor.id) && !neighbor.dead && !neighbor.dying) {
-                            queue.push(neighbor);
-                        }
+                    // Check actual distance
+                    const dx = other.x - ent.x;
+                    const dy = other.y - ent.y;
+                    if (dx * dx + dy * dy <= FLOCK_RADIUS * FLOCK_RADIUS) {
+                        flock.push(other);
+                        if (flock.length >= MAX_FLOCK_SIZE) break;
                     }
                 }
                 
                 // If we have enough units, assign flock ID
                 if (flock.length >= MIN_FLOCK_SIZE) {
                     const flockId = `flock_${ownerId}_${flockCounter++}`;
-                    for (const fEnt of flock) {
-                        fEnt.flockId = flockId;
-                        fEnt.isFlockLeader = (fEnt === flock[0]); // First one is leader
+                    for (let i = 0; i < flock.length; i++) {
+                        flock[i].flockId = flockId;
+                        flock[i].isFlockLeader = (i === 0);
                     }
                 }
             }

@@ -192,33 +192,42 @@ export class SelectionManager {
 
     handleMouseUp(mouse, event) {
         if (event.button === 0) {
-            // Check if this was a drag on a node to set rally point
-            if (mouse.drag && this.game.systems.input.nodeUnderMouse && this.selectedNodes.size > 0) {
+            // Check if this was a drag from a selected node to set rally point
+            if (mouse.drag && this.selectedNodes.size > 0) {
+                // Check if ended on a node (or anywhere - allow setting rally anywhere)
                 const worldPos = this.game.camera.screenToWorld(mouse.x, mouse.y);
                 const targetNode = this.game.state.nodes.find(n => {
                     const dx = n.x - worldPos.x, dy = n.y - worldPos.y;
-                    return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
+                    return Math.sqrt(dx * dx + dy * dy) < n.radius + 15;
                 });
                 
                 const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
                 
-                if (this.game.controller.sendAction) {
-                    this.game.controller.sendAction({
-                        type: 'rally',
-                        nodeIds: Array.from(this.selectedNodes),
-                        targetX: worldPos.x,
-                        targetY: worldPos.y,
-                        targetNodeId: targetNode ? targetNode.id : null
-                    });
-                } else {
-                    this.selectedNodes.forEach(id => {
-                        const node = this.game.state.nodes.find(n => n.id === id);
-                        if (node && node.owner === playerIndex) node.setRallyPoint(worldPos.x, worldPos.y, targetNode);
-                    });
+                // Check if we dragged far enough to be intentional
+                const dragDist = Math.sqrt(
+                    Math.pow(mouse.x - this.game.systems.input.mouseDownPos.x, 2) +
+                    Math.pow(mouse.y - this.game.systems.input.mouseDownPos.y, 2)
+                );
+                
+                if (dragDist > 20) { // Must drag at least 20 pixels
+                    if (this.game.controller.sendAction) {
+                        this.game.controller.sendAction({
+                            type: 'rally',
+                            nodeIds: Array.from(this.selectedNodes),
+                            targetX: worldPos.x,
+                            targetY: worldPos.y,
+                            targetNodeId: targetNode ? targetNode.id : null
+                        });
+                    } else {
+                        this.selectedNodes.forEach(id => {
+                            const node = this.game.state.nodes.find(n => n.id === id);
+                            if (node && node.owner === playerIndex) node.setRallyPoint(worldPos.x, worldPos.y, targetNode);
+                        });
+                    }
+                    this.game.systems.input.nodeUnderMouse = null;
+                    this.isSelectingBox = false;
+                    return;
                 }
-                this.game.systems.input.nodeUnderMouse = null;
-                this.isSelectingBox = false;
-                return;
             }
 
             if (this.isSelectingBox) {

@@ -265,11 +265,14 @@ export class Entity {
         }
 
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
- 
+  
         // Optimized spatial query
         const searchRadius = this.cohesionRadius;
         const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
 
+        // Early exit if in a flock - just apply cohesion, skip individual collisions
+        const inFlock = !!this.flockId;
+        
         for (let other of neighbors) {
             if (other === this || other.dead || other.dying) continue;
 
@@ -278,30 +281,33 @@ export class Entity {
             const distSq = dx * dx + dy * dy;
 
             if (distSq > searchRadius * searchRadius) continue;
-            const dist = Math.sqrt(distSq);
-
-            // Check if both units are in the same flock (optimization)
-            const sameFlock = this.flockId && this.flockId === other.flockId;
-
-            // COHESION logic - for same flock, apply stronger cohesion (they move together)
-            if (other.owner === this.owner && dist > this.radius * 2) {
-                if (sameFlock) {
-                    // Flock members: strong cohesion to stay together
-                    cohesionX += dx / dist * 2;
-                    cohesionY += dy / dist * 2;
-                    cohesionCount++;
-                } else if (dist > this.radius * 4) {
-                    // Non-flock same owner: normal cohesion
-                    cohesionX += dx / dist;
-                    cohesionY += dy / dist;
-                    cohesionCount++;
+            
+            // Same owner - cohesion only (no collision for same flock)
+            if (other.owner === this.owner) {
+                if (inFlock && other.flockId === this.flockId) {
+                    // Same flock: apply cohesion, skip collision entirely
+                    if (distSq > 0) {
+                        const dist = Math.sqrt(distSq);
+                        if (dist > this.radius) {
+                            cohesionX += dx / dist;
+                            cohesionY += dy / dist;
+                            cohesionCount++;
+                        }
+                    }
+                } else {
+                    // Different flock or no flock: normal cohesion
+                    const dist = Math.sqrt(distSq);
+                    if (dist > this.radius * 2) {
+                        cohesionX += dx / dist;
+                        cohesionY += dy / dist;
+                        cohesionCount++;
+                    }
                 }
+                continue;
             }
 
-            // COLLISION logic - skip for same flock (they pass through each other)
-            if (sameFlock) continue;
-
-            // Normal collision for different flocks or different owners
+            // Different owner - always check collision
+            const dist = Math.sqrt(distSq);
             const minDist = this.radius + other.radius;
             if (dist < minDist && dist > 0) {
                 const overlap = minDist - dist;
