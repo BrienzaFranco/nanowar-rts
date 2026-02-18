@@ -200,8 +200,9 @@ export class PixiRenderer {
             const b = parseInt(c.slice(4, 6), 16) || 117;
             
             const screen = camera.worldToScreen(node.x, node.y);
-            const sr = node.radius * camera.zoom;
-            const sir = node.influenceRadius * camera.zoom;
+            const sr = Math.max(node.radius * camera.zoom, 8);
+            const sir = Math.max(node.influenceRadius * camera.zoom, 30);
+            const minBorder = 2;
             
             const ns = this._getNodeSprite(node.id);
             const { aura, body, progress, border } = ns;
@@ -210,17 +211,17 @@ export class PixiRenderer {
             aura.beginFill(baseColor, 0.08);
             aura.drawCircle(0, 0, sir);
             aura.endFill();
-            aura.lineStyle(1.5 * camera.zoom, baseColor, 0.25);
+            aura.lineStyle(Math.max(1.5 * camera.zoom, minBorder), baseColor, 0.25);
             aura.drawCircle(0, 0, sir);
             
             if (node.rallyPoint && node.owner !== -1 && node.owner === this.playerIndex) {
                 const rs = camera.worldToScreen(node.rallyPoint.x, node.rallyPoint.y);
-                aura.lineStyle(4 * camera.zoom, baseColor, 0.5);
+                aura.lineStyle(Math.max(4 * camera.zoom, minBorder), baseColor, 0.5);
                 aura.moveTo(0, 0);
                 aura.lineTo(rs.x - screen.x, rs.y - screen.y);
                 aura.lineStyle(0);
                 aura.beginFill(baseColor, 0.7);
-                aura.drawCircle(rs.x - screen.x, rs.y - screen.y, 5 * camera.zoom);
+                aura.drawCircle(rs.x - screen.x, rs.y - screen.y, Math.max(5 * camera.zoom, 3));
                 aura.endFill();
             }
             
@@ -236,9 +237,9 @@ export class PixiRenderer {
                 let prog = Math.min(1.0, node.spawnProgress);
                 if (node.spawnEffect > 0.3) prog = 1.0;
                 
-                const lineW = isFull ? 3 * camera.zoom : 2 * camera.zoom;
+                const lineW = Math.max(isFull ? 3 * camera.zoom : 2 * camera.zoom, minBorder);
                 progress.lineStyle(lineW, progressColor, 1);
-                progress.arc(0, 0, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2);
+                progress.arc(0, 0, sr + Math.max(5 * camera.zoom, 3), -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2);
             }
             
             body.clear();
@@ -255,7 +256,7 @@ export class PixiRenderer {
             body.beginFill(0x282828, 0.4);
             body.drawCircle(0, 0, sr);
             body.endFill();
-            body.lineStyle(1 * camera.zoom, 0xFFFFFF, 0.1);
+            body.lineStyle(Math.max(1 * camera.zoom, 1), 0xFFFFFF, 0.1);
             body.drawCircle(0, 0, sr);
             
             if (hpPercent > 0) {
@@ -273,20 +274,21 @@ export class PixiRenderer {
             const isSelected = selection?.isSelected(node);
             const borderColor = isSelected ? 0xFFFFFF : baseColor;
             const borderAlpha = isSelected ? 0.9 : 0.5;
-            border.lineStyle(isSelected ? 3 * camera.zoom : 1.5 * camera.zoom, borderColor, borderAlpha);
+            border.lineStyle(Math.max(isSelected ? 3 * camera.zoom : 1.5 * camera.zoom, minBorder), borderColor, borderAlpha);
             border.drawCircle(0, 0, sr);
             
             if (node.hitFlash > 0) {
-                border.lineStyle(5 * camera.zoom, 0xFF6464, node.hitFlash);
+                border.lineStyle(Math.max(5 * camera.zoom, minBorder), 0xFF6464, node.hitFlash);
                 border.drawCircle(0, 0, sr);
             }
             
             if (node.spawnEffect > 0) {
-                border.lineStyle(3 * camera.zoom, 0xFFFFFF, node.spawnEffect * 1.5);
+                border.lineStyle(Math.max(3 * camera.zoom, minBorder), 0xFFFFFF, node.spawnEffect * 1.5);
                 border.drawCircle(0, 0, sr * (1.3 + (0.5 - node.spawnEffect) * 0.6));
             }
             
             ns.container.position.set(screen.x, screen.y);
+            ns.container.cullable = true;
             ns.container.visible = true;
         }
         
@@ -311,6 +313,11 @@ export class PixiRenderer {
             const sr = ent.radius * camera.zoom;
             
             if (screen.x < -sr || screen.x > screenW + sr || screen.y < -sr || screen.y > screenH + sr) {
+                const existing = this.sprites.get(ent.id);
+                if (existing) {
+                    existing.sprite.visible = false;
+                    existing.glowSprite.visible = false;
+                }
                 continue;
             }
             
