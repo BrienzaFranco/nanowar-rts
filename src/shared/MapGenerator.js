@@ -18,7 +18,11 @@ export class MapGenerator {
         ];
 
         for (let i = 0; i < playerCount; i++) {
-            nodes.push(new Node(idCounter++, playerPositions[i].x, playerPositions[i].y, i, 'large'));
+            const pos = playerPositions[i] || { 
+                x: centerX + (Math.random() - 0.5) * 400, 
+                y: centerY + (Math.random() - 0.5) * 400 
+            };
+            nodes.push(new Node(idCounter++, pos.x, pos.y, i, 'large'));
         }
 
         // 2. Central Conflict Node (Guaranteed large)

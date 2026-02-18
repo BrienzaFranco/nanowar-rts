@@ -14,9 +14,9 @@ export class SingleplayerController {
     setup(playerCount = 1, difficulty = 'intermediate', testMode = false) {
         this.game.state.playerCount = playerCount;
         
-        // In test mode, force 5 players (1 human + 4 AI) on easy
+        // In test mode, force 4 players (1 human + 3 AI) on easy
         if (testMode) {
-            this.game.state.playerCount = 5;
+            this.game.state.playerCount = 4;
             difficulty = 'easy';
         }
         
