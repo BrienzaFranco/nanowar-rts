@@ -2,8 +2,9 @@ import { PLAYER_COLORS } from '../../shared/GameConfig.js';
 import { hexToRgba } from '../utils/helpers.js';
 
 export class Renderer {
-    constructor(ctx) {
+    constructor(ctx, game) {
         this.ctx = ctx;
+        this.game = game;
         this.playerIndex = 0;
         this.trailQueue = []; // Current frame units (kept for legacy support if needed)
         
@@ -83,20 +84,38 @@ export class Renderer {
             this.ctx.stroke();
         }
 
-        // Map boundary ring - more prominent warning
+        // Map boundary ring - only visible when units approach
         const worldRadius = 1700;
         const centerX = 1200;
         const centerY = 900;
-        const screenCenter = camera.worldToScreen(centerX, centerY);
-        const boundaryRadius = worldRadius * camera.zoom;
         
-        this.ctx.beginPath();
-        this.ctx.arc(screenCenter.x, screenCenter.y, boundaryRadius, 0, Math.PI * 2);
-        this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.4)';
-        this.ctx.lineWidth = 3;
-        this.ctx.setLineDash([10 * camera.zoom, 20 * camera.zoom]);
-        this.ctx.stroke();
-        this.ctx.setLineDash([]);
+        // Only draw boundary if any unit is near it
+        let nearBoundary = false;
+        if (this.game && this.game.state && this.game.state.entities) {
+            for (const ent of this.game.state.entities) {
+                if (ent.dead || ent.dying) continue;
+                const dx = ent.x - centerX;
+                const dy = ent.y - centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > worldRadius - 300) {
+                    nearBoundary = true;
+                    break;
+                }
+            }
+        }
+        
+        if (nearBoundary) {
+            const screenCenter = camera.worldToScreen(centerX, centerY);
+            const boundaryRadius = worldRadius * camera.zoom;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(screenCenter.x, screenCenter.y, boundaryRadius, 0, Math.PI * 2);
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([10 * camera.zoom, 20 * camera.zoom]);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
     }
 
     drawNode(node, camera, isSelected = false) {

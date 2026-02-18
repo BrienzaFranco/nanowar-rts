@@ -14,7 +14,7 @@ export class Game {
         }
         this.ctx = this.canvas.getContext('2d');
         this.camera = new Camera();
-        this.renderer = new Renderer(this.ctx);
+        this.renderer = new Renderer(this.ctx, this);
         this.state = new GameState();
         this.particles = [];
         this.commandIndicators = [];

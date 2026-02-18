@@ -209,6 +209,17 @@ export class Entity {
         const dy = this.y - centerY;
         const distFromCenter = Math.sqrt(dx * dx + dy * dy);
         
+        // Extra repulsion near boundary to prevent bunching - stronger collision
+        const dangerZone = 250;
+        if (distFromCenter > worldRadius - dangerZone && distFromCenter <= worldRadius) {
+            // Push toward center more strongly
+            const nx = dx / distFromCenter;
+            const ny = dy / distFromCenter;
+            const pushStrength = 300;
+            this.vx -= nx * pushStrength * dt;
+            this.vy -= ny * pushStrength * dt;
+        }
+        
         if (distFromCenter > worldRadius) {
             this.outsideTime += dt;
             this.outsideWarning = true;
