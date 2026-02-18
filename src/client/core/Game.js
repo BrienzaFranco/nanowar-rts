@@ -1,5 +1,5 @@
 import { Camera } from './Camera.js';
-import { PixiRenderer } from './PixiRenderer.js';
+import { Renderer } from './Renderer.js';
 import { GameState } from '../../shared/GameState.js';
 import { GAME_SETTINGS } from '../../shared/GameConfig.js';
 import { Particle } from './Particle.js';
@@ -12,20 +12,9 @@ export class Game {
             console.error('Canvas not found:', canvasId);
             return;
         }
-        
-        // Create UI overlay canvas
-        this.uiCanvas = document.createElement('canvas');
-        this.uiCanvas.style.position = 'absolute';
-        this.uiCanvas.style.top = '0';
-        this.uiCanvas.style.left = '0';
-        this.uiCanvas.style.width = '100%';
-        this.uiCanvas.style.height = '100%';
-        this.uiCanvas.style.pointerEvents = 'none';
-        this.canvas.parentElement.appendChild(this.uiCanvas);
-        
-        this.ctx = this.uiCanvas.getContext('2d');
+        this.ctx = this.canvas.getContext('2d');
         this.camera = new Camera();
-        this.renderer = new PixiRenderer(this.canvas, this);
+        this.renderer = new Renderer(this.ctx, this);
         this.state = new GameState();
         this.particles = [];
         this.commandIndicators = [];
@@ -44,11 +33,6 @@ export class Game {
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
-        this.uiCanvas.width = window.innerWidth;
-        this.uiCanvas.height = window.innerHeight;
-        if (this.renderer && this.renderer.resize) {
-            this.renderer.resize(window.innerWidth, window.innerHeight);
-        }
     }
 
     start() {
@@ -133,38 +117,30 @@ export class Game {
 
     draw(dt) {
         const playerIdx = this.controller?.playerIndex ?? 0;
-        
-        // Use PixiRenderer's sync method for efficient rendering
-        if (this.renderer.sync) {
-            this.renderer.clear(this.canvas.width, this.canvas.height);
-            this.renderer.sync(this.camera, this.state);
-        } else {
-            // Fallback to old renderer
-            this.renderer.clear(this.canvas.width, this.canvas.height);
-            this.renderer.drawGrid(this.canvas.width, this.canvas.height, this.camera);
+        this.renderer.setPlayerIndex(playerIdx);
 
-            this.state.nodes.forEach(node => {
-                const isSelected = this.systems?.selection?.isSelected(node);
-                this.renderer.drawNode(node, this.camera, isSelected);
-            });
+        this.renderer.clear(this.canvas.width, this.canvas.height);
+        this.renderer.drawGrid(this.canvas.width, this.canvas.height, this.camera);
 
-            this.state.entities.forEach(entity => {
-                const isSelected = this.systems?.selection?.isSelected(entity);
-                this.renderer.drawEntity(entity, this.camera, isSelected);
-            });
-        }
+        this.state.nodes.forEach(node => {
+            const isSelected = this.systems?.selection?.isSelected(node);
+            this.renderer.drawNode(node, this.camera, isSelected);
+        });
 
-        // UI elements (drawn on overlay canvas)
-        this.particles.forEach(p => this.renderer.drawParticle && this.renderer.drawParticle(p, this.camera));
-        this.commandIndicators.forEach(ci => this.renderer.drawCommandIndicator && this.renderer.drawCommandIndicator(ci, this.camera));
+        this.state.entities.forEach(entity => {
+            const isSelected = this.systems?.selection?.isSelected(entity);
+            this.renderer.drawEntity(entity, this.camera, isSelected);
+        });
+        this.renderer.renderTrails(this.camera, dt);
 
-        // Only show waypoint lines for our player
-        this.waypointLines.filter(wl => wl.owner === playerIdx).forEach(wl => this.renderer.drawWaypointLine && this.renderer.drawWaypointLine(wl, this.camera));
+        this.particles.forEach(p => this.renderer.drawParticle(p, this.camera));
+        this.commandIndicators.forEach(ci => this.renderer.drawCommandIndicator(ci, this.camera));
 
-        // Draw selection box
+        this.waypointLines.filter(wl => wl.owner === playerIdx).forEach(wl => this.renderer.drawWaypointLine(wl, this.camera));
+
         if (this.systems.selection.isSelectingBox) {
             const input = this.systems.input;
-            this.renderer.drawSelectionBox && this.renderer.drawSelectionBox(
+            this.renderer.drawSelectionBox(
                 this.systems.selection.boxStart.x,
                 this.systems.selection.boxStart.y,
                 input.mouse.x,
@@ -172,15 +148,13 @@ export class Game {
             );
         }
 
-        // Draw current drawing path
         if (this.systems.selection.currentPath.length > 0) {
-            this.renderer.drawPath && this.renderer.drawPath(this.systems.selection.currentPath, this.camera, 'rgba(255, 255, 255, 0.6)', 3);
+            this.renderer.drawPath(this.systems.selection.currentPath, this.camera, 'rgba(255, 255, 255, 0.6)', 3);
         }
 
-        // Draw waypoints for selected units (only our own)
         this.state.entities.filter(e => e.owner === playerIdx).forEach(e => {
             if (this.systems.selection.isSelected(e) && e.waypoints.length > 0) {
-                this.renderer.drawPath && this.renderer.drawPath([e, ...e.waypoints], this.camera, 'rgba(255, 255, 255, 0.15)', 1.2, true);
+                this.renderer.drawPath([e, ...e.waypoints], this.camera, 'rgba(255, 255, 255, 0.15)', 1.2, true);
 
                 const target = e.currentTarget || e.waypoints[0];
                 const screen = this.camera.worldToScreen(target.x, target.y);
@@ -191,7 +165,6 @@ export class Game {
             }
         });
 
-        // Draw HUD/UI via systems if initialized
         if (this.systems && this.systems.ui) {
             this.systems.ui.draw(this.renderer);
         }
