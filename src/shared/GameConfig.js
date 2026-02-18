@@ -3,6 +3,14 @@ export const PLAYER_COLORS = [
     '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'
 ];
 
+export const PLAYER_COLORS_HEX = [
+    0x4CAF50, 0xF44336, 0x2196F3, 0xFF9800,
+    0x9C27B0, 0x00BCD4, 0xFFEB3B, 0xE91E63
+];
+
+export const NEUTRAL_COLOR = 0x757575;
+export const NEUTRAL_COLOR_STR = '#757575';
+
 export const GAME_SETTINGS = {
     WORLD_WIDTH: 2400,
     WORLD_HEIGHT: 1800,

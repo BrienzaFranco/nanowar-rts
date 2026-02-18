@@ -1,8 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { PLAYER_COLORS, GAME_SETTINGS } from '../../shared/GameConfig.js';
-
-const PLAYER_COLORS_HEX = PLAYER_COLORS.map(c => parseInt(c.slice(1), 16));
-const NEUTRAL_COLOR = 0x757575;
+import { PLAYER_COLORS, PLAYER_COLORS_HEX, NEUTRAL_COLOR, GAME_SETTINGS } from '../../shared/GameConfig.js';
 
 export class PixiRenderer {
     constructor(canvas, game) {
