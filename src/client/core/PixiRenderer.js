@@ -17,10 +17,22 @@ export class PixiRenderer {
             autoDensity: true,
         });
         
+        // Disable auto-render so we can control render order
+        this.app.ticker.stop();
+        
         this.playerIndex = 0;
         
-        // Keep ctx reference for UIManager compatibility
-        this.ctx = this.app.renderer.events.canvas.getContext('2d');
+        // Create overlay canvas for UI (sits on top of Pixi canvas)
+        this.uiCanvas = document.createElement('canvas');
+        this.uiCanvas.style.position = 'absolute';
+        this.uiCanvas.style.top = '0';
+        this.uiCanvas.style.left = '0';
+        this.uiCanvas.style.width = '100%';
+        this.uiCanvas.style.height = '100%';
+        this.uiCanvas.style.pointerEvents = 'none';
+        canvas.parentElement.appendChild(this.uiCanvas);
+        
+        this.ctx = this.uiCanvas.getContext('2d');
         
         // Containers for different layers
         this.gridContainer = new PIXI.Container();
@@ -85,6 +97,10 @@ export class PixiRenderer {
     
     resize(width, height) {
         this.app.renderer.resize(width, height);
+        if (this.uiCanvas) {
+            this.uiCanvas.width = width;
+            this.uiCanvas.height = height;
+        }
     }
     
     clear(width, height) {
@@ -97,6 +113,12 @@ export class PixiRenderer {
         this.entityContainer.removeChildren();
         this.effectContainer.removeChildren();
         this.uiContainer.removeChildren();
+        
+        // Clear UI canvas
+        if (this.uiCanvas) {
+            this.uiCanvas.width = width;
+            this.uiCanvas.height = height;
+        }
     }
     
     clear() {
@@ -452,7 +474,7 @@ export class PixiRenderer {
     }
     
     render(dt) {
-        // PixiJS automatically renders with requestAnimationFrame
-        // We just need to update the stage
+        // Manually render Pixi stage after all game elements drawn
+        this.app.renderer.render(this.app.stage);
     }
 }
