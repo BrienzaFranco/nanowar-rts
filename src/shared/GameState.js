@@ -51,9 +51,12 @@ export class GameState {
         // Populate spatial grid once per frame
         this.spatialGrid.clear();
         this.entities.forEach(ent => {
+            ent.flockId = null; // Reset flock assignments
             this.spatialGrid.addObject(ent);
-            ent.grid = this.spatialGrid; // Update ref if needed, or just pass it
         });
+
+        // Detect flocks - group nearby units of same player
+        this._detectFlocks();
 
         // Count units and production rates per player
         this.unitCounts = {};
@@ -234,7 +237,66 @@ export class GameState {
             accelerationEnabled: this.accelerationEnabled,
             showProduction: this.showProduction,
             stats: this.getStats(),
-            productionRates: this.productionRates
+                productionRates: this.productionRates
         };
+    }
+
+    /**
+     * Detect flocks - group nearby units of the same player
+     * Units in a flock share a flockId and skip expensive individual collision physics
+     */
+    _detectFlocks() {
+        const FLOCK_RADIUS = 60; // Units within this distance form a flock
+        const MIN_FLOCK_SIZE = 8; // Minimum units to form a flock
+        const MAX_FLOCK_SIZE = 30; // Max units per flock
+        
+        // Group entities by owner
+        const byOwner = {};
+        for (const ent of this.entities) {
+            if (ent.dead || ent.dying) continue;
+            if (!byOwner[ent.owner]) byOwner[ent.owner] = [];
+            byOwner[ent.owner].push(ent);
+        }
+        
+        // For each owner, find flocks
+        for (const ownerId in byOwner) {
+            const ownerEnts = byOwner[ownerId];
+            let flockCounter = 0;
+            
+            // Mark visited
+            const visited = new Set();
+            
+            for (const ent of ownerEnts) {
+                if (visited.has(ent.id)) continue;
+                
+                // Find all units in this potential flock
+                const flock = [];
+                const queue = [ent];
+                
+                while (queue.length > 0 && flock.length < MAX_FLOCK_SIZE) {
+                    const current = queue.shift();
+                    if (visited.has(current.id)) continue;
+                    visited.add(current.id);
+                    flock.push(current);
+                    
+                    // Find neighbors within flock radius
+                    const neighbors = this.spatialGrid.retrieve(current.x, current.y, FLOCK_RADIUS);
+                    for (const neighbor of neighbors) {
+                        if (neighbor.owner === ownerId && !visited.has(neighbor.id) && !neighbor.dead && !neighbor.dying) {
+                            queue.push(neighbor);
+                        }
+                    }
+                }
+                
+                // If we have enough units, assign flock ID
+                if (flock.length >= MIN_FLOCK_SIZE) {
+                    const flockId = `flock_${ownerId}_${flockCounter++}`;
+                    for (const fEnt of flock) {
+                        fEnt.flockId = flockId;
+                        fEnt.isFlockLeader = (fEnt === flock[0]); // First one is leader
+                    }
+                }
+            }
+        }
     }
 }

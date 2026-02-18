@@ -265,7 +265,7 @@ export class Entity {
         }
 
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
-
+ 
         // Optimized spatial query
         const searchRadius = this.cohesionRadius;
         const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
@@ -280,14 +280,28 @@ export class Entity {
             if (distSq > searchRadius * searchRadius) continue;
             const dist = Math.sqrt(distSq);
 
-            // COHESION logic
+            // Check if both units are in the same flock (optimization)
+            const sameFlock = this.flockId && this.flockId === other.flockId;
+
+            // COHESION logic - for same flock, apply stronger cohesion (they move together)
             if (other.owner === this.owner && dist > this.radius * 2) {
-                cohesionX += dx / dist;
-                cohesionY += dy / dist;
-                cohesionCount++;
+                if (sameFlock) {
+                    // Flock members: strong cohesion to stay together
+                    cohesionX += dx / dist * 2;
+                    cohesionY += dy / dist * 2;
+                    cohesionCount++;
+                } else if (dist > this.radius * 4) {
+                    // Non-flock same owner: normal cohesion
+                    cohesionX += dx / dist;
+                    cohesionY += dy / dist;
+                    cohesionCount++;
+                }
             }
 
-            // COLLISION logic
+            // COLLISION logic - skip for same flock (they pass through each other)
+            if (sameFlock) continue;
+
+            // Normal collision for different flocks or different owners
             const minDist = this.radius + other.radius;
             if (dist < minDist && dist > 0) {
                 const overlap = minDist - dist;
