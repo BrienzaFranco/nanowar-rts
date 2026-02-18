@@ -9,7 +9,6 @@ export class PixiRenderer {
         this.canvas = canvas;
         this.game = game;
         this.sprites = new Map();
-        this.spritePool = [];
         
         this.app = new PIXI.Application({
             view: canvas,
@@ -24,7 +23,7 @@ export class PixiRenderer {
         this.world = new PIXI.Container();
         this.app.stage.addChild(this.world);
         
-        this.gridLayer = new PIXI.Graphics();
+        this.gridLayer = new PIXI.Container();
         this.nodeLayer = new PIXI.Container();
         this.unitLayer = new PIXI.ParticleContainer(10000, {
             scale: true,
@@ -44,7 +43,6 @@ export class PixiRenderer {
         this.world.addChild(this.uiLayer);
         
         this.generateTextures();
-        
         this.setupNodeSprites();
         
         this.uiCanvas = document.createElement('canvas');
@@ -91,8 +89,19 @@ export class PixiRenderer {
             this.glowTextures.set(i, PIXI.Texture.from(c));
         }
         
-        this.selectionGraphics = new PIXI.Graphics();
-        this.uiLayer.addChild(this.selectionGraphics);
+        const gridCanvas = document.createElement('canvas');
+        gridCanvas.width = 100;
+        gridCanvas.height = 100;
+        const gctx = gridCanvas.getContext('2d');
+        gctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        gctx.lineWidth = 1;
+        gctx.beginPath();
+        gctx.moveTo(50, 0);
+        gctx.lineTo(50, 100);
+        gctx.moveTo(0, 50);
+        gctx.lineTo(100, 50);
+        gctx.stroke();
+        this.gridTexture = PIXI.Texture.from(gridCanvas);
     }
     
     setupNodeSprites() {
@@ -142,62 +151,41 @@ export class PixiRenderer {
         this.world.scale.set(1);
         this.world.position.set(0, 0);
         
-        this._drawGrid(camera);
-        this._drawNodes(camera, state.nodes, systems?.selection);
-        this._drawEntities(camera, state.entities, systems?.selection);
-        this._drawUI(camera, state, systems);
+        this._updateGrid(camera);
+        this._syncNodes(camera, state.nodes, systems?.selection);
+        this._syncEntities(camera, state.entities, systems?.selection);
         
         return true;
     }
     
-    _drawGrid(camera) {
-        this.gridLayer.clear();
-        
-        if (camera.zoom < 0.15) return;
-        
-        const gridSize = 100 * camera.zoom;
-        const offsetX = ((-camera.x * camera.zoom) % gridSize + gridSize) % gridSize;
-        const offsetY = ((-camera.y * camera.zoom) % gridSize + gridSize) % gridSize;
-        
-        this.gridLayer.lineStyle(1, 0xFFFFFF, 0.015);
-        
-        for (let x = offsetX; x < this.width; x += gridSize) {
-            this.gridLayer.moveTo(x, 0);
-            this.gridLayer.lineTo(x, this.height);
-        }
-        for (let y = offsetY; y < this.height; y += gridSize) {
-            this.gridLayer.moveTo(0, y);
-            this.gridLayer.lineTo(this.width, y);
+    _updateGrid(camera) {
+        if (!this.gridSprite) {
+            this.gridSprite = new PIXI.TilingSprite(
+                this.gridTexture,
+                this.width || window.innerWidth,
+                this.height || window.innerHeight
+            );
+            this.gridLayer.addChild(this.gridSprite);
         }
         
-        const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 1800;
-        const centerX = (GAME_SETTINGS.WORLD_WIDTH || 2400) / 2;
-        const centerY = (GAME_SETTINGS.WORLD_HEIGHT || 1800) / 2;
-        
-        let nearBoundary = false;
-        if (this.game?.state?.entities) {
-            for (const ent of this.game.state.entities) {
-                if (ent.dead || ent.dying) continue;
-                const dx = ent.x - centerX;
-                const dy = ent.y - centerY;
-                if (dx * dx + dy * dy > (worldRadius - 300) ** 2) {
-                    nearBoundary = true;
-                    break;
-                }
-            }
-        }
-        
-        if (nearBoundary) {
-            const screenCenter = camera.worldToScreen(centerX, centerY);
-            this.gridLayer.lineStyle(3, 0xFFFFFF, 0.5);
-            this.gridLayer.drawCircle(screenCenter.x, screenCenter.y, worldRadius * camera.zoom);
+        if (camera.zoom < 0.15) {
+            this.gridSprite.visible = false;
+        } else {
+            this.gridSprite.visible = true;
+            const gridSize = 100 * camera.zoom;
+            this.gridSprite.tileScale.set(camera.zoom);
+            this.gridSprite.tilePosition.set(
+                -camera.x * camera.zoom % gridSize,
+                -camera.y * camera.zoom % gridSize
+            );
+            this.gridSprite.width = this.width;
+            this.gridSprite.height = this.height;
         }
     }
     
-    _drawNodes(camera, nodes, selection) {
+    _syncNodes(camera, nodes, selection) {
         const screenW = this.width;
         const screenH = this.height;
-        
         const nodeIds = new Set();
         
         for (const node of nodes) {
@@ -216,6 +204,8 @@ export class PixiRenderer {
             
             const margin = sir * 2;
             if (screen.x < -margin || screen.x > screenW + margin || screen.y < -margin || screen.y > screenH + margin) {
+                const ns = this.nodeCache.get(node.id);
+                if (ns) ns.container.visible = false;
                 continue;
             }
             
@@ -313,7 +303,7 @@ export class PixiRenderer {
         }
     }
     
-    _drawEntities(camera, entities, selection) {
+    _syncEntities(camera, entities, selection) {
         const currentIds = new Set();
         const screenW = this.width;
         const screenH = this.height;
@@ -335,24 +325,13 @@ export class PixiRenderer {
             
             let spriteData = this.sprites.get(ent.id);
             if (!spriteData) {
-                let sprite;
-                if (this.spritePool.length > 0) {
-                    sprite = this.spritePool.pop();
-                    sprite.visible = true;
-                } else {
-                    sprite = new PIXI.Sprite(this.unitTexture);
-                    sprite.anchor.set(0.5);
-                }
+                const sprite = new PIXI.Sprite(this.unitTexture);
+                sprite.anchor.set(0.5);
                 
-                let glowSprite;
-                if (this.spritePool.length > 0 && this.spritePoolGlow?.length > 0) {
-                    glowSprite = this.spritePoolGlow.pop();
-                    glowSprite.visible = true;
-                } else {
-                    glowSprite = new PIXI.Sprite(this.glowTextures.get(colorIdx) || this.unitTexture);
-                    glowSprite.anchor.set(0.5);
-                    glowSprite.blendMode = PIXI.BLEND_MODES.ADD;
-                }
+                const glowSprite = new PIXI.Sprite(this.glowTextures.get(colorIdx) || this.unitTexture);
+                glowSprite.anchor.set(0.5);
+                glowSprite.blendMode = PIXI.BLEND_MODES.ADD;
+                glowSprite.visible = false;
                 
                 spriteData = { sprite, glowSprite };
                 this.unitLayer.addChild(sprite);
@@ -400,75 +379,13 @@ export class PixiRenderer {
                 const { sprite, glowSprite } = spriteData;
                 sprite.visible = false;
                 glowSprite.visible = false;
-                this.spritePool.push(sprite);
-                if (!this.spritePoolGlow) this.spritePoolGlow = [];
-                this.spritePoolGlow.push(glowSprite);
+                this.unitLayer.removeChild(sprite);
+                this.glowLayer.removeChild(glowSprite);
+                sprite.destroy();
+                glowSprite.destroy();
                 this.sprites.delete(id);
             }
         }
-    }
-    
-    _drawUI(camera, state, systems) {
-        this.selectionGraphics.clear();
-        
-        const selection = systems?.selection;
-        if (!selection) return;
-        
-        if (selection.isSelectingBox) {
-            const boxStart = selection.boxStart;
-            const boxEnd = systems.input?.mouse;
-            if (boxStart && boxEnd) {
-                const x = Math.min(boxStart.x, boxEnd.x);
-                const y = Math.min(boxStart.y, boxEnd.y);
-                const w = Math.abs(boxStart.x - boxEnd.x);
-                const h = Math.abs(boxStart.y - boxEnd.y);
-                
-                this.selectionGraphics.beginFill(0x4CAF50, 0.1);
-                this.selectionGraphics.drawRect(x, y, w, h);
-                this.selectionGraphics.endFill();
-                this.selectionGraphics.lineStyle(1.5, 0x4CAF50, 0.5);
-                this.selectionGraphics.drawRect(x, y, w, h);
-            }
-        }
-        
-        if (selection.currentPath.length > 0) {
-            const points = selection.currentPath;
-            this.selectionGraphics.lineStyle(3 * camera.zoom, 0xFFFFFF, 0.6);
-            this.selectionGraphics.moveTo(
-                (points[0].x - camera.x) * camera.zoom,
-                (points[0].y - camera.y) * camera.zoom
-            );
-            for (let i = 1; i < points.length; i++) {
-                this.selectionGraphics.lineTo(
-                    (points[i].x - camera.x) * camera.zoom,
-                    (points[i].y - camera.y) * camera.zoom
-                );
-            }
-        }
-        
-        const playerIdx = this.playerIndex;
-        state.entities.filter(e => e.owner === playerIdx).forEach(e => {
-            if (selection.isSelected(e) && e.waypoints.length > 0) {
-                const path = [e, ...e.waypoints];
-                this.selectionGraphics.lineStyle(1.2 * camera.zoom, 0xFFFFFF, 0.15);
-                this.selectionGraphics.moveTo(
-                    (path[0].x - camera.x) * camera.zoom,
-                    (path[0].y - camera.y) * camera.zoom
-                );
-                for (let i = 1; i < path.length; i++) {
-                    this.selectionGraphics.lineTo(
-                        (path[i].x - camera.x) * camera.zoom,
-                        (path[i].y - camera.y) * camera.zoom
-                    );
-                }
-                
-                const target = e.currentTarget || e.waypoints[0];
-                const ts = camera.worldToScreen(target.x, target.y);
-                this.selectionGraphics.beginFill(0xFFFFFF, 0.3);
-                this.selectionGraphics.drawCircle(ts.x, ts.y, 2 * camera.zoom);
-                this.selectionGraphics.endFill();
-            }
-        });
     }
     
     drawGrid() { }
