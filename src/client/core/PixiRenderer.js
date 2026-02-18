@@ -42,16 +42,8 @@ export class PixiRenderer {
         this.generateTextures();
         this.setupNodeSprites();
         
-        this.uiCanvas = document.createElement('canvas');
-        this.uiCanvas.style.position = 'absolute';
-        this.uiCanvas.style.top = '0';
-        this.uiCanvas.style.left = '0';
-        this.uiCanvas.style.width = '100%';
-        this.uiCanvas.style.height = '100%';
-        this.uiCanvas.style.pointerEvents = 'none';
-        this.uiCanvas.style.zIndex = '10';
-        canvas.parentElement.appendChild(this.uiCanvas);
-        this.ctx = this.uiCanvas.getContext('2d');
+        this.ctx = document.createElement('canvas');
+        this.ctx = this.ctx.getContext('2d');
     }
     
     generateTextures() {
@@ -126,16 +118,16 @@ export class PixiRenderer {
     
     resize(width, height) {
         this.app.renderer.resize(width, height);
-        if (this.uiCanvas) {
-            this.uiCanvas.width = width;
-            this.uiCanvas.height = height;
+        if (this.ctx) {
+            this.ctx.canvas.width = width;
+            this.ctx.canvas.height = height;
         }
     }
     
     clear(width, height) {
         this.width = width;
         this.height = height;
-        
+        this.uiLayer.clear();
         if (this.ctx) {
             this.ctx.clearRect(0, 0, width, height);
         }
