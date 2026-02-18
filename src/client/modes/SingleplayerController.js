@@ -52,8 +52,9 @@ export class SingleplayerController {
         this.game.state.nodes.forEach(node => {
             if (node.owner !== -1) {
                 for (let i = 0; i < initialCount; i++) {
+                    // Spawn units tightly clustered around the node center
                     const angle = Math.random() * Math.PI * 2;
-                    const dist = node.radius + 30 + (i * 2);
+                    const dist = Math.random() * (node.radius + 20);
                     const ent = new Entity(
                         node.x + Math.cos(angle) * dist,
                         node.y + Math.sin(angle) * dist,

@@ -1,5 +1,6 @@
 import { Camera } from './Camera.js';
-import { Renderer } from './Renderer.js';
+import { PixiRenderer } from './PixiRenderer.js';
+import * as PIXI from 'pixi.js';
 import { GameState } from '../../shared/GameState.js';
 import { GAME_SETTINGS } from '../../shared/GameConfig.js';
 import { Particle } from './Particle.js';
@@ -12,9 +13,9 @@ export class Game {
             console.error('Canvas not found:', canvasId);
             return;
         }
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = null; // Not used with Pixi
         this.camera = new Camera();
-        this.renderer = new Renderer(this.ctx, this);
+        this.renderer = new PixiRenderer(this.canvas, this);
         this.state = new GameState();
         this.particles = [];
         this.commandIndicators = [];
@@ -33,6 +34,9 @@ export class Game {
     resize() {
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+        if (this.renderer && this.renderer.resize) {
+            this.renderer.resize(window.innerWidth, window.innerHeight);
+        }
     }
 
     start() {
@@ -171,10 +175,15 @@ export class Game {
                 // Draw a small indicator at the current target
                 const target = e.currentTarget || e.waypoints[0];
                 const screen = this.camera.worldToScreen(target.x, target.y);
-                this.ctx.beginPath();
-                this.ctx.arc(screen.x, screen.y, 2 * this.camera.zoom, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                this.ctx.fill();
+                
+                // Use renderer to draw indicator
+                const indicator = new PIXI.Graphics();
+                indicator.beginFill(0xFFFFFF, 0.3);
+                indicator.drawCircle(0, 0, 2 * this.camera.zoom);
+                indicator.endFill();
+                indicator.x = screen.x;
+                indicator.y = screen.y;
+                this.renderer.uiContainer.addChild(indicator);
             }
         });
 
