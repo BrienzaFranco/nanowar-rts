@@ -19,6 +19,9 @@ export class PixiRenderer {
         
         this.playerIndex = 0;
         
+        // Keep ctx reference for UIManager compatibility
+        this.ctx = this.app.renderer.events.canvas.getContext('2d');
+        
         // Containers for different layers
         this.gridContainer = new PIXI.Container();
         this.boundaryContainer = new PIXI.Container();
@@ -82,6 +85,18 @@ export class PixiRenderer {
     
     resize(width, height) {
         this.app.renderer.resize(width, height);
+    }
+    
+    clear(width, height) {
+        this.width = width;
+        this.height = height;
+        // Clear all containers
+        this.gridContainer.removeChildren();
+        this.boundaryContainer.removeChildren();
+        this.nodeContainer.removeChildren();
+        this.entityContainer.removeChildren();
+        this.effectContainer.removeChildren();
+        this.uiContainer.removeChildren();
     }
     
     clear() {
@@ -430,6 +445,10 @@ export class PixiRenderer {
     
     setPlayerIndex(idx) {
         this.playerIndex = idx;
+    }
+    
+    renderTrails(camera, dt = 0.016) {
+        // Trails not implemented in Pixi version - can add later if needed
     }
     
     render(dt) {
