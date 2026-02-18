@@ -285,10 +285,11 @@ export class Entity {
             // Same owner - cohesion only (no collision for same flock)
             if (other.owner === this.owner) {
                 if (inFlock && other.flockId === this.flockId) {
-                    // Same flock: apply cohesion, skip collision entirely
+                    // Same flock: apply cohesion but keep minimum distance (don't overlap too much)
                     if (distSq > 0) {
                         const dist = Math.sqrt(distSq);
-                        if (dist > this.radius) {
+                        // Only apply cohesion if far enough - keeps them as a ball, not a point
+                        if (dist > this.radius * 1.5 && dist < this.radius * 8) {
                             cohesionX += dx / dist;
                             cohesionY += dy / dist;
                             cohesionCount++;
