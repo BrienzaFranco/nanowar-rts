@@ -121,6 +121,7 @@ export class PixiRenderer {
             container.addChild(progress);
             container.addChild(border);
             
+            this.nodeLayer.addChild(container);
             this.nodeCache.set(nodeId, { container, aura, body, progress, border });
         }
         return this.nodeCache.get(nodeId);
