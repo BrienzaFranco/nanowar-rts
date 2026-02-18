@@ -11,12 +11,20 @@ export class SingleplayerController {
         this.gameOverShown = false;
     }
 
-    setup(playerCount = 1, difficulty = 'intermediate') {
+    setup(playerCount = 1, difficulty = 'intermediate', testMode = false) {
         this.game.state.playerCount = playerCount;
+        
+        // In test mode, force 5 players (1 human + 4 AI) on easy
+        if (testMode) {
+            this.game.state.playerCount = 5;
+            difficulty = 'easy';
+        }
+        
         this.game.state.difficulty = difficulty;
+        this.testMode = testMode;
         this.playerIndex = 0;
         this.createLevel();
-        this.createInitialEntities();
+        this.createInitialEntities(testMode);
 
         const difficultyMap = {
             'easy': 'Easy',
@@ -38,17 +46,19 @@ export class SingleplayerController {
         this.game.state.nodes = MapGenerator.generate(this.game.state.playerCount, width, height);
     }
 
-    createInitialEntities() {
+    createInitialEntities(testMode = false) {
+        const initialCount = testMode ? 500 : 15;
+        
         this.game.state.nodes.forEach(node => {
             if (node.owner !== -1) {
-                for (let i = 0; i < 15; i++) {
+                for (let i = 0; i < initialCount; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const dist = node.radius + 30;
+                    const dist = node.radius + 30 + (i * 2);
                     const ent = new Entity(
                         node.x + Math.cos(angle) * dist,
                         node.y + Math.sin(angle) * dist,
                         node.owner,
-                        Date.now() + i + (node.owner * 1000)
+                        Date.now() + i + (node.owner * 10000)
                     );
                     this.game.state.entities.push(ent);
                 }

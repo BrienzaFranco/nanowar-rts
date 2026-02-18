@@ -396,11 +396,15 @@
 
             function updateLink() {
                 const difficulty = difficultySelect.value;
-                link.href = `singleplayer.html?players=${select.value}&difficulty=${difficulty}`;
+                const testMode = nickInput.value.includes('115');
+                let url = `singleplayer.html?players=${select.value}&difficulty=${difficulty}`;
+                if (testMode) url += '&test=1';
+                link.href = url;
             }
 
             select.addEventListener('change', updateLink);
             difficultySelect.addEventListener('change', updateLink);
+            nickInput.addEventListener('input', updateLink);
             updateLink(); // Initial call
 
             multiBtn.addEventListener('click', () => {

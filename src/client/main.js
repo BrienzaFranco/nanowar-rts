@@ -22,8 +22,10 @@ window.initGame = (mode) => {
         const urlParams = new URLSearchParams(window.location.search);
         const playerCount = parseInt(urlParams.get('players')) || 2;
         const difficulty = urlParams.get('difficulty') || 'intermediate';
+        const testMode = urlParams.get('test') === '1';
+        
         game.controller = new SingleplayerController(game);
-        game.controller.setup(playerCount, difficulty);
+        game.controller.setup(playerCount, difficulty, testMode);
         
         // Show game UI and screen
         const ui = document.getElementById('ui');
@@ -75,6 +77,7 @@ window.initGame = (mode) => {
                 const urlParams = new URLSearchParams(window.location.search);
                 const playerCount = parseInt(urlParams.get('players')) || 2;
                 const difficulty = urlParams.get('difficulty') || 'intermediate';
+                const testMode = urlParams.get('test') === '1';
                 
                 // Stop current game properly
                 game.stop();
@@ -89,7 +92,7 @@ window.initGame = (mode) => {
                 game.systems.selection.clear();
                 
                 // Re-setup with new map
-                game.controller.setup(playerCount, difficulty);
+                game.controller.setup(playerCount, difficulty, testMode);
                 game.start();
             });
         }
