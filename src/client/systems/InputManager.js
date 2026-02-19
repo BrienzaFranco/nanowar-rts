@@ -34,12 +34,20 @@ export class InputManager {
             return;
         }
 
-        // Check if mouse is over a node
+        // Check if mouse is over a node using selection manager's method
         const worldPos = this.game.camera.screenToWorld(this.mouse.x, this.mouse.y);
-        this.nodeUnderMouse = this.game.state.nodes.find(n => {
-            const dx = n.x - worldPos.x, dy = n.y - worldPos.y;
-            return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
-        }) || null;
+        const nodeIdx = this.game.systems.selection.findNodeAtWorld(worldPos.x, worldPos.y, 10);
+        if (nodeIdx >= 0) {
+            const view = this.game.sharedView;
+            if (view) {
+                const nodeId = view.getNodeId(nodeIdx);
+                this.nodeUnderMouse = this.game.state.nodes.find(n => n.id === nodeId) || null;
+            } else {
+                this.nodeUnderMouse = this.game.state.nodes[nodeIdx] || null;
+            }
+        } else {
+            this.nodeUnderMouse = null;
+        }
 
         if (e.button === 0) this.mouse.down = true;
         if (e.button === 2) this.mouse.rightDown = true;

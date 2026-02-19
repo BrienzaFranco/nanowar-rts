@@ -70,8 +70,11 @@ export class GameServer {
             const { targetNodeId, targetX, targetY, unitIds } = action;
             const target = targetNodeId ? this.state.nodes.find(n => n.id === targetNodeId) : null;
 
+            console.log('Processing move action:', unitIds.length, 'units, target:', targetX, targetY);
+            
             unitIds.forEach(id => {
                 const entity = this.state.entities.find(e => e.id === id);
+                console.log('  Entity id:', id, 'found:', !!entity, 'owner:', entity?.owner, 'playerIndex:', playerIndex);
                 if (entity && entity.owner === playerIndex) {
                     entity.setTarget(targetX, targetY, target);
                 }

@@ -28,8 +28,10 @@ export class Entity {
         this.absorbTarget = null;
         this.targetNode = null;
 
-        this.cohesionRadius = 30;
-        this.cohesionForce = 45; // Reduced for more breathing room
+        this.cohesionRadius = 45;
+        this.cohesionForce = 30;
+        this.separationRadius = 18;
+        this.separationForce = 65;
 
         // Map boundary tracking
         this.outsideTime = 0;
@@ -273,6 +275,7 @@ export class Entity {
         }
 
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
+        let separationX = 0, separationY = 0, separationCount = 0;
         // Optimized spatial query
         const searchRadius = this.cohesionRadius;
         const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
@@ -289,19 +292,27 @@ export class Entity {
 
             if (distSq > searchRadius * searchRadius) continue;
             const dist = Math.sqrt(distSq);
+            const otherOwner = other.owner;
 
-            // COHESION logic - relaxed to prevent over-stacking
-            if (other.owner === this.owner && dist > this.radius * 2.2) {
-                if (inFlock && other.flockId === this.flockId) {
-                    // Flock: slightly stronger cohesion (1.8x) but less than before
-                    cohesionX += (dx / dist) * 1.8;
-                    cohesionY += (dy / dist) * 1.8;
-                    cohesionCount++;
-                } else {
-                    // Normal cohesion
-                    cohesionX += dx / dist;
-                    cohesionY += dy / dist;
-                    cohesionCount++;
+            // COHESION & SEPARATION logic
+            if (otherOwner === this.owner) {
+                if (dist < this.separationRadius) {
+                    // SEPARATION: Push away if too close
+                    const force = (1 - dist / this.separationRadius);
+                    separationX -= (dx / dist) * force;
+                    separationY -= (dy / dist) * force;
+                    separationCount++;
+                } else if (dist > this.radius * 2.5) {
+                    // COHESION: Pull towards if far enough
+                    if (inFlock && other.flockId === this.flockId) {
+                        cohesionX += (dx / dist) * 1.5;
+                        cohesionY += (dy / dist) * 1.5;
+                        cohesionCount++;
+                    } else {
+                        cohesionX += dx / dist;
+                        cohesionY += dy / dist;
+                        cohesionCount++;
+                    }
                 }
             }
 
@@ -336,11 +347,19 @@ export class Entity {
             }
         }
 
-        if (cohesionCount > 0) {
-            cohesionX /= cohesionCount;
-            cohesionY /= cohesionCount;
-            this.vx += cohesionX * this.cohesionForce * 0.016;
-            this.vy += cohesionY * this.cohesionForce * 0.016;
+        if (cohesionCount > 0 || separationCount > 0) {
+            let fx = 0, fy = 0;
+            if (cohesionCount > 0) {
+                fx += (cohesionX / cohesionCount) * this.cohesionForce;
+                fy += (cohesionY / cohesionCount) * this.cohesionForce;
+            }
+            if (separationCount > 0) {
+                fx += (separationX / separationCount) * this.separationForce;
+                fy += (separationY / separationCount) * this.separationForce;
+            }
+
+            this.vx += fx * 0.016;
+            this.vy += fy * 0.016;
         }
 
         if (this.currentTarget) this.avoidObstacles(nodes);

@@ -216,26 +216,22 @@ export class Renderer {
         const c = baseColor.slice(1);
         const areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
 
-        // Aura - Optimized with sprite-based rendering and reduced alpha
-        const glowData = this._getOrCreateGlow(baseColor);
-        const auraAlpha = 0.05; // Reduced from 0.08 for "subtle" look
+        // Aura - solid fill for territory visibility (no fade out)
+        if (node.owner !== -1) {
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.15;
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, sir, 0, Math.PI * 2);
+            this.ctx.fillStyle = baseColor;
+            this.ctx.fill();
+            this.ctx.restore();
+        }
 
-        this.ctx.save();
-        this.ctx.globalAlpha = auraAlpha;
-        this.ctx.drawImage(
-            glowData.canvas,
-            screen.x - sir,
-            screen.y - sir,
-            sir * 2,
-            sir * 2
-        );
-        this.ctx.restore();
-
-        // Dashed border (kept as vector for sharpness, but subtle)
+        // Dashed border - stronger for territory visibility
         this.ctx.beginPath();
         this.ctx.arc(screen.x, screen.y, sir, 0, Math.PI * 2);
-        this.ctx.strokeStyle = `rgba(${areaColor},0.2)`;
-        this.ctx.lineWidth = 1.2 * camera.zoom;
+        this.ctx.strokeStyle = node.owner !== -1 ? `rgba(${areaColor},0.5)` : `rgba(${areaColor},0.15)`;
+        this.ctx.lineWidth = 2 * camera.zoom;
         this.ctx.setLineDash([8 * camera.zoom, 6 * camera.zoom]);
         this.ctx.stroke();
         this.ctx.setLineDash([]);

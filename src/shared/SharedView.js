@@ -162,4 +162,119 @@ export class SharedView {
             callback(i);
         }
     }
+
+    findNodeByPosition(x, y, radius) {
+        const count = this.getNodeCount();
+        for (let i = 0; i < count; i++) {
+            const nx = this.getNodeX(i);
+            const ny = this.getNodeY(i);
+            const nr = this.getNodeRadius(i);
+            const dx = x - nx;
+            const dy = y - ny;
+            if (dx * dx + dy * dy < (nr + radius) * (nr + radius)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    findNodeById(id) {
+        const count = this.getNodeCount();
+        for (let i = 0; i < count; i++) {
+            if (this.getNodeId(i) === id) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    findEntityById(id) {
+        const count = this.getEntityCount();
+        for (let i = 0; i < count; i++) {
+            if (this.getEntityId(i) === id) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    getEntitiesInRect(x1, y1, x2, y2, owner = -1) {
+        const result = [];
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        const count = this.getEntityCount();
+
+        for (let i = 0; i < count; i++) {
+            if (this.isEntityDead(i) || this.isEntityDying(i)) continue;
+            if (owner !== -1 && this.getEntityOwner(i) !== owner) continue;
+
+            const ex = this.getEntityX(i);
+            const ey = this.getEntityY(i);
+
+            if (ex >= minX && ex <= maxX && ey >= minY && ey <= maxY) {
+                result.push(i);
+            }
+        }
+        return result;
+    }
+
+    getEntitiesInRadius(x, y, radius, owner = -1) {
+        const result = [];
+        const radiusSq = radius * radius;
+        const count = this.getEntityCount();
+
+        for (let i = 0; i < count; i++) {
+            if (this.isEntityDead(i) || this.isEntityDying(i)) continue;
+            if (owner !== -1 && this.getEntityOwner(i) !== owner) continue;
+
+            const ex = this.getEntityX(i);
+            const ey = this.getEntityY(i);
+            const dx = x - ex;
+            const dy = y - ey;
+
+            if (dx * dx + dy * dy <= radiusSq) {
+                result.push(i);
+            }
+        }
+        return result;
+    }
+
+    getEntitiesByOwner(owner) {
+        const result = [];
+        const count = this.getEntityCount();
+
+        for (let i = 0; i < count; i++) {
+            if (this.isEntityDead(i) || this.isEntityDying(i)) continue;
+            if (this.getEntityOwner(i) === owner) {
+                result.push(i);
+            }
+        }
+        return result;
+    }
+
+    getNodesByOwner(owner) {
+        const result = [];
+        const count = this.getNodeCount();
+
+        for (let i = 0; i < count; i++) {
+            if (this.getNodeOwner(i) === owner) {
+                result.push(i);
+            }
+        }
+        return result;
+    }
+
+    getEntityTargetNodeId(index) {
+        return this.memory.entities.targetNodeId[index];
+    }
+
+    getEntityTargetX(index) {
+        return this.memory.entities.targetX[index];
+    }
+
+    getEntityTargetY(index) {
+        return this.memory.entities.targetY[index];
+    }
 }

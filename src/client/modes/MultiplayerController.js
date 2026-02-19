@@ -438,6 +438,7 @@ export class MultiplayerController {
     }
 
     sendAction(action) {
+        console.log('sendAction:', action.type, 'unitIds:', action.unitIds, 'playerIndex:', this.playerIndex);
         if (this.socket && this.connected) {
             this.socket.emit('gameAction', action);
         }

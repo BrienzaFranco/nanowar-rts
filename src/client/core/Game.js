@@ -290,9 +290,6 @@ export class Game {
     updateFromWorker(dt, playerIdx) {
         const view = this.sharedView;
 
-        // Sincronizar posiciones del worker a entidades legacy para selección
-        this.syncWorkerToLegacy();
-
         const deathCount = view.getDeathEventsCount();
         for (let i = 0; i < deathCount; i++) {
             const event = view.getDeathEvent(i);
@@ -358,6 +355,13 @@ export class Game {
             }
         }
 
+        const viewEntityCount = view.getEntityCount();
+        this.state.entities = this.state.entities.filter(ent => {
+            const idx = view.findEntityById(ent.id);
+            if (idx === -1) return false;
+            return !view.isEntityDead(idx);
+        });
+
         const isValidPlayer = playerIdx >= 0;
         if (isValidPlayer) {
             view.iterateNodes((nodeIndex) => {
@@ -381,29 +385,6 @@ export class Game {
         view.memory.clearDeathEvents();
         view.memory.clearSpawnEvents();
     } // Fin de updateFromWorker
-
-    syncWorkerToLegacy() {
-        const view = this.sharedView;
-
-        for (let i = 0; i < this.state.nodes.length && i < view.getNodeCount(); i++) {
-            const node = this.state.nodes[i];
-            node.baseHp = view.getNodeBaseHp(i);
-            node.spawnProgress = view.getNodeSpawnProgress(i);
-            node.hitFlash = view.getNodeHitFlash(i);
-            node.spawnEffect = view.getNodeSpawnEffect(i);
-            node.owner = view.getNodeOwner(i);
-        }
-
-        for (let i = 0; i < this.state.entities.length && i < view.getEntityCount(); i++) {
-            const entity = this.state.entities[i];
-            entity.x = view.getEntityX(i);
-            entity.y = view.getEntityY(i);
-            entity.dying = view.isEntityDying(i);
-            entity.dead = view.isEntityDead(i);
-            entity.deathTime = view.getEntityDeathTime(i);
-            entity.deathType = view.getEntityDeathType(i);
-        }
-    }
 
     updateLegacy(dt, playerIdx) {
         const nodeOwnersBefore = new Map();
