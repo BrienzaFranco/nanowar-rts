@@ -87,6 +87,34 @@ export class GameState {
         // Apply time-based escalation to spawn intervals
         const timeBonus = Math.min(this.elapsedTime / 120, 1.0); // Max bonus at 2 minutes
 
+        // CLIENT EXTRAPOLATION: If we are a client in multiplayer, we don't run the backend simulation.
+        // We just extrapolate positions for smooth 60fps rendering between server syncs.
+        if (this.isClient) {
+            this.nodes.forEach(node => {
+                if (node.hitFlash > 0) node.hitFlash -= dt;
+                if (node.spawnEffect > 0) node.spawnEffect -= dt;
+            });
+
+            this.entities.forEach(ent => {
+                if (ent.dead) return;
+
+                if (ent.dying) {
+                    ent.deathTime += dt;
+                    if (ent.deathTime > 0.4) ent.dead = true;
+                    return;
+                }
+
+                // Visual extrapolation purely based on velocity
+                ent.x += ent.vx * dt;
+                ent.y += ent.vy * dt;
+            });
+
+            // Clean up dead entities
+            this.entities = this.entities.filter(ent => !ent.dead);
+
+            return; // Skip full simulation logic
+        }
+
         // Populate spatial grid for nodes once (nodes don't move)
         this.spatialGridNodes.clear();
         this.nodes.forEach(node => {

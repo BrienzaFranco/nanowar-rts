@@ -129,11 +129,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('gameAction', (action) => {
-        if (socket.roomId) {
-            const game = roomManager.getRoom(socket.roomId);
-            if (game) {
-                game.handleAction(socket.id, action);
-            }
+        if (!socket.roomId) return;
+        const game = roomManager.getRoom(socket.roomId);
+        if (game) {
+            game.handleAction(socket.id, action);
         }
     });
 

@@ -68,17 +68,20 @@ export class GameServer {
 
         if (action.type === 'move') {
             const { targetNodeId, targetX, targetY, unitIds } = action;
-            const target = targetNodeId ? this.state.nodes.find(n => n.id === targetNodeId) : null;
-
-            console.log('Processing move action:', unitIds.length, 'units, target:', targetX, targetY);
             
-            unitIds.forEach(id => {
-                const entity = this.state.entities.find(e => e.id === id);
-                console.log('  Entity id:', id, 'found:', !!entity, 'owner:', entity?.owner, 'playerIndex:', playerIndex);
-                if (entity && entity.owner === playerIndex) {
-                    entity.setTarget(targetX, targetY, target);
-                }
-            });
+            // Convertir targetNodeId a número si es string
+            const targetNodeIdNum = targetNodeId ? Number(targetNodeId) : null;
+            const target = targetNodeIdNum ? this.state.nodes.find(n => n.id === targetNodeIdNum) : null;
+            
+            if (unitIds && unitIds.length > 0) {
+                unitIds.forEach(id => {
+                    const idNum = Number(id);
+                    const entity = this.state.entities.find(e => Number(e.id) === idNum);
+                    if (entity && entity.owner === playerIndex) {
+                        entity.setTarget(targetX, targetY, target);
+                    }
+                });
+            }
         }
         else if (action.type === 'path') {
             const { unitIds, path } = action;
@@ -284,8 +287,7 @@ export class GameServer {
                     const ent = new Entity(
                         node.x + Math.cos(angle) * dist,
                         node.y + Math.sin(angle) * dist,
-                        node.owner,
-                        Date.now() + i + (node.owner * 1000)
+                        node.owner
                     );
                     this.state.entities.push(ent);
                 }

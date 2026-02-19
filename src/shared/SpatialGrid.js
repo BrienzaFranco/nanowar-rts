@@ -58,6 +58,7 @@ export class SpatialGrid {
                 }
             }
         }
+        this._resultArray.length = this._resultLength;
         return this._resultArray;
     }
 
@@ -110,6 +111,7 @@ export class SpatialGrid {
                 }
             }
         }
+        this._resultArray.length = this._resultLength;
         return this._resultArray;
     }
 }

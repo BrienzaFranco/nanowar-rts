@@ -46,6 +46,11 @@ export class Game {
             return false;
         }
 
+        if (window.multiplayer && window.multiplayer.connected) {
+            console.log('Multiplayer active, disabling local GameWorker simulation to prevent desync.');
+            return false;
+        }
+
         try {
             const bufferSize = calculateBufferSize();
             const sharedBuffer = new SharedArrayBuffer(bufferSize);
@@ -246,11 +251,18 @@ export class Game {
         const game = this;
         const loop = (now) => {
             if (!game.running) return;
-            const dt = Math.min((now - game.lastTime) / 1000, 0.05);
+
+            // If more than 100ms passed, the tab was likely backgrounded.
+            // Don't try to simulate the massive time gap, rely on server sync.
+            const elapsed = now - game.lastTime;
             game.lastTime = now;
 
-            game.update(dt);
-            game.draw(dt);
+            if (elapsed < 500) { // Only update if gap is reasonable
+                const dt = Math.min(elapsed / 1000, 0.05);
+                game.update(dt);
+            }
+
+            game.draw(0.016); // Always draw with a standard small tick
 
             game.animationId = requestAnimationFrame(loop);
         };

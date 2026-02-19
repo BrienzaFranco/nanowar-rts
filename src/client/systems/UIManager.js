@@ -84,16 +84,16 @@ export class UIManager {
             const isMe = i === playerIndex;
             const pColor = colors[i % colors.length];
 
-            // Production Rate
+            // Production Rate (units/sec -> units/min)
             const rawRate = this.game.state.productionRates?.[i] || 0;
             const ratePerMin = Math.round(rawRate * 60);
 
-            // Total Produced
+            // Total Produced (plain number from server stats)
             const stats = this.game.state.stats;
-            const produced = stats?.unitsProduced?.[i]?.total || (typeof stats?.unitsProduced?.[i] === 'number' ? stats.unitsProduced[i] : 0);
+            const produced = stats?.unitsProduced?.[i] || 0;
 
-            // Current Units (Active)
-            const current = stats?.unitsCurrent?.[i] || 0;
+            // Current Units (Active) from synced unitCounts
+            const current = this.game.state.unitCounts?.[i] || 0;
 
             ctx.fillStyle = pColor;
             const label = isMe ? 'TÚ' : `P${i + 1}`;

@@ -63,6 +63,7 @@ export class MultiplayerController {
             this.game.state.nodes = [];
             this.game.state.entities = [];
             this.game.state.playerCount = initialState.playerCount || this.game.state.playerCount;
+            this.game.state.isClient = true;
 
             // Apply initial state
             if (initialState.nodes) {
@@ -70,6 +71,8 @@ export class MultiplayerController {
                     const node = new Node(sn.id, sn.x, sn.y, sn.owner, sn.type);
                     node.baseHp = sn.baseHp;
                     node.maxHp = sn.maxHp;
+                    node.radius = sn.radius;
+                    node.influenceRadius = sn.influenceRadius;
                     node.stock = sn.stock;
                     node.maxStock = sn.maxStock;
                     node.spawnProgress = sn.spawnProgress;
@@ -78,22 +81,7 @@ export class MultiplayerController {
                 });
             }
 
-            // Spawn initial entities for all players - MORE units for multiplayer
-            this.game.state.nodes.forEach(node => {
-                if (node.owner !== -1) {
-                    for (let i = 0; i < 20; i++) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const dist = node.radius + 30;
-                        const ent = new Entity(
-                            node.x + Math.cos(angle) * dist,
-                            node.y + Math.sin(angle) * dist,
-                            node.owner,
-                            Date.now() + i + (node.owner * 1000)
-                        );
-                        this.game.state.entities.push(ent);
-                    }
-                }
-            });
+            // NOTE: Don't spawn entities here - they come from server via gameState
 
             const lobby = document.getElementById('lobby-screen');
             const gameScreen = document.getElementById('game-screen');
@@ -129,6 +117,12 @@ export class MultiplayerController {
             // Keep syncing always for defeated players who can still play
             if (this.game.running || this.playerDefeated) {
                 this.syncState(serverState);
+
+                // If tab is inactive, requestAnimationFrame pauses.
+                // We manually tick the time forward so local extrapolation doesn't break when we return.
+                if (document.hidden && this.game.running) {
+                    this.game.lastTime = performance.now();
+                }
             }
         });
 
@@ -438,7 +432,6 @@ export class MultiplayerController {
     }
 
     sendAction(action) {
-        console.log('sendAction:', action.type, 'unitIds:', action.unitIds, 'playerIndex:', this.playerIndex);
         if (this.socket && this.connected) {
             this.socket.emit('gameAction', action);
         }
@@ -528,6 +521,32 @@ export class MultiplayerController {
         }
         if (serverState.showProduction !== undefined) {
             this.game.state.showProduction = serverState.showProduction;
+        }
+
+        // Sync live stats for in-game panel
+        if (serverState.productionRates) {
+            this.game.state.productionRates = serverState.productionRates;
+        }
+
+        // Build unitCounts from entities (entities are already synced above)
+        // This lets UIManager show current active unit counts per player
+        const counts = {};
+        this.game.state.entities.forEach(e => {
+            if (!e.dying && !e.dead) {
+                counts[e.owner] = (counts[e.owner] || 0) + 1;
+            }
+        });
+        this.game.state.unitCounts = counts;
+
+        // Sync cumulative stats from server (unitsProduced, unitsLost, etc.)
+        if (serverState.stats) {
+            if (!this.game.state.stats) this.game.state.stats = {};
+            if (serverState.stats.unitsProduced) {
+                this.game.state.stats.unitsProduced = serverState.stats.unitsProduced;
+            }
+            if (serverState.stats.unitsLost) {
+                this.game.state.stats.unitsLost = serverState.stats.unitsLost;
+            }
         }
     }
 }

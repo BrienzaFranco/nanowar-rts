@@ -201,7 +201,7 @@ export class Node {
                 const angle = Math.random() * Math.PI * 2;
                 const spawnDist = this.influenceRadius * 0.6; // 60% from center
                 const ex = this.x + Math.cos(angle) * spawnDist, ey = this.y + Math.sin(angle) * spawnDist;
-                const entity = new Entity(ex, ey, this.owner, Date.now() + Math.random());
+                const entity = new Entity(ex, ey, this.owner);
 
                 // If no rally point, just stay there floating (no target)
                 if (!this.rallyPoint) {
