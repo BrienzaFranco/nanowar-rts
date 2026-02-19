@@ -110,23 +110,23 @@ export class Entity {
                             else {
                                 this.stop();
                                 this.targetNode = null;
-                                
+
                                 this.x += nx * overlap;
                                 this.y += ny * overlap;
                             }
                         }
                         else {
                             const allDefenders = node.allAreaDefenders || [];
-                            const ownerDefenders = allDefenders.filter(e => 
+                            const ownerDefenders = allDefenders.filter(e =>
                                 e.owner === node.owner && !e.dead && !e.dying
                             );
-                            
+
                             if (ownerDefenders.length > 0) {
                                 ownerDefenders[0].die('sacrifice', node, game);
                                 this.die('attack', node, game);
                                 return;
                             }
-                            
+
                             if (!this.dying) {
                                 node.receiveAttack(this.owner, 1, game);
                                 this.die('attack', node, game);
@@ -145,15 +145,18 @@ export class Entity {
                         else {
                             this.x += nx * overlap;
                             this.y += ny * overlap;
-                            
+
                             if (this.currentTarget) {
                                 const perpX = -ny;
                                 const perpY = nx;
                                 const targetDx = this.currentTarget.x - this.x;
                                 const targetDy = this.currentTarget.y - this.y;
                                 const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
-                                this.vx += perpX * side * 100;
-                                this.vy += perpY * side * 100;
+
+                                // Enhanced evasion from GameWorker.js
+                                const evasionForce = (1 - (dist / (node.radius + 60))) * 2500;
+                                this.vx += perpX * side * evasionForce * 0.016;
+                                this.vy += perpY * side * evasionForce * 0.016;
                             }
                         }
                     }
@@ -358,12 +361,15 @@ export class Entity {
 
             if (dist < node.radius + 60 && dist > 10) {
                 const dot = (dx / dist) * targetNx + (dy / dist) * targetNy;
-                if (dot > 0.5) {
+                if (dot > 0.3) { // Wider detection angle (30% similarity instead of 50%)
                     const perpX = -targetNy;
                     const perpY = targetNx;
                     const side = (dx * targetNy - dy * targetNx) > 0 ? 1 : -1;
-                    this.vx += perpX * side * 150 * 0.016;
-                    this.vy += perpY * side * 150 * 0.016; // Stronger avoidance
+
+                    // Improved avoidance force proportional to proximity
+                    const forceMult = (1 - (dist / (node.radius + 60))) * 2500;
+                    this.vx += perpX * side * forceMult * 0.016;
+                    this.vy += perpY * side * forceMult * 0.016;
                 }
             }
         }

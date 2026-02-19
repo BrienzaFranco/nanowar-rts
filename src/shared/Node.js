@@ -42,6 +42,13 @@ export class Node {
     setRallyPoint(x, y, targetNode = null) {
         this.rallyPoint = { x, y };
         this.rallyTargetNode = targetNode;
+
+        // Sincronizar con el worker si tenemos el índice y el worker está activo
+        if (this.nodeIndex !== undefined && this.sharedNodeData) {
+            this.sharedNodeData.setRallyX(this.nodeIndex, x);
+            this.sharedNodeData.setRallyY(this.nodeIndex, y);
+            this.sharedNodeData.setRallyTargetNodeId(this.nodeIndex, targetNode ? targetNode.id : -1);
+        }
     }
 
     calculateDefenders(spatialGrid) {
@@ -159,10 +166,9 @@ export class Node {
             // This slows down early game production significantly
             let healthScaling = 0.3 + healthPercent * 1.2;
 
-            // Extra bonus at full health (0.5 extra = up to 2x total)
-            if (isFull) {
-                healthScaling += 0.5;
-            }
+            // Smoothly ramp bonus production from 90% to 100% HP (prevents visual jumps)
+            const fullBonus = Math.max(0, Math.min(0.5, (healthPercent - 0.9) * 5));
+            healthScaling += fullBonus;
 
             // Type bonus: large nodes produce more
             if (this.type === 'large') {

@@ -7,6 +7,7 @@ import { sounds } from '../systems/SoundManager.js';
 import { SharedMemory, MEMORY_LAYOUT, calculateBufferSize } from '../../shared/SharedMemory.js';
 import { SharedView } from '../../shared/SharedView.js';
 import { Entity } from '../../shared/Entity.js';
+import { NodeData } from '../../shared/NodeData.js';
 
 export class Game {
     constructor(canvasId) {
@@ -58,8 +59,8 @@ export class Game {
             );
 
             const self = this;
-            
-            this.worker.onmessage = function(e) {
+
+            this.worker.onmessage = function (e) {
                 const { type, data } = e.data;
                 if (type === 'initialized') {
                     self.useWorker = true;
@@ -86,7 +87,15 @@ export class Game {
     syncStateToWorker() {
         if (!this.worker || !this.useWorker) return;
 
-        for (const node of this.state.nodes) {
+        if (!this.sharedNodeData) {
+            this.sharedNodeData = new NodeData(this.sharedView.memory);
+        }
+
+        for (let i = 0; i < this.state.nodes.length; i++) {
+            const node = this.state.nodes[i];
+            node.nodeIndex = i;
+            node.sharedNodeData = this.sharedNodeData;
+
             this.worker.postMessage({
                 type: 'addNode',
                 data: {
@@ -129,14 +138,14 @@ export class Game {
 
     startWorkerLoop() {
         const self = this;
-        
+
         const workerLoop = () => {
             if (!self.useWorker || !self.running) return;
 
             const dt = 1 / 60;
             self.worker.postMessage({ type: 'update', data: { dt } });
         };
-        
+
         this.workerLoop = workerLoop;
         this.lastWorkerUpdate = 0;
         workerLoop();
@@ -144,10 +153,10 @@ export class Game {
 
     updateWorkerLoop() {
         if (!this.useWorker || !this.running) return;
-        
+
         const now = performance.now();
         const elapsed = now - this.lastWorkerUpdate;
-        
+
         if (elapsed >= 16) {
             this.lastWorkerUpdate = now;
             const dt = Math.min(elapsed / 1000, 0.05);
@@ -179,7 +188,7 @@ export class Game {
                 ent.targetNode = null;
             }
         }
-        
+
         if (this.worker && this.useWorker) {
             this.worker.postMessage({
                 type: 'setEntityTargetById',
@@ -294,7 +303,7 @@ export class Game {
             if (event) {
                 const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
                 this.spawnParticles(event.x, event.y, color, 6, 'explosion');
-                
+
                 let spawnerNode = null;
                 let minDist = Infinity;
                 for (const n of this.state.nodes) {
@@ -316,14 +325,14 @@ export class Game {
                     ty = spawnerNode.rallyPoint.y;
                     tnodeId = spawnerNode.rallyTargetNode ? spawnerNode.rallyTargetNode.id : -1;
                 }
-                
+
                 const newId = Date.now() + Math.random();
                 const ent = new Entity(event.x, event.y, event.owner, newId);
-                
+
                 if (tx !== 0 || ty !== 0 || tnodeId !== -1) {
                     ent.setTarget(tx, ty, spawnerNode?.rallyTargetNode);
                 }
-                
+
                 this.state.entities.push(ent);
                 this.spawnEntityInWorker(event.x, event.y, event.owner, tx, ty, tnodeId, newId);
             }
@@ -346,11 +355,16 @@ export class Game {
         view.iterateNodes((nodeIndex) => {
             this.workerNodeOwners[nodeIndex] = view.getNodeOwner(nodeIndex);
         });
-    }
+
+        // --- CÓDIGO NUEVO AQUÍ ---
+        // Limpiamos los eventos AHORA, después de haberlos leído con seguridad
+        view.memory.clearDeathEvents();
+        view.memory.clearSpawnEvents();
+    } // Fin de updateFromWorker
 
     syncWorkerToLegacy() {
         const view = this.sharedView;
-        
+
         for (let i = 0; i < this.state.nodes.length && i < view.getNodeCount(); i++) {
             const node = this.state.nodes[i];
             node.baseHp = view.getNodeBaseHp(i);
@@ -456,6 +470,7 @@ export class Game {
                 spawnProgress: view.getNodeSpawnProgress(nodeIndex),
                 hitFlash: view.getNodeHitFlash(nodeIndex),
                 spawnEffect: view.getNodeSpawnEffect(nodeIndex),
+                id: view.getNodeId(nodeIndex),
                 getColor: () => owner === -1 ? '#757575' : PLAYER_COLORS[owner % PLAYER_COLORS.length],
                 getTotalHp: () => Math.min(maxHp, baseHp),
             };
@@ -476,6 +491,7 @@ export class Game {
                 deathType: view.getEntityDeathType(entityIndex),
                 selected: view.isEntitySelected(entityIndex),
                 outsideWarning: view.hasEntityOutsideWarning(entityIndex),
+                id: view.getEntityId(entityIndex),
                 getColor: () => PLAYER_COLORS[owner % PLAYER_COLORS.length],
             };
             const isSelected = this.systems?.selection?.isSelected(entity);

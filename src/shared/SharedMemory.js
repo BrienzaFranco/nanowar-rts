@@ -14,6 +14,7 @@ const ENTITY_FIELD_SIZES = {
     flags: 4, deathTime: 4, deathType: 4,
     targetX: 4, targetY: 4, targetNodeId: 4,
     flockId: 4, outsideTime: 4,
+    id: 8,
 };
 
 let entityOffset = 0;
@@ -35,6 +36,7 @@ const ENTITY_OFFSET_TARGETY = entityOffset; entityOffset += ENTITY_FIELD_SIZES.t
 const ENTITY_OFFSET_TARGETNODEID = entityOffset; entityOffset += ENTITY_FIELD_SIZES.targetNodeId * MEMORY_LAYOUT.MAX_ENTITIES;
 const ENTITY_OFFSET_FLOCKID = entityOffset; entityOffset += ENTITY_FIELD_SIZES.flockId * MEMORY_LAYOUT.MAX_ENTITIES;
 const ENTITY_OFFSET_OUTSIDETIME = entityOffset; entityOffset += ENTITY_FIELD_SIZES.outsideTime * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_ID = entityOffset; entityOffset += ENTITY_FIELD_SIZES.id * MEMORY_LAYOUT.MAX_ENTITIES;
 
 const TOTAL_ENTITY_BYTES = entityOffset;
 
@@ -43,6 +45,7 @@ const NODE_FIELD_SIZES = {
     radius: 4, influenceRadius: 4, spawnTimer: 4, spawnProgress: 4,
     hitFlash: 4, stock: 4, nodeFlags: 4, type: 4, spawnEffect: 4, manualSpawnReady: 4,
     id: 4,
+    rallyX: 4, rallyY: 4, rallyTargetNodeId: 4,
 };
 
 let nodeOffset = 0;
@@ -62,6 +65,9 @@ const NODE_OFFSET_TYPE = nodeOffset; nodeOffset += NODE_FIELD_SIZES.type * MEMOR
 const NODE_OFFSET_SPAWNEFFECT = nodeOffset; nodeOffset += NODE_FIELD_SIZES.spawnEffect * MEMORY_LAYOUT.MAX_NODES;
 const NODE_OFFSET_MANUALSPAWNREADY = nodeOffset; nodeOffset += NODE_FIELD_SIZES.manualSpawnReady * MEMORY_LAYOUT.MAX_NODES;
 const NODE_OFFSET_ID = nodeOffset; nodeOffset += NODE_FIELD_SIZES.id * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_RALLYX = nodeOffset; nodeOffset += NODE_FIELD_SIZES.rallyX * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_RALLYY = nodeOffset; nodeOffset += NODE_FIELD_SIZES.rallyY * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_RALLYTARGETNODEID = nodeOffset; nodeOffset += NODE_FIELD_SIZES.rallyTargetNodeId * MEMORY_LAYOUT.MAX_NODES;
 
 const TOTAL_NODE_BYTES = nodeOffset;
 
@@ -76,7 +82,7 @@ const DEATH_OFFSET_TARGETX = deathOffset; deathOffset += DEATH_EVENT_FIELD_SIZES
 const DEATH_OFFSET_TARGETY = deathOffset; deathOffset += DEATH_EVENT_FIELD_SIZES.targetY * MEMORY_LAYOUT.MAX_DEATH_EVENTS;
 const TOTAL_DEATH_EVENT_BYTES = deathOffset;
 
-const SPAWN_EVENT_FIELD_SIZES = { x: 4, y: 4, owner: 4, targetX: 4, targetY: 4, targetNodeId: 4 };
+const SPAWN_EVENT_FIELD_SIZES = { x: 4, y: 4, owner: 4, targetX: 4, targetY: 4, targetNodeId: 4, id: 8 };
 let spawnOffset = 0;
 const SPAWN_OFFSET_X = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.x * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
 const SPAWN_OFFSET_Y = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.y * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
@@ -84,6 +90,7 @@ const SPAWN_OFFSET_OWNER = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.o
 const SPAWN_OFFSET_TARGETX = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.targetX * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
 const SPAWN_OFFSET_TARGETY = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.targetY * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
 const SPAWN_OFFSET_TARGETNODEID = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.targetNodeId * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
+const SPAWN_OFFSET_ID = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.id * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
 const TOTAL_SPAWN_EVENT_BYTES = spawnOffset;
 
 const NODES_OFFSET = HEADER_SIZE + TOTAL_ENTITY_BYTES;
@@ -97,7 +104,7 @@ export function calculateBufferSize() {
 export class SharedMemory {
     constructor(buffer) {
         this.buffer = buffer;
-        
+
         this.header = {
             entityCount: new Uint32Array(buffer, 0, 1),
             nodeCount: new Uint32Array(buffer, 4, 1),
@@ -108,10 +115,10 @@ export class SharedMemory {
             spawnEventsCount: new Uint32Array(buffer, 24, 1),
             frameCounter: new Uint32Array(buffer, 28, 1),
         };
-        
+
         this.header.maxEntities[0] = MEMORY_LAYOUT.MAX_ENTITIES;
         this.header.maxNodes[0] = MEMORY_LAYOUT.MAX_NODES;
-        
+
         this.entities = {
             x: new Float32Array(buffer, HEADER_SIZE + ENTITY_OFFSET_X, MEMORY_LAYOUT.MAX_ENTITIES),
             y: new Float32Array(buffer, HEADER_SIZE + ENTITY_OFFSET_Y, MEMORY_LAYOUT.MAX_ENTITIES),
@@ -131,8 +138,9 @@ export class SharedMemory {
             targetNodeId: new Int32Array(buffer, HEADER_SIZE + ENTITY_OFFSET_TARGETNODEID, MEMORY_LAYOUT.MAX_ENTITIES),
             flockId: new Int32Array(buffer, HEADER_SIZE + ENTITY_OFFSET_FLOCKID, MEMORY_LAYOUT.MAX_ENTITIES),
             outsideTime: new Float32Array(buffer, HEADER_SIZE + ENTITY_OFFSET_OUTSIDETIME, MEMORY_LAYOUT.MAX_ENTITIES),
+            id: new Float64Array(buffer, HEADER_SIZE + ENTITY_OFFSET_ID, MEMORY_LAYOUT.MAX_ENTITIES),
         };
-        
+
         this.nodes = {
             x: new Float32Array(buffer, NODES_OFFSET + NODE_OFFSET_X, MEMORY_LAYOUT.MAX_NODES),
             y: new Float32Array(buffer, NODES_OFFSET + NODE_OFFSET_Y, MEMORY_LAYOUT.MAX_NODES),
@@ -150,8 +158,11 @@ export class SharedMemory {
             spawnEffect: new Float32Array(buffer, NODES_OFFSET + NODE_OFFSET_SPAWNEFFECT, MEMORY_LAYOUT.MAX_NODES),
             manualSpawnReady: new Uint32Array(buffer, NODES_OFFSET + NODE_OFFSET_MANUALSPAWNREADY, MEMORY_LAYOUT.MAX_NODES),
             id: new Int32Array(buffer, NODES_OFFSET + NODE_OFFSET_ID, MEMORY_LAYOUT.MAX_NODES),
+            rallyX: new Float32Array(buffer, NODES_OFFSET + NODE_OFFSET_RALLYX, MEMORY_LAYOUT.MAX_NODES),
+            rallyY: new Float32Array(buffer, NODES_OFFSET + NODE_OFFSET_RALLYY, MEMORY_LAYOUT.MAX_NODES),
+            rallyTargetNodeId: new Int32Array(buffer, NODES_OFFSET + NODE_OFFSET_RALLYTARGETNODEID, MEMORY_LAYOUT.MAX_NODES),
         };
-        
+
         this.deathEvents = {
             x: new Float32Array(buffer, DEATH_EVENTS_OFFSET + DEATH_OFFSET_X, MEMORY_LAYOUT.MAX_DEATH_EVENTS),
             y: new Float32Array(buffer, DEATH_EVENTS_OFFSET + DEATH_OFFSET_Y, MEMORY_LAYOUT.MAX_DEATH_EVENTS),
@@ -161,7 +172,7 @@ export class SharedMemory {
             targetX: new Float32Array(buffer, DEATH_EVENTS_OFFSET + DEATH_OFFSET_TARGETX, MEMORY_LAYOUT.MAX_DEATH_EVENTS),
             targetY: new Float32Array(buffer, DEATH_EVENTS_OFFSET + DEATH_OFFSET_TARGETY, MEMORY_LAYOUT.MAX_DEATH_EVENTS),
         };
-        
+
         this.spawnEvents = {
             x: new Float32Array(buffer, SPAWN_EVENTS_OFFSET + SPAWN_OFFSET_X, MEMORY_LAYOUT.MAX_SPAWN_EVENTS),
             y: new Float32Array(buffer, SPAWN_EVENTS_OFFSET + SPAWN_OFFSET_Y, MEMORY_LAYOUT.MAX_SPAWN_EVENTS),
@@ -169,23 +180,24 @@ export class SharedMemory {
             targetX: new Float32Array(buffer, SPAWN_EVENTS_OFFSET + SPAWN_OFFSET_TARGETX, MEMORY_LAYOUT.MAX_SPAWN_EVENTS),
             targetY: new Float32Array(buffer, SPAWN_EVENTS_OFFSET + SPAWN_OFFSET_TARGETY, MEMORY_LAYOUT.MAX_SPAWN_EVENTS),
             targetNodeId: new Int32Array(buffer, SPAWN_EVENTS_OFFSET + SPAWN_OFFSET_TARGETNODEID, MEMORY_LAYOUT.MAX_SPAWN_EVENTS),
+            id: new Float64Array(buffer, SPAWN_EVENTS_OFFSET + SPAWN_OFFSET_ID, MEMORY_LAYOUT.MAX_SPAWN_EVENTS),
         };
     }
-    
+
     static create() {
         const size = calculateBufferSize();
         const buffer = new SharedArrayBuffer(size);
         return new SharedMemory(buffer);
     }
-    
+
     clearDeathEvents() {
         this.header.deathEventsCount[0] = 0;
     }
-    
+
     addDeathEvent(x, y, owner, type, entityIndex, targetX = 0, targetY = 0) {
         const idx = this.header.deathEventsCount[0];
         if (idx >= MEMORY_LAYOUT.MAX_DEATH_EVENTS) return;
-        
+
         this.deathEvents.x[idx] = x;
         this.deathEvents.y[idx] = y;
         this.deathEvents.owner[idx] = owner;
@@ -193,56 +205,57 @@ export class SharedMemory {
         this.deathEvents.entityIndex[idx] = entityIndex;
         this.deathEvents.targetX[idx] = targetX;
         this.deathEvents.targetY[idx] = targetY;
-        
+
         this.header.deathEventsCount[0] = idx + 1;
     }
-    
+
     clearSpawnEvents() {
         this.header.spawnEventsCount[0] = 0;
     }
-    
-    addSpawnEvent(x, y, owner, targetX, targetY, targetNodeId) {
+
+    addSpawnEvent(x, y, owner, targetX, targetY, targetNodeId, id) {
         const idx = this.header.spawnEventsCount[0];
         if (idx >= MEMORY_LAYOUT.MAX_SPAWN_EVENTS) return;
-        
+
         this.spawnEvents.x[idx] = x;
         this.spawnEvents.y[idx] = y;
         this.spawnEvents.owner[idx] = owner;
         this.spawnEvents.targetX[idx] = targetX;
         this.spawnEvents.targetY[idx] = targetY;
         this.spawnEvents.targetNodeId[idx] = targetNodeId;
-        
+        this.spawnEvents.id[idx] = id;
+
         this.header.spawnEventsCount[0] = idx + 1;
     }
-    
+
     setEntityCount(count) {
         this.header.entityCount[0] = count;
     }
-    
+
     setNodeCount(count) {
         this.header.nodeCount[0] = count;
     }
-    
+
     getEntityCount() {
         return this.header.entityCount[0];
     }
-    
+
     getNodeCount() {
         return this.header.nodeCount[0];
     }
-    
+
     incrementFrameCounter() {
         this.header.frameCounter[0]++;
     }
-    
+
     getFrameCounter() {
         return this.header.frameCounter[0];
     }
-    
+
     isDead(entityIndex) {
         return (this.entities.flags[entityIndex] & 1) !== 0;
     }
-    
+
     setDead(entityIndex, dead) {
         if (dead) {
             this.entities.flags[entityIndex] |= 1;
@@ -250,11 +263,11 @@ export class SharedMemory {
             this.entities.flags[entityIndex] &= 0xFFFFFFFE;
         }
     }
-    
+
     isDying(entityIndex) {
         return (this.entities.flags[entityIndex] & 2) !== 0;
     }
-    
+
     setDying(entityIndex, dying) {
         if (dying) {
             this.entities.flags[entityIndex] |= 2;
@@ -262,11 +275,11 @@ export class SharedMemory {
             this.entities.flags[entityIndex] &= 0xFFFFFFFD;
         }
     }
-    
+
     isSelected(entityIndex) {
         return (this.entities.flags[entityIndex] & 4) !== 0;
     }
-    
+
     setSelected(entityIndex, selected) {
         if (selected) {
             this.entities.flags[entityIndex] |= 4;
@@ -274,11 +287,11 @@ export class SharedMemory {
             this.entities.flags[entityIndex] &= 0xFFFFFFFB;
         }
     }
-    
+
     hasOutsideWarning(entityIndex) {
         return (this.entities.flags[entityIndex] & 8) !== 0;
     }
-    
+
     setOutsideWarning(entityIndex, warning) {
         if (warning) {
             this.entities.flags[entityIndex] |= 8;
@@ -286,11 +299,11 @@ export class SharedMemory {
             this.entities.flags[entityIndex] &= 0xFFFFFFF7;
         }
     }
-    
+
     isNodeManualSpawnReady(nodeIndex) {
         return (this.nodes.nodeFlags[nodeIndex] & 1) !== 0;
     }
-    
+
     setNodeManualSpawnReady(nodeIndex, ready) {
         if (ready) {
             this.nodes.nodeFlags[nodeIndex] |= 1;

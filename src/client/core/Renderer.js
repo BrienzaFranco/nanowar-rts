@@ -96,7 +96,7 @@ export class Renderer {
         if (!color || typeof color !== 'string' || !color.startsWith('#') || color.length < 7) {
             return null;
         }
-        
+
         if (this.glowCache.has(color)) {
             return this.glowCache.get(color);
         }
@@ -362,8 +362,8 @@ export class Renderer {
         }
 
         const deathType = entity.deathType;
-        const deathTypeStr = typeof deathType === 'number' ? 
-            ['none', 'attack', 'explosion', 'absorbed', 'sacrifice', 'outOfBounds'][deathType] : 
+        const deathTypeStr = typeof deathType === 'number' ?
+            ['none', 'attack', 'explosion', 'absorbed', 'sacrifice', 'outOfBounds'][deathType] :
             deathType;
 
         // Dying animation handling
@@ -428,9 +428,9 @@ export class Renderer {
         // Selection circle
         if (isSelected) {
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, renderRadius + 2, 0, Math.PI * 2);
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-            this.ctx.lineWidth = 1;
+            this.ctx.arc(screen.x, screen.y, renderRadius + 4 * camera.zoom, 0, Math.PI * 2);
+            this.ctx.strokeStyle = '#FFFFFF';
+            this.ctx.lineWidth = 2 * camera.zoom;
             this.ctx.stroke();
         }
 
