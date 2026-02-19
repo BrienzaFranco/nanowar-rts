@@ -31,7 +31,7 @@ export class PixiRenderer {
             tint: true
         });
         this.glowLayer = new PIXI.Container();
-        this.uiLayer = new PIXI.Container();
+        this.uiLayer = new PIXI.Graphics();
         
         this.world.addChild(this.gridLayer);
         this.world.addChild(this.nodeLayer);
