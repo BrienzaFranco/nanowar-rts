@@ -32,8 +32,52 @@ export class GameState {
             unitsCurrent: {}, // playerId -> current count
             capturedNodes: {}, // playerId -> count
             history: [], // { time, playerId, count }
-            productionHistory: [] // { time, playerId, rate, total }
+            productionHistory: [], // { time, playerId, rate, total }
+            events: [] // { time, type, playerId, data }
         };
+
+        this.deathBuffer = []; // To detect "Big Battles"
+    }
+
+    recordDeath(playerId, x, y) {
+        if (!this.stats.unitsLost[playerId]) this.stats.unitsLost[playerId] = 0;
+        this.stats.unitsLost[playerId]++;
+
+        const now = Date.now();
+        this.deathBuffer.push({ time: now, x, y });
+
+        // Clean old deaths from buffer (last 2 seconds)
+        this.deathBuffer = this.deathBuffer.filter(d => now - d.time < 2000);
+
+        // Detect Big Battle: 30+ deaths in 2 seconds in a small area
+        if (this.deathBuffer.length >= 30) {
+            // Simple spatial check: average position
+            let avgX = 0, avgY = 0;
+            this.deathBuffer.forEach(d => { avgX += d.x; avgY += d.y; });
+            avgX /= this.deathBuffer.length;
+            avgY /= this.deathBuffer.length;
+
+            // If all are within 150px of center
+            const areClose = this.deathBuffer.every(d => {
+                const dx = d.x - avgX;
+                const dy = d.y - avgY;
+                return dx * dx + dy * dy < 150 * 150;
+            });
+
+            if (areClose && now - (this.lastBigBattle || 0) > 5000) {
+                this.lastBigBattle = now;
+                this.recordEvent('big_battle', playerId, { x: avgX, y: avgY, count: this.deathBuffer.length });
+            }
+        }
+    }
+
+    recordEvent(type, playerId, data = {}) {
+        this.stats.events.push({
+            time: (Date.now() - this.stats.startTime) / 1000, // seconds
+            type,
+            playerId,
+            data
+        });
     }
 
     update(dt, gameInstance) {
@@ -191,7 +235,8 @@ export class GameState {
             captured: {},
             history: this.stats.history,
             nodeHistory: this.stats.nodeHistory || [],
-            productionHistory: this.stats.productionHistory
+            productionHistory: this.stats.productionHistory,
+            events: this.stats.events || []
         };
 
         for (let pid in this.stats.unitsProduced) {

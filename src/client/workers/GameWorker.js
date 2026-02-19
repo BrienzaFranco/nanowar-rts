@@ -6,6 +6,7 @@ let sharedMemory = null;
 let entityData = null;
 let nodeData = null;
 let syncComplete = false;
+let entityIdToIndex = new Map();
 let gameSettings = {
     speedMultiplier: 1,
     maxEntitiesPerPlayer: 1000,
@@ -19,7 +20,6 @@ const CENTER_Y = 900;
 
 self.onmessage = function(e) {
     const { type, data } = e.data;
-    console.log('[Worker] Received:', type);
     
     switch (type) {
         case 'init':
@@ -40,9 +40,11 @@ self.onmessage = function(e) {
         case 'setEntityTarget':
             handleSetEntityTarget(data);
             break;
+        case 'setEntityTargetById':
+            handleSetEntityTargetById(data);
+            break;
         case 'syncComplete':
             syncComplete = true;
-            console.log('[Worker] Sync complete! Nodes:', nodeData.getCount(), 'Entities:', entityData.getCount());
             self.postMessage({ type: 'workerReady' });
             break;
     }
@@ -71,7 +73,6 @@ function handleAddNode(data) {
                       type === 'large' ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM;
     
     const idx = nodeData.allocate(x, y, owner, nodeType, id);
-    console.log('[Worker] Added node:', idx, 'x:', x, 'y:', y, 'owner:', owner);
     
     self.postMessage({ 
         type: 'nodeAdded', 
@@ -83,9 +84,10 @@ function handleSpawnEntity(data) {
     const { x, y, owner, targetX, targetY, targetNodeId, id } = data;
     
     const idx = entityData.allocate(x, y, owner, id);
-    console.log('[Worker] Spawned entity:', idx, 'x:', x, 'y:', y, 'owner:', owner);
     
     if (idx !== -1) {
+        entityIdToIndex.set(id, idx);
+        
         if (targetX !== undefined || targetY !== undefined) {
             entityData.setTargetX(idx, targetX || 0);
             entityData.setTargetY(idx, targetY || 0);
@@ -106,26 +108,28 @@ function handleSetEntityTarget(data) {
     }
 }
 
+function handleSetEntityTargetById(data) {
+    const { entityId, targetX, targetY, targetNodeId } = data;
+    
+    const idx = entityIdToIndex.get(entityId);
+    if (idx !== undefined && entityData.isValidIndex(idx)) {
+        entityData.setTargetX(idx, targetX);
+        entityData.setTargetY(idx, targetY);
+        entityData.setTargetNodeId(idx, targetNodeId || -1);
+    }
+}
+
 function handleUpdate(data) {
     if (!sharedMemory || !entityData || !nodeData) {
-        console.log('[Worker] No shared memory yet');
         return;
     }
     
     if (!syncComplete) {
-        console.log('[Worker] Waiting for sync...');
         return;
     }
     
     const { dt } = data;
     const cappedDt = Math.min(dt, 0.05);
-    
-    const entityCount = entityData.getCount();
-    const nodeCount = nodeData.getCount();
-    
-    if (entityCount === 0 || nodeCount === 0) {
-        console.log('[Worker] No entities or nodes:', entityCount, nodeCount);
-    }
     
     sharedMemory.clearDeathEvents();
     sharedMemory.clearSpawnEvents();

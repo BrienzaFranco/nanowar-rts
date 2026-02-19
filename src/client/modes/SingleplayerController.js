@@ -197,8 +197,16 @@ export class SingleplayerController {
         overlay.appendChild(box);
         document.body.appendChild(overlay);
 
+        // Initial graph state
+        this.graphState = {
+            offset: 0,
+            scale: 1.0,
+            type: 'production'
+        };
+
         // Define graph update function globally so buttons can call it
         window.updateGraph = (type) => {
+            if (type) this.graphState.type = type;
             const canvas = document.getElementById('stats-graph-sp');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
@@ -214,22 +222,23 @@ export class SingleplayerController {
             // Update active button style
             ['prod', 'units', 'nodes'].forEach(t => {
                 const btn = document.getElementById(`btn-graph-${t}`);
-                if (btn) btn.style.borderColor = t === type ? color : '#444';
-                if (btn) btn.style.color = t === type ? color : '#888';
+                const fullType = t === 'prod' ? 'production' : (t === 'units' ? 'units' : 'nodes');
+                if (btn) btn.style.borderColor = fullType === this.graphState.type ? color : '#444';
+                if (btn) btn.style.color = fullType === this.graphState.type ? color : '#888';
             });
 
-            if (type === 'production') {
+            if (this.graphState.type === 'production') {
                 dataArray = stats.productionHistory || [];
                 title = 'PRODUCCIÓN (Unidades/Min)';
-                timeScale = 1; // Already in minutes
-            } else if (type === 'units') {
+                timeScale = 1;
+            } else if (this.graphState.type === 'units') {
                 dataArray = stats.history || [];
                 title = 'EJÉRCITO TOTAL';
-                timeScale = 60; // Seconds to minutes
-            } else if (type === 'nodes') {
+                timeScale = 60;
+            } else if (this.graphState.type === 'nodes') {
                 dataArray = stats.nodeHistory || [];
                 title = 'TERRITORIO (Nodos)';
-                timeScale = 60; // Seconds to minutes
+                timeScale = 60;
             }
 
             if (!dataArray || dataArray.length === 0) {
@@ -239,13 +248,20 @@ export class SingleplayerController {
                 return;
             }
 
-            // Find max value
+            // Find max value in current view (simplified to global max for stability)
             let maxVal = 0;
             dataArray.forEach(p => {
                 const val = p.rate !== undefined ? p.rate : p.count;
                 if (val > maxVal) maxVal = val;
             });
-            maxVal = Math.ceil(Math.max(maxVal, 5) * 1.1); // Min 5, 10% padding
+            maxVal = Math.ceil(Math.max(maxVal, 5) * 1.1);
+
+            ctx.save();
+
+            // Apply pan/zoom transformation
+            // scale 1.0 means whole game fits in width
+            const totalTime = stats.elapsed || 1;
+            const basePxPerMin = w / totalTime;
 
             // Draw Grid
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
@@ -260,6 +276,33 @@ export class SingleplayerController {
                 ctx.fillText(Math.round((i / 4) * maxVal), 5, y - 2);
             }
             ctx.stroke();
+
+            // Coordinate helper: time to x
+            const timeToX = (t) => (t * basePxPerMin * this.graphState.scale) + this.graphState.offset;
+
+            // Draw Events (Captures, Battles)
+            if (stats.events) {
+                stats.events.forEach(ev => {
+                    const x = timeToX(ev.time / (timeScale === 60 ? 60 : 1));
+                    if (x < 0 || x > w) return;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x, 20);
+                    ctx.lineTo(x, h - 5);
+                    ctx.strokeStyle = ev.type === 'big_battle' ? 'rgba(255,0,0,0.2)' : 'rgba(255,255,255,0.1)';
+                    ctx.stroke();
+
+                    if (ev.type === 'big_battle') {
+                        ctx.fillStyle = '#ff4444';
+                        ctx.font = '8px monospace';
+                        ctx.fillText('⚔️', x - 5, 25);
+                    } else if (ev.type === 'capture') {
+                        const pC = playerColors[ev.playerId % playerColors.length];
+                        ctx.fillStyle = pC;
+                        ctx.fillText('🏳️', x - 5, 35);
+                    }
+                });
+            }
 
             // Group by player
             const playerData = {};
@@ -277,38 +320,41 @@ export class SingleplayerController {
                 ctx.strokeStyle = pC;
                 ctx.lineWidth = 2;
                 ctx.lineJoin = 'round';
-                ctx.beginPath();
 
-                data.forEach((p, i) => {
+                // Gradient fill
+                const gradient = ctx.createLinearGradient(0, 0, 0, h);
+                gradient.addColorStop(0, pC + '44');
+                gradient.addColorStop(1, pC + '00');
+
+                ctx.beginPath();
+                let first = true;
+                data.forEach((p) => {
                     const val = p.rate !== undefined ? p.rate : p.count;
-                    const t = (p.time / timeScale);
-                    const x = (t / (stats.elapsed || 1)) * w;
+                    const x = timeToX(p.time);
                     const y = h - (val / maxVal) * h * 0.9 - 5;
 
-                    if (i === 0) ctx.moveTo(x, y);
+                    if (first) { ctx.moveTo(x, y); first = false; }
                     else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
 
-                // Dots (optional, maybe too many?)
-                // Only draw dots if few points
-                if (data.length < 50) {
-                    ctx.fillStyle = pC;
-                    data.forEach(p => {
-                        const val = p.rate !== undefined ? p.rate : p.count;
-                        const t = (p.time / timeScale);
-                        const x = (t / (stats.elapsed || 1)) * w;
-                        const y = h - (val / maxVal) * h * 0.9 - 5;
-                        ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
-                    });
-                }
+                // Close and fill
+                ctx.lineTo(timeToX(data[data.length - 1].time), h - 5);
+                ctx.lineTo(timeToX(data[0].time), h - 5);
+                ctx.fillStyle = gradient;
+                ctx.fill();
             }
 
+            ctx.restore();
+
             // Title
-            ctx.fillStyle = '#888';
-            ctx.font = '12px monospace';
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px monospace';
             ctx.textAlign = 'center';
             ctx.fillText(title, w / 2, 15);
+            ctx.fillStyle = '#888';
+            ctx.font = '10px monospace';
+            ctx.fillText('SCROLL PARA ZOOM • ARRASTRAR PARA MOVER', w / 2, h - 10);
         };
 
         window.downloadGraph = () => {
@@ -321,8 +367,47 @@ export class SingleplayerController {
             }
         };
 
-        // Draw initial graph
+        // Interaction logic
         setTimeout(() => {
+            const canvas = document.getElementById('stats-graph-sp');
+            if (!canvas) return;
+
+            let isDragging = false;
+            let lastX = 0;
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                lastX = e.clientX;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - lastX;
+                this.graphState.offset += dx;
+                lastX = e.clientX;
+                window.updateGraph();
+            });
+
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+
+                // Zoom relative to center or mouse? Let's do simple center
+                const oldScale = this.graphState.scale;
+                this.graphState.scale *= zoomFactor;
+                this.graphState.scale = Math.max(1.0, Math.min(this.graphState.scale, 10));
+
+                // Adjust offset to keep same point under mouse?
+                // For now, just scale. User can pan.
+                if (this.graphState.scale === 1.0) this.graphState.offset = 0;
+
+                window.updateGraph();
+            });
+
             window.updateGraph('production');
         }, 100);
     }

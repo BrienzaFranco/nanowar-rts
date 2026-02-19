@@ -7,7 +7,7 @@ export const MEMORY_LAYOUT = {
 
 const HEADER_SIZE = 256;
 
-const ENTITY_FIELDS = {
+const ENTITY_FIELD_SIZES = {
     x: 4, y: 4, vx: 4, vy: 4,
     owner: 4, radius: 4, maxSpeed: 4, friction: 4,
     hp: 4, speedBoost: 4,
@@ -17,77 +17,77 @@ const ENTITY_FIELDS = {
 };
 
 let entityOffset = 0;
-const ENTITY_OFFSET_X = entityOffset; entityOffset += ENTITY_FIELDS.x;
-const ENTITY_OFFSET_Y = entityOffset; entityOffset += ENTITY_FIELDS.y;
-const ENTITY_OFFSET_VX = entityOffset; entityOffset += ENTITY_FIELDS.vx;
-const ENTITY_OFFSET_VY = entityOffset; entityOffset += ENTITY_FIELDS.vy;
-const ENTITY_OFFSET_OWNER = entityOffset; entityOffset += ENTITY_FIELDS.owner;
-const ENTITY_OFFSET_RADIUS = entityOffset; entityOffset += ENTITY_FIELDS.radius;
-const ENTITY_OFFSET_MAXSPEED = entityOffset; entityOffset += ENTITY_FIELDS.maxSpeed;
-const ENTITY_OFFSET_FRICTION = entityOffset; entityOffset += ENTITY_FIELDS.friction;
-const ENTITY_OFFSET_HP = entityOffset; entityOffset += ENTITY_FIELDS.hp;
-const ENTITY_OFFSET_SPEEDBOOST = entityOffset; entityOffset += ENTITY_FIELDS.speedBoost;
-const ENTITY_OFFSET_FLAGS = entityOffset; entityOffset += ENTITY_FIELDS.flags;
-const ENTITY_OFFSET_DEATHTIME = entityOffset; entityOffset += ENTITY_FIELDS.deathTime;
-const ENTITY_OFFSET_DEATHTYPE = entityOffset; entityOffset += ENTITY_FIELDS.deathType;
-const ENTITY_OFFSET_TARGETX = entityOffset; entityOffset += ENTITY_FIELDS.targetX;
-const ENTITY_OFFSET_TARGETY = entityOffset; entityOffset += ENTITY_FIELDS.targetY;
-const ENTITY_OFFSET_TARGETNODEID = entityOffset; entityOffset += ENTITY_FIELDS.targetNodeId;
-const ENTITY_OFFSET_FLOCKID = entityOffset; entityOffset += ENTITY_FIELDS.flockId;
-const ENTITY_OFFSET_OUTSIDETIME = entityOffset; entityOffset += ENTITY_FIELDS.outsideTime;
+const ENTITY_OFFSET_X = entityOffset; entityOffset += ENTITY_FIELD_SIZES.x * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_Y = entityOffset; entityOffset += ENTITY_FIELD_SIZES.y * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_VX = entityOffset; entityOffset += ENTITY_FIELD_SIZES.vx * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_VY = entityOffset; entityOffset += ENTITY_FIELD_SIZES.vy * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_OWNER = entityOffset; entityOffset += ENTITY_FIELD_SIZES.owner * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_RADIUS = entityOffset; entityOffset += ENTITY_FIELD_SIZES.radius * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_MAXSPEED = entityOffset; entityOffset += ENTITY_FIELD_SIZES.maxSpeed * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_FRICTION = entityOffset; entityOffset += ENTITY_FIELD_SIZES.friction * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_HP = entityOffset; entityOffset += ENTITY_FIELD_SIZES.hp * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_SPEEDBOOST = entityOffset; entityOffset += ENTITY_FIELD_SIZES.speedBoost * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_FLAGS = entityOffset; entityOffset += ENTITY_FIELD_SIZES.flags * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_DEATHTIME = entityOffset; entityOffset += ENTITY_FIELD_SIZES.deathTime * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_DEATHTYPE = entityOffset; entityOffset += ENTITY_FIELD_SIZES.deathType * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_TARGETX = entityOffset; entityOffset += ENTITY_FIELD_SIZES.targetX * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_TARGETY = entityOffset; entityOffset += ENTITY_FIELD_SIZES.targetY * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_TARGETNODEID = entityOffset; entityOffset += ENTITY_FIELD_SIZES.targetNodeId * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_FLOCKID = entityOffset; entityOffset += ENTITY_FIELD_SIZES.flockId * MEMORY_LAYOUT.MAX_ENTITIES;
+const ENTITY_OFFSET_OUTSIDETIME = entityOffset; entityOffset += ENTITY_FIELD_SIZES.outsideTime * MEMORY_LAYOUT.MAX_ENTITIES;
 
-const ENTITY_STRIDE = entityOffset;
+const TOTAL_ENTITY_BYTES = entityOffset;
 
-const NODE_FIELDS = {
+const NODE_FIELD_SIZES = {
     x: 4, y: 4, owner: 4, baseHp: 4, maxHp: 4,
     radius: 4, influenceRadius: 4, spawnTimer: 4, spawnProgress: 4,
     hitFlash: 4, stock: 4, nodeFlags: 4, type: 4, spawnEffect: 4, manualSpawnReady: 4,
 };
 
 let nodeOffset = 0;
-const NODE_OFFSET_X = nodeOffset; nodeOffset += NODE_FIELDS.x;
-const NODE_OFFSET_Y = nodeOffset; nodeOffset += NODE_FIELDS.y;
-const NODE_OFFSET_OWNER = nodeOffset; nodeOffset += NODE_FIELDS.owner;
-const NODE_OFFSET_BASEHP = nodeOffset; nodeOffset += NODE_FIELDS.baseHp;
-const NODE_OFFSET_MAXHP = nodeOffset; nodeOffset += NODE_FIELDS.maxHp;
-const NODE_OFFSET_RADIUS = nodeOffset; nodeOffset += NODE_FIELDS.radius;
-const NODE_OFFSET_INFLUENCERADIUS = nodeOffset; nodeOffset += NODE_FIELDS.influenceRadius;
-const NODE_OFFSET_SPAWNTIMER = nodeOffset; nodeOffset += NODE_FIELDS.spawnTimer;
-const NODE_OFFSET_SPAWNPROGRESS = nodeOffset; nodeOffset += NODE_FIELDS.spawnProgress;
-const NODE_OFFSET_HITFLASH = nodeOffset; nodeOffset += NODE_FIELDS.hitFlash;
-const NODE_OFFSET_STOCK = nodeOffset; nodeOffset += NODE_FIELDS.stock;
-const NODE_OFFSET_NODEFLAGS = nodeOffset; nodeOffset += NODE_FIELDS.nodeFlags;
-const NODE_OFFSET_TYPE = nodeOffset; nodeOffset += NODE_FIELDS.type;
-const NODE_OFFSET_SPAWNEFFECT = nodeOffset; nodeOffset += NODE_FIELDS.spawnEffect;
-const NODE_OFFSET_MANUALSPAWNREADY = nodeOffset; nodeOffset += NODE_FIELDS.manualSpawnReady;
+const NODE_OFFSET_X = nodeOffset; nodeOffset += NODE_FIELD_SIZES.x * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_Y = nodeOffset; nodeOffset += NODE_FIELD_SIZES.y * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_OWNER = nodeOffset; nodeOffset += NODE_FIELD_SIZES.owner * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_BASEHP = nodeOffset; nodeOffset += NODE_FIELD_SIZES.baseHp * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_MAXHP = nodeOffset; nodeOffset += NODE_FIELD_SIZES.maxHp * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_RADIUS = nodeOffset; nodeOffset += NODE_FIELD_SIZES.radius * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_INFLUENCERADIUS = nodeOffset; nodeOffset += NODE_FIELD_SIZES.influenceRadius * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_SPAWNTIMER = nodeOffset; nodeOffset += NODE_FIELD_SIZES.spawnTimer * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_SPAWNPROGRESS = nodeOffset; nodeOffset += NODE_FIELD_SIZES.spawnProgress * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_HITFLASH = nodeOffset; nodeOffset += NODE_FIELD_SIZES.hitFlash * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_STOCK = nodeOffset; nodeOffset += NODE_FIELD_SIZES.stock * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_NODEFLAGS = nodeOffset; nodeOffset += NODE_FIELD_SIZES.nodeFlags * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_TYPE = nodeOffset; nodeOffset += NODE_FIELD_SIZES.type * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_SPAWNEFFECT = nodeOffset; nodeOffset += NODE_FIELD_SIZES.spawnEffect * MEMORY_LAYOUT.MAX_NODES;
+const NODE_OFFSET_MANUALSPAWNREADY = nodeOffset; nodeOffset += NODE_FIELD_SIZES.manualSpawnReady * MEMORY_LAYOUT.MAX_NODES;
 
-const NODE_STRIDE = nodeOffset;
+const TOTAL_NODE_BYTES = nodeOffset;
 
-const DEATH_EVENT_FIELDS = { x: 4, y: 4, owner: 4, type: 4, entityIndex: 4 };
+const DEATH_EVENT_FIELD_SIZES = { x: 4, y: 4, owner: 4, type: 4, entityIndex: 4 };
 let deathOffset = 0;
-const DEATH_OFFSET_X = deathOffset; deathOffset += DEATH_EVENT_FIELDS.x;
-const DEATH_OFFSET_Y = deathOffset; deathOffset += DEATH_EVENT_FIELDS.y;
-const DEATH_OFFSET_OWNER = deathOffset; deathOffset += DEATH_EVENT_FIELDS.owner;
-const DEATH_OFFSET_TYPE = deathOffset; deathOffset += DEATH_EVENT_FIELDS.type;
-const DEATH_OFFSET_ENTITYINDEX = deathOffset; deathOffset += DEATH_EVENT_FIELDS.entityIndex;
-const DEATH_EVENT_STRIDE = deathOffset;
+const DEATH_OFFSET_X = deathOffset; deathOffset += DEATH_EVENT_FIELD_SIZES.x * MEMORY_LAYOUT.MAX_DEATH_EVENTS;
+const DEATH_OFFSET_Y = deathOffset; deathOffset += DEATH_EVENT_FIELD_SIZES.y * MEMORY_LAYOUT.MAX_DEATH_EVENTS;
+const DEATH_OFFSET_OWNER = deathOffset; deathOffset += DEATH_EVENT_FIELD_SIZES.owner * MEMORY_LAYOUT.MAX_DEATH_EVENTS;
+const DEATH_OFFSET_TYPE = deathOffset; deathOffset += DEATH_EVENT_FIELD_SIZES.type * MEMORY_LAYOUT.MAX_DEATH_EVENTS;
+const DEATH_OFFSET_ENTITYINDEX = deathOffset; deathOffset += DEATH_EVENT_FIELD_SIZES.entityIndex * MEMORY_LAYOUT.MAX_DEATH_EVENTS;
+const TOTAL_DEATH_EVENT_BYTES = deathOffset;
 
-const SPAWN_EVENT_FIELDS = { x: 4, y: 4, owner: 4, targetX: 4, targetY: 4, targetNodeId: 4 };
+const SPAWN_EVENT_FIELD_SIZES = { x: 4, y: 4, owner: 4, targetX: 4, targetY: 4, targetNodeId: 4 };
 let spawnOffset = 0;
-const SPAWN_OFFSET_X = spawnOffset; spawnOffset += SPAWN_EVENT_FIELDS.x;
-const SPAWN_OFFSET_Y = spawnOffset; spawnOffset += SPAWN_EVENT_FIELDS.y;
-const SPAWN_OFFSET_OWNER = spawnOffset; spawnOffset += SPAWN_EVENT_FIELDS.owner;
-const SPAWN_OFFSET_TARGETX = spawnOffset; spawnOffset += SPAWN_EVENT_FIELDS.targetX;
-const SPAWN_OFFSET_TARGETY = spawnOffset; spawnOffset += SPAWN_EVENT_FIELDS.targetY;
-const SPAWN_OFFSET_TARGETNODEID = spawnOffset; spawnOffset += SPAWN_EVENT_FIELDS.targetNodeId;
-const SPAWN_EVENT_STRIDE = spawnOffset;
+const SPAWN_OFFSET_X = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.x * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
+const SPAWN_OFFSET_Y = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.y * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
+const SPAWN_OFFSET_OWNER = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.owner * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
+const SPAWN_OFFSET_TARGETX = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.targetX * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
+const SPAWN_OFFSET_TARGETY = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.targetY * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
+const SPAWN_OFFSET_TARGETNODEID = spawnOffset; spawnOffset += SPAWN_EVENT_FIELD_SIZES.targetNodeId * MEMORY_LAYOUT.MAX_SPAWN_EVENTS;
+const TOTAL_SPAWN_EVENT_BYTES = spawnOffset;
 
-const NODES_OFFSET = HEADER_SIZE + MEMORY_LAYOUT.MAX_ENTITIES * ENTITY_STRIDE;
-const DEATH_EVENTS_OFFSET = NODES_OFFSET + MEMORY_LAYOUT.MAX_NODES * NODE_STRIDE;
-const SPAWN_EVENTS_OFFSET = DEATH_EVENTS_OFFSET + MEMORY_LAYOUT.MAX_DEATH_EVENTS * DEATH_EVENT_STRIDE;
+const NODES_OFFSET = HEADER_SIZE + TOTAL_ENTITY_BYTES;
+const DEATH_EVENTS_OFFSET = NODES_OFFSET + TOTAL_NODE_BYTES;
+const SPAWN_EVENTS_OFFSET = DEATH_EVENTS_OFFSET + TOTAL_DEATH_EVENT_BYTES;
 
 export function calculateBufferSize() {
-    return SPAWN_EVENTS_OFFSET + MEMORY_LAYOUT.MAX_SPAWN_EVENTS * SPAWN_EVENT_STRIDE;
+    return SPAWN_EVENTS_OFFSET + TOTAL_SPAWN_EVENT_BYTES;
 }
 
 export class SharedMemory {

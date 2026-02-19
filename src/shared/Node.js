@@ -26,8 +26,8 @@ export class Node {
         }
 
         // Neutral nodes start at 10% health (same)
-        // Owned nodes (starter) start at 50% health (Was 33%) -> Stronger start
-        this.baseHp = (this.owner === -1) ? (this.maxHp * 0.1) : (this.maxHp * 0.50);
+        // Owned nodes (starter) start at 25% health (Was 50%) -> More balanced start
+        this.baseHp = (this.owner === -1) ? (this.maxHp * 0.1) : (this.maxHp * 0.25);
         this.stock = 0;
 
         this.spawnEffect = 0;
@@ -112,6 +112,11 @@ export class Node {
             this.hasSpawnedThisCycle = false;
             this.rallyPoint = null;
             this.justCapturedBy = attackerId; // Flag for GameState stats
+
+            if (game && game.state && game.state.recordEvent) {
+                game.state.recordEvent('capture', attackerId, { nodeId: this.id, x: this.x, y: this.y });
+            }
+
             if (game) game.spawnParticles(this.x, this.y, PLAYER_COLORS[attackerId % PLAYER_COLORS.length], 20, 'explosion');
             return true;
         }
@@ -150,8 +155,9 @@ export class Node {
             this.spawnTimer += dt;
             const healthPercent = Math.min(this.baseHp / this.maxHp, 1.0);
 
-            // Base generation: 0.5 at 0% HP, up to 1.5 at 100% HP (3x faster)
-            let healthScaling = 0.5 + healthPercent * 1.0;
+            // Base generation: 0.3 at 0% HP (Was 0.5), up to 1.5 at 100% HP
+            // This slows down early game production significantly
+            let healthScaling = 0.3 + healthPercent * 1.2;
 
             // Extra bonus at full health (0.5 extra = up to 2x total)
             if (isFull) {

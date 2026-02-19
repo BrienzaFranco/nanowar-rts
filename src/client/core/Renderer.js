@@ -93,6 +93,10 @@ export class Renderer {
      * Creates an offscreen canvas with the glow effect cached
      */
     _getOrCreateGlow(color) {
+        if (!color || typeof color !== 'string' || !color.startsWith('#') || color.length < 7) {
+            return null;
+        }
+        
         if (this.glowCache.has(color)) {
             return this.glowCache.get(color);
         }
@@ -483,20 +487,22 @@ export class Renderer {
 
             // Speed-based particle glow (Restore requested beauty)
             const speedSq = p.vx * p.vx + p.vy * p.vy;
-            if (speedSq > 4000 && p.color) { // Only for fast moving particles with color
+            if (speedSq > 4000 && p.color) {
                 const glowData = this._getOrCreateGlow(p.color);
-                const glowRadius = renderSize * 2.5;
-                this.ctx.save();
-                this.ctx.globalCompositeOperation = 'lighter';
-                this.ctx.globalAlpha = (p.life / p.maxLife) * 0.4;
-                this.ctx.drawImage(
-                    glowData.canvas,
-                    screen.x - glowRadius,
-                    screen.y - glowRadius,
-                    glowRadius * 2,
-                    glowRadius * 2
-                );
-                this.ctx.restore();
+                if (glowData) {
+                    const glowRadius = renderSize * 2.5;
+                    this.ctx.save();
+                    this.ctx.globalCompositeOperation = 'lighter';
+                    this.ctx.globalAlpha = (p.life / p.maxLife) * 0.4;
+                    this.ctx.drawImage(
+                        glowData.canvas,
+                        screen.x - glowRadius,
+                        screen.y - glowRadius,
+                        glowRadius * 2,
+                        glowRadius * 2
+                    );
+                    this.ctx.restore();
+                }
             }
 
             // Fast bit blit

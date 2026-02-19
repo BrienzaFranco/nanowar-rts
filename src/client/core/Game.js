@@ -61,17 +61,12 @@ export class Game {
             this.worker.onmessage = function(e) {
                 const { type, data } = e.data;
                 if (type === 'initialized') {
-                    console.log('Worker initialized, syncing nodes...');
                     self.useWorker = true;
                     self.syncStateToWorker();
-                    console.log('Worker ready');
                 } else if (type === 'workerReady') {
-                    console.log('[Game] Worker confirmed ready, starting loop');
                     self.startWorkerLoop();
                 } else if (type === 'frameComplete') {
                     self.workerRunning = true;
-                } else if (type === 'nodeAdded') {
-                    console.log('Node added in worker:', data);
                 }
             };
 
@@ -89,8 +84,6 @@ export class Game {
 
     syncStateToWorker() {
         if (!this.worker || !this.useWorker) return;
-
-        console.log('[Game] Syncing', this.state.nodes.length, 'nodes and', this.state.entities.length, 'entities');
 
         for (const node of this.state.nodes) {
             this.worker.postMessage({
@@ -157,6 +150,22 @@ export class Game {
                 x, y, owner, targetX, targetY, targetNodeId,
                 id: Date.now() + Math.random()
             }
+        });
+    }
+
+    setEntityTarget(entityId, targetX, targetY, targetNodeId) {
+        if (!this.worker || !this.useWorker) {
+            // Fallback: buscar entidad legacy
+            const ent = this.state.entities.find(e => e.id === entityId);
+            if (ent) {
+                ent.setTarget(targetX, targetY, targetNodeId ? { id: targetNodeId } : null);
+            }
+            return;
+        }
+
+        this.worker.postMessage({
+            type: 'setEntityTargetById',
+            data: { entityId, targetX, targetY, targetNodeId }
         });
     }
 
@@ -232,6 +241,9 @@ export class Game {
     updateFromWorker(dt, playerIdx) {
         const view = this.sharedView;
 
+        // Sincronizar posiciones del worker a entidades legacy para selección
+        this.syncWorkerToLegacy();
+
         const deathCount = view.getDeathEventsCount();
         for (let i = 0; i < deathCount; i++) {
             const event = view.getDeathEvent(i);
@@ -272,6 +284,30 @@ export class Game {
         view.iterateNodes((nodeIndex) => {
             this.workerNodeOwners[nodeIndex] = view.getNodeOwner(nodeIndex);
         });
+    }
+
+    syncWorkerToLegacy() {
+        const view = this.sharedView;
+        
+        // Actualizar nodos
+        for (let i = 0; i < this.state.nodes.length && i < view.getNodeCount(); i++) {
+            const node = this.state.nodes[i];
+            node.baseHp = view.getNodeBaseHp(i);
+            node.spawnProgress = view.getNodeSpawnProgress(i);
+            node.hitFlash = view.getNodeHitFlash(i);
+            node.spawnEffect = view.getNodeSpawnEffect(i);
+        }
+
+        // Actualizar entidades - mapear por índice
+        for (let i = 0; i < this.state.entities.length && i < view.getEntityCount(); i++) {
+            const entity = this.state.entities[i];
+            entity.x = view.getEntityX(i);
+            entity.y = view.getEntityY(i);
+            entity.dying = view.isEntityDying(i);
+            entity.dead = view.isEntityDead(i);
+            entity.deathTime = view.getEntityDeathTime(i);
+            entity.deathType = view.getEntityDeathType(i);
+        }
     }
 
     updateLegacy(dt, playerIdx) {

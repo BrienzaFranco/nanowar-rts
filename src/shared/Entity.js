@@ -379,6 +379,11 @@ export class Entity {
         this.deathType = type;
         this.deathTime = 0;
         this.absorbTarget = node;
+
+        if (game && game.state && game.state.recordDeath) {
+            game.state.recordDeath(this.owner, this.x, this.y);
+        }
+
         const playerColor = this.getColor();
         if (game && game.spawnParticles) {
             if (type === 'explosion' || type === 'absorbed') {

@@ -116,13 +116,9 @@ export class SelectionManager {
                 this.currentPath.push(worldPos);
 
                 // In singleplayer, apply locally. In multiplayer, we might need a specific action.
-                // For now, waypoint painting is locally predicted but authoritative on server.
                 if (!this.game.controller.sendAction) {
                     this.selectedEntities.forEach(id => {
-                        const ent = this.game.state.entities.find(e => e.id === id);
-                        if (ent && !ent.dead) {
-                            ent.addWaypoint(worldPos.x, worldPos.y);
-                        }
+                        this.game.setEntityTarget(id, worldPos.x, worldPos.y, null);
                     });
                 }
             }
@@ -291,19 +287,17 @@ export class SelectionManager {
             // Multiplayer execution via server
             this.game.controller.sendAction({
                 type: 'move',
-                sourceNodeId: null, // Logic on server handles this if needed or uses IDs directly
+                sourceNodeId: null,
                 targetNodeId: targetNode ? targetNode.id : null,
                 targetX: worldX,
                 targetY: worldY,
                 unitIds: Array.from(this.selectedEntities)
             });
         } else {
-            // Singleplayer local execution
+            // Singleplayer local execution - enviar al worker si está activo
             this.selectedEntities.forEach(id => {
-                const ent = this.game.state.entities.find(e => e.id === id);
-                if (ent && !ent.dead) {
-                    ent.setTarget(worldX, worldY, targetNode);
-                }
+                const targetNodeId = targetNode ? targetNode.id : null;
+                this.game.setEntityTarget(id, worldX, worldY, targetNodeId);
             });
         }
     }
