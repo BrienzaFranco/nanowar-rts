@@ -1,9 +1,11 @@
 import { Camera } from './Camera.js';
 import { Renderer } from './Renderer.js';
 import { GameState } from '../../shared/GameState.js';
-import { GAME_SETTINGS } from '../../shared/GameConfig.js';
+import { GAME_SETTINGS, PLAYER_COLORS } from '../../shared/GameConfig.js';
 import { Particle } from './Particle.js';
 import { sounds } from '../systems/SoundManager.js';
+import { SharedMemory, MEMORY_LAYOUT, calculateBufferSize } from '../../shared/SharedMemory.js';
+import { SharedView } from '../../shared/SharedView.js';
 
 export class Game {
     constructor(canvasId) {
@@ -23,11 +25,148 @@ export class Game {
         this.running = false;
         this.gameOverShown = false;
         this.healSoundCooldown = 0;
-        this.healSoundDelay = 5; // Don't play heal sounds first 5 seconds
+        this.healSoundDelay = 5;
+
+        this.useWorker = false;
+        this.worker = null;
+        this.sharedView = null;
+        this.workerRunning = false;
+
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
         this.camera.zoomToFit(this.state.worldWidth, this.state.worldHeight, this.canvas.width, this.canvas.height);
+    }
+
+    async initWorker() {
+        if (typeof SharedArrayBuffer === 'undefined') {
+            console.warn('SharedArrayBuffer not supported, falling back to main thread');
+            return false;
+        }
+
+        try {
+            const bufferSize = calculateBufferSize();
+            const sharedBuffer = new SharedArrayBuffer(bufferSize);
+
+            this.sharedView = new SharedView(sharedBuffer);
+            this.sharedMemory = new SharedMemory(sharedBuffer);
+
+            this.worker = new Worker(
+                new URL('../workers/GameWorker.js', import.meta.url),
+                { type: 'module' }
+            );
+
+            const self = this;
+            
+            this.worker.onmessage = function(e) {
+                const { type, data } = e.data;
+                if (type === 'initialized') {
+                    console.log('Worker initialized, syncing nodes...');
+                    self.useWorker = true;
+                    self.syncStateToWorker();
+                    console.log('Worker ready');
+                } else if (type === 'workerReady') {
+                    console.log('[Game] Worker confirmed ready, starting loop');
+                    self.startWorkerLoop();
+                } else if (type === 'frameComplete') {
+                    self.workerRunning = true;
+                } else if (type === 'nodeAdded') {
+                    console.log('Node added in worker:', data);
+                }
+            };
+
+            this.worker.postMessage({
+                type: 'init',
+                data: { sharedBuffer: sharedBuffer }
+            });
+
+            return true;
+        } catch (err) {
+            console.error('Failed to init worker:', err);
+            return false;
+        }
+    }
+
+    syncStateToWorker() {
+        if (!this.worker || !this.useWorker) return;
+
+        console.log('[Game] Syncing', this.state.nodes.length, 'nodes and', this.state.entities.length, 'entities');
+
+        for (const node of this.state.nodes) {
+            this.worker.postMessage({
+                type: 'addNode',
+                data: {
+                    x: node.x,
+                    y: node.y,
+                    owner: node.owner,
+                    type: node.type,
+                    id: node.id
+                }
+            });
+        }
+
+        for (const entity of this.state.entities) {
+            this.worker.postMessage({
+                type: 'spawnEntity',
+                data: {
+                    x: entity.x,
+                    y: entity.y,
+                    owner: entity.owner,
+                    targetX: entity.currentTarget ? entity.currentTarget.x : 0,
+                    targetY: entity.currentTarget ? entity.currentTarget.y : 0,
+                    targetNodeId: entity.targetNode ? entity.targetNode.id : -1,
+                    id: entity.id
+                }
+            });
+        }
+
+        this.worker.postMessage({
+            type: 'setGameSettings',
+            data: {
+                speedMultiplier: this.state.speedMultiplier,
+                maxEntitiesPerPlayer: this.state.maxEntitiesPerPlayer
+            }
+        });
+
+        setTimeout(() => {
+            this.worker.postMessage({ type: 'syncComplete' });
+        }, 100);
+    }
+
+    startWorkerLoop() {
+        const self = this;
+        
+        const workerLoop = () => {
+            if (!self.useWorker || !self.running) return;
+
+            const dt = 1 / 60;
+            self.worker.postMessage({ type: 'update', data: { dt } });
+
+            setTimeout(workerLoop, 1000 / 60);
+        };
+        
+        workerLoop();
+    }
+
+    spawnEntityInWorker(x, y, owner, targetX, targetY, targetNodeId) {
+        if (!this.worker || !this.useWorker) return;
+
+        this.worker.postMessage({
+            type: 'spawnEntity',
+            data: {
+                x, y, owner, targetX, targetY, targetNodeId,
+                id: Date.now() + Math.random()
+            }
+        });
+    }
+
+    setEntityTargetInWorker(entityIndex, targetX, targetY, targetNodeId) {
+        if (!this.worker || !this.useWorker) return;
+
+        this.worker.postMessage({
+            type: 'setEntityTarget',
+            data: { entityIndex, targetX, targetY, targetNodeId }
+        });
     }
 
     resize() {
@@ -43,7 +182,9 @@ export class Game {
         this.running = true;
         this.lastTime = performance.now();
         this.healSoundCooldown = 0;
-        this.healSoundDelay = 5; // 5 second delay before heal sounds
+        this.healSoundDelay = 5;
+
+        this.initWorker();
 
         const game = this;
         const loop = (now) => {
@@ -68,24 +209,15 @@ export class Game {
     }
 
     update(dt) {
-        // Set player index for sounds
-        sounds.setPlayerIndex(this.controller?.playerIndex ?? 0);
-
-        // Track node owners and HP before update for capture detection
-        const nodeOwnersBefore = new Map();
-        const nodeHpBefore = new Map();
         const playerIdx = this.controller?.playerIndex ?? 0;
+        sounds.setPlayerIndex(playerIdx);
 
-        this.state.nodes.forEach(n => {
-            nodeOwnersBefore.set(n.id, n.owner);
-            nodeHpBefore.set(n.id, n.baseHp);
-        });
+        if (this.useWorker && this.sharedView) {
+            this.updateFromWorker(dt, playerIdx);
+        } else {
+            this.updateLegacy(dt, playerIdx);
+        }
 
-        // Track entities before update for collision detection
-        // Use cached counts from previous frame (or init) to avoid O(N) filter
-        const playerEntitiesBefore = this.state.unitCounts ? (this.state.unitCounts[playerIdx] || 0) : 0;
-
-        this.state.update(dt, this);
         if (this.controller && this.controller.update) {
             this.controller.update(dt);
         }
@@ -95,24 +227,77 @@ export class Game {
         this.particles = this.particles.filter(p => p.update(dt));
         this.commandIndicators = this.commandIndicators.filter(ci => ci.update(dt));
         this.waypointLines = this.waypointLines.filter(wl => wl.update(dt));
+    }
 
-        // Only play sounds if we have a valid player index (>= 0)
+    updateFromWorker(dt, playerIdx) {
+        const view = this.sharedView;
+
+        const deathCount = view.getDeathEventsCount();
+        for (let i = 0; i < deathCount; i++) {
+            const event = view.getDeathEvent(i);
+            if (event) {
+                const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
+                if (event.type === 2 || event.type === 3) {
+                    this.spawnParticles(event.x, event.y, color, event.type === 2 ? 8 : 5, event.type === 2 ? 'explosion' : 'hit');
+                }
+                if (event.type === 1 || event.type === 2) {
+                    sounds.playCollision();
+                }
+            }
+        }
+
+        const spawnCount = view.getSpawnEventsCount();
+        for (let i = 0; i < spawnCount; i++) {
+            const event = view.getSpawnEvent(i);
+            if (event) {
+                const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
+                this.spawnParticles(event.x, event.y, color, 6, 'explosion');
+            }
+        }
+
+        const isValidPlayer = playerIdx >= 0;
+        if (isValidPlayer) {
+            view.iterateNodes((nodeIndex) => {
+                const owner = view.getNodeOwner(nodeIndex);
+                const prevOwner = this.workerNodeOwners?.[nodeIndex];
+                if (prevOwner === -1 && owner === playerIdx) {
+                    sounds.playCapture();
+                }
+            });
+        }
+
+        if (!this.workerNodeOwners) {
+            this.workerNodeOwners = new Array(view.getNodeCount()).fill(-1);
+        }
+        view.iterateNodes((nodeIndex) => {
+            this.workerNodeOwners[nodeIndex] = view.getNodeOwner(nodeIndex);
+        });
+    }
+
+    updateLegacy(dt, playerIdx) {
+        const nodeOwnersBefore = new Map();
+        const nodeHpBefore = new Map();
+
+        this.state.nodes.forEach(n => {
+            nodeOwnersBefore.set(n.id, n.owner);
+            nodeHpBefore.set(n.id, n.baseHp);
+        });
+
+        const playerEntitiesBefore = this.state.unitCounts ? (this.state.unitCounts[playerIdx] || 0) : 0;
+
+        this.state.update(dt, this);
+
         const isValidPlayer = playerIdx >= 0;
 
-        // Check for node captures - ONLY FOR OUR NODES
         this.state.nodes.forEach(n => {
             const oldOwner = nodeOwnersBefore.get(n.id);
-
-            // Node was captured by US (from neutral)
             if (isValidPlayer && oldOwner !== undefined && oldOwner === -1 && n.owner === playerIdx) {
                 sounds.playCapture();
             }
         });
 
-        // Check for OUR cell collisions - play when OUR units die
         const playerEntitiesNow = this.state.unitCounts ? (this.state.unitCounts[playerIdx] || 0) : 0;
 
-        // If OUR units died, play collision sound
         if (playerEntitiesNow < playerEntitiesBefore && isValidPlayer) {
             sounds.playCollision();
         }
@@ -125,31 +310,17 @@ export class Game {
         this.renderer.clear(this.canvas.width, this.canvas.height);
         this.renderer.drawGrid(this.canvas.width, this.canvas.height, this.camera);
 
-        this.state.nodes.forEach(node => {
-            const isSelected = this.systems?.selection?.isSelected(node);
-            this.renderer.drawNode(node, this.camera, isSelected);
-        });
-
-        // First pass: Queue and draw trails (batch rendered for performance)
-        this.state.entities.forEach(entity => {
-            const isSelected = this.systems?.selection?.isSelected(entity);
-            this.renderer.drawEntity(entity, this.camera, isSelected);
-        });
-        this.renderer.renderTrails(this.camera, dt);
-
-        // Third pass (already done by drawEntity): Bodies
-        // Wait, my drawEntity already draws the bodies. 
-        // So trails will be ON TOP unless I restructure more.
-        // User said "bolota", glowing clouds look fine on top or bottom.
-        // Let's keep it as is for simplicity, or move trails before entities.
+        if (this.useWorker && this.sharedView) {
+            this.drawFromWorker();
+        } else {
+            this.drawLegacy(dt);
+        }
 
         this.particles.forEach(p => this.renderer.drawParticle(p, this.camera));
         this.commandIndicators.forEach(ci => this.renderer.drawCommandIndicator(ci, this.camera));
 
-        // Only show waypoint lines for our player
         this.waypointLines.filter(wl => wl.owner === playerIdx).forEach(wl => this.renderer.drawWaypointLine(wl, this.camera));
 
-        // Draw selection box
         if (this.systems.selection.isSelectingBox) {
             const input = this.systems.input;
             this.renderer.drawSelectionBox(
@@ -160,18 +331,88 @@ export class Game {
             );
         }
 
-        // Draw current drawing path
         if (this.systems.selection.currentPath.length > 0) {
             this.renderer.drawPath(this.systems.selection.currentPath, this.camera, 'rgba(255, 255, 255, 0.6)', 3);
         }
 
-        // Draw waypoints for selected units (only our own)
+        if (this.systems && this.systems.ui) {
+            this.systems.ui.draw(this.renderer);
+        }
+    }
+
+    drawFromWorker() {
+        const view = this.sharedView;
+        const camera = this.camera;
+
+        view.iterateNodes((nodeIndex) => {
+            const owner = view.getNodeOwner(nodeIndex);
+            const baseHp = view.getNodeBaseHp(nodeIndex);
+            const maxHp = view.getNodeMaxHp(nodeIndex);
+            const node = {
+                x: view.getNodeX(nodeIndex),
+                y: view.getNodeY(nodeIndex),
+                owner: owner,
+                radius: view.getNodeRadius(nodeIndex),
+                influenceRadius: view.getNodeInfluenceRadius(nodeIndex),
+                baseHp: baseHp,
+                maxHp: maxHp,
+                spawnProgress: view.getNodeSpawnProgress(nodeIndex),
+                hitFlash: view.getNodeHitFlash(nodeIndex),
+                spawnEffect: view.getNodeSpawnEffect(nodeIndex),
+                getColor: () => owner === -1 ? '#757575' : PLAYER_COLORS[owner % PLAYER_COLORS.length],
+                getTotalHp: () => Math.min(maxHp, baseHp),
+            };
+            const isSelected = this.systems?.selection?.isSelected(node);
+            this.renderer.drawNode(node, camera, isSelected);
+        });
+
+        view.iterateEntities((entityIndex) => {
+            const owner = view.getEntityOwner(entityIndex);
+            const entity = {
+                x: view.getEntityX(entityIndex),
+                y: view.getEntityY(entityIndex),
+                owner: owner,
+                radius: view.getEntityRadius(entityIndex),
+                dying: view.isEntityDying(entityIndex),
+                dead: view.isEntityDead(entityIndex),
+                deathTime: view.getEntityDeathTime(entityIndex),
+                deathType: view.getEntityDeathType(entityIndex),
+                selected: view.isEntitySelected(entityIndex),
+                outsideWarning: view.hasEntityOutsideWarning(entityIndex),
+                getColor: () => PLAYER_COLORS[owner % PLAYER_COLORS.length],
+            };
+            const isSelected = this.systems?.selection?.isSelected(entity);
+            this.renderer.drawEntity(entity, camera, isSelected);
+        });
+
+        const deathCount = view.getDeathEventsCount();
+        for (let i = 0; i < deathCount; i++) {
+            const event = view.getDeathEvent(i);
+            if (event && (event.type === 2 || event.type === 3)) {
+                const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
+                this.spawnParticles(event.x, event.y, color, event.type === 2 ? 8 : 5, event.type === 2 ? 'explosion' : 'hit');
+            }
+        }
+    }
+
+    drawLegacy(dt) {
+        const playerIdx = this.controller?.playerIndex ?? 0;
+
+        this.state.nodes.forEach(node => {
+            const isSelected = this.systems?.selection?.isSelected(node);
+            this.renderer.drawNode(node, this.camera, isSelected);
+        });
+
+        this.state.entities.forEach(entity => {
+            const isSelected = this.systems?.selection?.isSelected(entity);
+            this.renderer.drawEntity(entity, this.camera, isSelected);
+        });
+        this.renderer.renderTrails(this.camera, dt);
+
         this.state.entities.filter(e => e.owner === playerIdx).forEach(e => {
             if (this.systems.selection.isSelected(e) && e.waypoints.length > 0) {
-                // Combine current position with waypoints for a complete line
                 this.renderer.drawPath([e, ...e.waypoints], this.camera, 'rgba(255, 255, 255, 0.15)', 1.2, true);
 
-                // Draw a small indicator at the current target
                 const target = e.currentTarget || e.waypoints[0];
                 const screen = this.camera.worldToScreen(target.x, target.y);
                 this.ctx.beginPath();
@@ -180,11 +421,6 @@ export class Game {
                 this.ctx.fill();
             }
         });
-
-        // Draw HUD/UI via systems if initialized
-        if (this.systems && this.systems.ui) {
-            this.systems.ui.draw(this.renderer);
-        }
     }
 
     spawnCommandIndicator(x, y, type) {

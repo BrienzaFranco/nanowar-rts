@@ -357,11 +357,16 @@ export class Renderer {
             return;
         }
 
+        const deathType = entity.deathType;
+        const deathTypeStr = typeof deathType === 'number' ? 
+            ['none', 'attack', 'explosion', 'absorbed', 'sacrifice', 'outOfBounds'][deathType] : 
+            deathType;
+
         // Dying animation handling
         if (entity.dying) {
             const progress = entity.deathTime / 0.4;
             const sr = entity.radius * camera.zoom;
-            if (entity.deathType === 'explosion') {
+            if (deathTypeStr === 'explosion') {
                 const maxRadius = sr * 4;
                 const currentRadius = sr + (maxRadius - sr) * progress;
                 const alpha = 1 - progress;
@@ -375,13 +380,13 @@ export class Renderer {
                 this.ctx.arc(screen.x, screen.y, sr * (1 - progress * 0.8), 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
                 this.ctx.fill();
-            } else if (entity.deathType === 'attack') {
+            } else if (deathTypeStr === 'attack') {
                 const flash = Math.sin(progress * Math.PI * 6) * 0.5 + 0.5;
                 this.ctx.beginPath();
                 this.ctx.arc(screen.x, screen.y, sr * (1 + progress * 2), 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 100, 100, ${flash * 0.4 * (1 - progress)})`;
                 this.ctx.fill();
-            } else if (entity.deathType === 'sacrifice' && entity.absorbTarget) {
+            } else if (deathTypeStr === 'sacrifice' && entity.absorbTarget) {
                 const node = entity.absorbTarget;
                 const easeProgress = progress * progress;
                 const currentX = entity.x + (node.x - entity.x) * easeProgress;
@@ -478,7 +483,7 @@ export class Renderer {
 
             // Speed-based particle glow (Restore requested beauty)
             const speedSq = p.vx * p.vx + p.vy * p.vy;
-            if (speedSq > 4000) { // Only for fast moving particles
+            if (speedSq > 4000 && p.color) { // Only for fast moving particles with color
                 const glowData = this._getOrCreateGlow(p.color);
                 const glowRadius = renderSize * 2.5;
                 this.ctx.save();

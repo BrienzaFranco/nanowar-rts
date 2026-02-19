@@ -1,0 +1,459 @@
+import { SharedMemory, MEMORY_LAYOUT } from '@shared/SharedMemory.js';
+import { EntityData, DEATH_TYPES } from '@shared/EntityData.js';
+import { NodeData, NODE_TYPES } from '@shared/NodeData.js';
+
+let sharedMemory = null;
+let entityData = null;
+let nodeData = null;
+let syncComplete = false;
+let gameSettings = {
+    speedMultiplier: 1,
+    maxEntitiesPerPlayer: 1000,
+};
+
+const WORLD_WIDTH = 2400;
+const WORLD_HEIGHT = 1800;
+const WORLD_RADIUS = 1800;
+const CENTER_X = 1200;
+const CENTER_Y = 900;
+
+self.onmessage = function(e) {
+    const { type, data } = e.data;
+    console.log('[Worker] Received:', type);
+    
+    switch (type) {
+        case 'init':
+            handleInit(data);
+            break;
+        case 'update':
+            handleUpdate(data);
+            break;
+        case 'setGameSettings':
+            handleSetGameSettings(data);
+            break;
+        case 'addNode':
+            handleAddNode(data);
+            break;
+        case 'spawnEntity':
+            handleSpawnEntity(data);
+            break;
+        case 'setEntityTarget':
+            handleSetEntityTarget(data);
+            break;
+        case 'syncComplete':
+            syncComplete = true;
+            console.log('[Worker] Sync complete! Nodes:', nodeData.getCount(), 'Entities:', entityData.getCount());
+            self.postMessage({ type: 'workerReady' });
+            break;
+    }
+};
+
+function handleInit(data) {
+    if (data.sharedBuffer) {
+        sharedMemory = new SharedMemory(data.sharedBuffer);
+        entityData = new EntityData(sharedMemory);
+        nodeData = new NodeData(sharedMemory);
+        
+        sharedMemory.setEntityCount(0);
+        sharedMemory.setNodeCount(0);
+        
+        self.postMessage({ type: 'initialized' });
+    }
+}
+
+function handleSetGameSettings(data) {
+    gameSettings = { ...gameSettings, ...data };
+}
+
+function handleAddNode(data) {
+    const { x, y, owner, type, id } = data;
+    const nodeType = type === 'small' ? NODE_TYPES.SMALL : 
+                      type === 'large' ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM;
+    
+    const idx = nodeData.allocate(x, y, owner, nodeType, id);
+    console.log('[Worker] Added node:', idx, 'x:', x, 'y:', y, 'owner:', owner);
+    
+    self.postMessage({ 
+        type: 'nodeAdded', 
+        data: { index: idx, x, y, owner, type, id } 
+    });
+}
+
+function handleSpawnEntity(data) {
+    const { x, y, owner, targetX, targetY, targetNodeId, id } = data;
+    
+    const idx = entityData.allocate(x, y, owner, id);
+    console.log('[Worker] Spawned entity:', idx, 'x:', x, 'y:', y, 'owner:', owner);
+    
+    if (idx !== -1) {
+        if (targetX !== undefined || targetY !== undefined) {
+            entityData.setTargetX(idx, targetX || 0);
+            entityData.setTargetY(idx, targetY || 0);
+        }
+        if (targetNodeId !== undefined) {
+            entityData.setTargetNodeId(idx, targetNodeId);
+        }
+    }
+}
+
+function handleSetEntityTarget(data) {
+    const { entityIndex, targetX, targetY, targetNodeId } = data;
+    
+    if (entityData.isValidIndex(entityIndex)) {
+        if (targetX !== undefined) entityData.setTargetX(entityIndex, targetX);
+        if (targetY !== undefined) entityData.setTargetY(entityIndex, targetY);
+        if (targetNodeId !== undefined) entityData.setTargetNodeId(entityIndex, targetNodeId);
+    }
+}
+
+function handleUpdate(data) {
+    if (!sharedMemory || !entityData || !nodeData) {
+        console.log('[Worker] No shared memory yet');
+        return;
+    }
+    
+    if (!syncComplete) {
+        console.log('[Worker] Waiting for sync...');
+        return;
+    }
+    
+    const { dt } = data;
+    const cappedDt = Math.min(dt, 0.05);
+    
+    const entityCount = entityData.getCount();
+    const nodeCount = nodeData.getCount();
+    
+    if (entityCount === 0 || nodeCount === 0) {
+        console.log('[Worker] No entities or nodes:', entityCount, nodeCount);
+    }
+    
+    sharedMemory.clearDeathEvents();
+    sharedMemory.clearSpawnEvents();
+    
+    handleCollisionsAndCohesion();
+    updateEntities(cappedDt);
+    updateNodes(cappedDt);
+    
+    sharedMemory.incrementFrameCounter();
+    
+    self.postMessage({ 
+        type: 'frameComplete',
+        data: {
+            entityCount: entityData.getCount(),
+            nodeCount: nodeData.getCount(),
+            frameCounter: sharedMemory.getFrameCounter(),
+        }
+    });
+}
+
+const CELL_SIZE = 80;
+let spatialGrid = new Map();
+
+function getCellKey(x, y) {
+    const col = Math.floor(x / CELL_SIZE);
+    const row = Math.floor(y / CELL_SIZE);
+    return `${col},${row}`;
+}
+
+function buildSpatialGrid() {
+    spatialGrid.clear();
+    const count = entityData.getCount();
+    for (let i = 0; i < count; i++) {
+        if (entityData.isDead(i) || entityData.isDying(i)) continue;
+        const x = entityData.getX(i);
+        const y = entityData.getY(i);
+        const key = getCellKey(x, y);
+        if (!spatialGrid.has(key)) {
+            spatialGrid.set(key, []);
+        }
+        spatialGrid.get(key).push(i);
+    }
+}
+
+function getNearbyEntities(x, y, radius) {
+    const nearby = [];
+    const startCol = Math.floor((x - radius) / CELL_SIZE);
+    const endCol = Math.floor((x + radius) / CELL_SIZE);
+    const startRow = Math.floor((y - radius) / CELL_SIZE);
+    const endRow = Math.floor((y + radius) / CELL_SIZE);
+    
+    for (let c = startCol; c <= endCol; c++) {
+        for (let r = startRow; r <= endRow; r++) {
+            const key = `${c},${r}`;
+            const cell = spatialGrid.get(key);
+            if (cell) {
+                for (const idx of cell) {
+                    nearby.push(idx);
+                }
+            }
+        }
+    }
+    return nearby;
+}
+
+function handleCollisionsAndCohesion() {
+    buildSpatialGrid();
+    
+    const count = entityData.getCount();
+    const cohesionRadius = 30;
+    const cohesionForce = 45;
+    
+    for (let i = 0; i < count; i++) {
+        if (entityData.isDead(i) || entityData.isDying(i)) continue;
+        
+        const x = entityData.getX(i);
+        const y = entityData.getY(i);
+        const owner = entityData.getOwner(i);
+        const radius = entityData.getRadius(i);
+        
+        let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
+        
+        const neighbors = getNearbyEntities(x, y, cohesionRadius);
+        const inFlock = entityData.getFlockId(i) !== -1;
+        
+        for (const other of neighbors) {
+            if (other === i) continue;
+            if (entityData.isDead(other) || entityData.isDying(other)) continue;
+            
+            const ox = entityData.getX(other);
+            const oy = entityData.getY(other);
+            const dx = ox - x;
+            const dy = oy - y;
+            const distSq = dx * dx + dy * dy;
+            
+            if (distSq > cohesionRadius * cohesionRadius) continue;
+            const dist = Math.sqrt(distSq);
+            
+            const otherOwner = entityData.getOwner(other);
+            if (otherOwner === owner && dist > radius * 2.2) {
+                if (inFlock && entityData.getFlockId(other) === entityData.getFlockId(i)) {
+                    cohesionX += (dx / dist) * 1.8;
+                    cohesionY += (dy / dist) * 1.8;
+                    cohesionCount++;
+                } else {
+                    cohesionX += dx / dist;
+                    cohesionY += dy / dist;
+                    cohesionCount++;
+                }
+            }
+            
+            const minDist = radius + entityData.getRadius(other);
+            if (dist < minDist && dist > 0) {
+                const overlap = minDist - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+                
+                let xi = entityData.getX(i) - nx * overlap * 0.6;
+                let yi = entityData.getY(i) - ny * overlap * 0.6;
+                entityData.setX(i, xi);
+                entityData.setY(i, yi);
+                
+                if (owner !== otherOwner) {
+                    entityData.setDying(i, true);
+                    entityData.setDeathType(i, DEATH_TYPES.EXPLOSION);
+                    entityData.setDeathTime(i, 0);
+                    sharedMemory.addDeathEvent(x, y, owner, DEATH_TYPES.EXPLOSION, i);
+                    
+                    entityData.setDying(other, true);
+                    entityData.setDeathType(other, DEATH_TYPES.EXPLOSION);
+                    entityData.setDeathTime(other, 0);
+                    const ox2 = entityData.getX(other);
+                    const oy2 = entityData.getY(other);
+                    sharedMemory.addDeathEvent(ox2, oy2, otherOwner, DEATH_TYPES.EXPLOSION, other);
+                    break;
+                }
+                
+                const ovx = entityData.getVx(other);
+                const ovy = entityData.getVy(other);
+                const ivx = entityData.getVx(i);
+                const ivy = entityData.getVy(i);
+                const dvx = ovx - ivx;
+                const dvy = ovy - ivy;
+                const velAlongNormal = dvx * nx + dvy * ny;
+                
+                if (velAlongNormal > 0) {
+                    const j = -(1.3) * velAlongNormal * 0.5;
+                    entityData.setVx(i, ivx - j * nx);
+                    entityData.setVy(i, ivy - j * ny);
+                    entityData.setVx(other, ovx + j * nx);
+                    entityData.setVy(other, ovy + j * ny);
+                }
+            }
+        }
+        
+        if (cohesionCount > 0) {
+            cohesionX /= cohesionCount;
+            cohesionY /= cohesionCount;
+            const vx = entityData.getVx(i) + cohesionX * cohesionForce * 0.016;
+            const vy = entityData.getVy(i) + cohesionY * cohesionForce * 0.016;
+            entityData.setVx(i, vx);
+            entityData.setVy(i, vy);
+        }
+    }
+}
+
+function updateEntities(dt) {
+    const bounds = entityData.getWorldBounds();
+    const speedMult = gameSettings.speedMultiplier || 1;
+    
+    for (let i = 0; i < entityData.getCount(); i++) {
+        if (entityData.isDead(i)) continue;
+        
+        if (entityData.isDying(i)) {
+            let deathTime = entityData.getDeathTime(i) + dt;
+            entityData.setDeathTime(i, deathTime);
+            
+            if (deathTime > 0.4) {
+                entityData.setDead(i, true);
+            }
+            continue;
+        }
+        
+        let x = entityData.getX(i);
+        let y = entityData.getY(i);
+        let vx = entityData.getVx(i);
+        let vy = entityData.getVy(i);
+        let speedBoost = entityData.getSpeedBoost(i);
+        const owner = entityData.getOwner(i);
+        
+        const targetX = entityData.getTargetX(i);
+        const targetY = entityData.getTargetY(i);
+        const hasTarget = entityData.hasTarget(i);
+        
+        const dx = targetX - x;
+        const dy = targetY - y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (hasTarget && dist > 5) {
+            const moveForce = 800;
+            vx += (dx / dist) * moveForce * dt;
+            vy += (dy / dist) * moveForce * dt;
+        }
+        
+        const randomForce = 10;
+        vx += (Math.random() - 0.5) * randomForce * dt;
+        vy += (Math.random() - 0.5) * randomForce * dt;
+        
+        let friction = entityData.getFriction(i);
+        vx *= friction;
+        vy *= friction;
+        
+        speedBoost = Math.min(1.0, speedBoost + dt * 2.0);
+        
+        let maxSpeed = entityData.getMaxSpeed(i) * (1 + speedBoost * 0.4) * speedMult;
+        
+        const speedSq = vx * vx + vy * vy;
+        const maxSpdSq = maxSpeed * maxSpeed;
+        
+        if (speedSq > maxSpdSq) {
+            const speed = Math.sqrt(speedSq);
+            vx = (vx / speed) * maxSpeed;
+            vy = (vy / speed) * maxSpeed;
+        }
+        
+        x += vx * dt;
+        y += vy * dt;
+        
+        const centerDx = x - bounds.centerX;
+        const centerDy = y - bounds.centerY;
+        const distFromCenter = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
+        
+        if (distFromCenter > bounds.worldRadius) {
+            let outsideTime = entityData.getOutsideTime(i) + dt;
+            entityData.setOutsideTime(i, outsideTime);
+            entityData.setOutsideWarning(i, true);
+            
+            if (outsideTime >= 5) {
+                entityData.setDying(i, true);
+                entityData.setDeathType(i, DEATH_TYPES.OUT_OF_BOUNDS);
+                entityData.setDeathTime(i, 0);
+                sharedMemory.addDeathEvent(x, y, owner, DEATH_TYPES.OUT_OF_BOUNDS, i);
+            }
+        } else {
+            entityData.setOutsideTime(i, 0);
+            entityData.setOutsideWarning(i, false);
+        }
+        
+        entityData.setX(i, x);
+        entityData.setY(i, y);
+        entityData.setVx(i, vx);
+        entityData.setVy(i, vy);
+        entityData.setSpeedBoost(i, speedBoost);
+    }
+}
+
+function updateNodes(dt) {
+    for (let i = 0; i < nodeData.getCount(); i++) {
+        const owner = nodeData.getOwner(i);
+        
+        if (owner !== -1) {
+            let baseHp = nodeData.getBaseHp(i);
+            const maxHp = nodeData.getMaxHp(i);
+            
+            if (baseHp < maxHp) {
+                baseHp += 0.5 * dt;
+                nodeData.setBaseHp(i, baseHp);
+            }
+            
+            let spawnTimer = nodeData.getSpawnTimer(i);
+            spawnTimer += dt;
+            
+            const healthPercent = Math.min(baseHp / maxHp, 1.0);
+            let healthScaling = 0.3 + healthPercent * 1.2;
+            
+            if (baseHp >= maxHp) {
+                healthScaling += 0.5;
+            }
+            
+            const nodeType = nodeData.getType(i);
+            if (nodeType === NODE_TYPES.LARGE) {
+                healthScaling += 0.5;
+            }
+            
+            const spawnInterval = nodeData.getSpawnInterval(i);
+            const spawnThreshold = spawnInterval / healthScaling;
+            
+            const canSpawn = entityData.getCount() < MEMORY_LAYOUT.MAX_ENTITIES;
+            
+            if (canSpawn && spawnTimer >= spawnThreshold && baseHp > maxHp * 0.1) {
+                if (!nodeData.isManualSpawnReady(i)) {
+                    nodeData.setManualSpawnReady(i, true);
+                }
+            }
+            
+            if (canSpawn && nodeData.isManualSpawnReady(i) && spawnTimer >= spawnThreshold && baseHp > maxHp * 0.1) {
+                spawnTimer = 0;
+                nodeData.setManualSpawnReady(i, false);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const influenceRadius = nodeData.getInfluenceRadius(i);
+                const spawnDist = influenceRadius * 0.6;
+                const ex = nodeData.getX(i) + Math.cos(angle) * spawnDist;
+                const ey = nodeData.getY(i) + Math.sin(angle) * spawnDist;
+                
+                const targetX = 0;
+                const targetY = 0;
+                const targetNodeId = -1;
+                
+                sharedMemory.addSpawnEvent(ex, ey, owner, targetX, targetY, targetNodeId);
+                
+                nodeData.setSpawnEffect(i, 0.4);
+            }
+            
+            nodeData.setSpawnTimer(i, spawnTimer);
+            nodeData.setSpawnProgress(i, spawnTimer / spawnThreshold);
+        }
+        
+        let hitFlash = nodeData.getHitFlash(i);
+        if (hitFlash > 0) {
+            hitFlash -= dt;
+            nodeData.setHitFlash(i, hitFlash);
+        }
+        
+        let spawnEffect = nodeData.getSpawnEffect(i);
+        if (spawnEffect > 0) {
+            spawnEffect -= dt;
+            nodeData.setSpawnEffect(i, spawnEffect);
+        }
+    }
+}
