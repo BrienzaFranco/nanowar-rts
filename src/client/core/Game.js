@@ -197,6 +197,26 @@ export class Game {
         }
     }
 
+    setMultipleEntityTargets(entityIds, targetX, targetY, targetNodeId) {
+        // Actualizar el estado legacy
+        entityIds.forEach(id => {
+            const ent = this.state.entities.find(e => e.id === id);
+            if (ent) {
+                ent.currentTarget = { x: targetX, y: targetY };
+                ent.waypoints = [];
+                ent.targetNode = targetNodeId ? this.state.nodes.find(n => n.id === targetNodeId) : null;
+            }
+        });
+
+        // Enviar al Worker un ÚNICO postMessage
+        if (this.worker && this.useWorker) {
+            this.worker.postMessage({
+                type: 'setMultipleEntityTargets',
+                data: { entityIds, targetX, targetY, targetNodeId }
+            });
+        }
+    }
+
     setEntityTargetInWorker(entityIndex, targetX, targetY, targetNodeId) {
         if (!this.worker || !this.useWorker) return;
 
@@ -478,22 +498,28 @@ export class Game {
             this.renderer.drawNode(node, camera, isSelected);
         });
 
+        // Creamos un objeto "fantasma" reutilizable para no saturar la memoria
+        if (!this._dummyEntity) this._dummyEntity = { getColor: function () { return PLAYER_COLORS[this.owner % PLAYER_COLORS.length]; } };
+        const entity = this._dummyEntity;
+
         view.iterateEntities((entityIndex) => {
             const owner = view.getEntityOwner(entityIndex);
-            const entity = {
-                x: view.getEntityX(entityIndex),
-                y: view.getEntityY(entityIndex),
-                owner: owner,
-                radius: view.getEntityRadius(entityIndex),
-                dying: view.isEntityDying(entityIndex),
-                dead: view.isEntityDead(entityIndex),
-                deathTime: view.getEntityDeathTime(entityIndex),
-                deathType: view.getEntityDeathType(entityIndex),
-                selected: view.isEntitySelected(entityIndex),
-                outsideWarning: view.hasEntityOutsideWarning(entityIndex),
-                id: view.getEntityId(entityIndex),
-                getColor: () => PLAYER_COLORS[owner % PLAYER_COLORS.length],
-            };
+
+            // Reutilizamos el mismo objeto para todas las células
+            entity.x = view.getEntityX(entityIndex);
+            entity.y = view.getEntityY(entityIndex);
+            entity.owner = owner;
+            entity.radius = view.getEntityRadius(entityIndex);
+            entity.dying = view.isEntityDying(entityIndex);
+            entity.dead = view.isEntityDead(entityIndex);
+            entity.deathTime = view.getEntityDeathTime(entityIndex);
+            entity.deathType = view.getEntityDeathType(entityIndex);
+            entity.selected = view.isEntitySelected(entityIndex);
+            entity.outsideWarning = view.hasEntityOutsideWarning(entityIndex);
+            entity.id = view.getEntityId(entityIndex);
+            // Recuperar el speedBoost para el brillo de velocidad
+            entity.speedBoost = view.memory.entities.speedBoost[entityIndex] || 0;
+
             const isSelected = this.systems?.selection?.isSelected(entity);
             this.renderer.drawEntity(entity, camera, isSelected);
         });

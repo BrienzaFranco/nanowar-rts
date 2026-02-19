@@ -44,6 +44,9 @@ self.onmessage = function (e) {
         case 'setEntityTargetById':
             handleSetEntityTargetById(data);
             break;
+        case 'setMultipleEntityTargets':
+            handleSetMultipleEntityTargets(data);
+            break;
         case 'syncComplete':
             syncComplete = true;
             self.postMessage({ type: 'workerReady' });
@@ -124,6 +127,19 @@ function handleSetEntityTargetById(data) {
     }
 }
 
+function handleSetMultipleEntityTargets(data) {
+    const { entityIds, targetX, targetY, targetNodeId } = data;
+
+    for (let i = 0; i < entityIds.length; i++) {
+        const idx = entityIdToIndex.get(entityIds[i]);
+        if (idx !== undefined && entityData.isValidIndex(idx)) {
+            entityData.setTargetX(idx, targetX);
+            entityData.setTargetY(idx, targetY);
+            entityData.setTargetNodeId(idx, targetNodeId || -1);
+        }
+    }
+}
+
 function handleUpdate(data) {
     if (!sharedMemory || !entityData || !nodeData) {
         return;
@@ -159,7 +175,8 @@ let spatialGrid = new Map();
 function getCellKey(x, y) {
     const col = Math.floor(x / CELL_SIZE);
     const row = Math.floor(y / CELL_SIZE);
-    return `${col},${row}`;
+    // Usar bitwise en vez de strings para indexar la grilla (extremadamente rápido)
+    return (col << 16) | (row & 0xFFFF);
 }
 
 function buildSpatialGrid() {
@@ -190,7 +207,7 @@ function getNearbyEntities(x, y, radius) {
 
     for (let c = startCol; c <= endCol; c++) {
         for (let r = startRow; r <= endRow; r++) {
-            const key = `${c},${r}`;
+            const key = (c << 16) | (r & 0xFFFF);
             const cell = spatialGrid.get(key);
             if (cell) {
                 for (const idx of cell) {

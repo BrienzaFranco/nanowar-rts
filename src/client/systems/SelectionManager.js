@@ -196,15 +196,15 @@ export class SelectionManager {
                     const dx = n.x - worldPos.x, dy = n.y - worldPos.y;
                     return Math.sqrt(dx * dx + dy * dy) < n.radius + 15;
                 });
-                
+
                 const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
-                
+
                 // Check if we dragged far enough to be intentional
                 const dragDist = Math.sqrt(
                     Math.pow(mouse.x - this.game.systems.input.mouseDownPos.x, 2) +
                     Math.pow(mouse.y - this.game.systems.input.mouseDownPos.y, 2)
                 );
-                
+
                 if (dragDist > 20) { // Must drag at least 20 pixels
                     if (this.game.controller.sendAction) {
                         this.game.controller.sendAction({
@@ -275,7 +275,7 @@ export class SelectionManager {
 
     executeCommand(worldX, worldY, targetNode) {
         this.game.spawnCommandIndicator(worldX, worldY, targetNode ? 'attack' : 'move');
-        
+
         // Play sound
         if (targetNode && targetNode.owner !== -1 && targetNode.owner !== (this.game.controller.playerIndex || 0)) {
             sounds.playAttack();
@@ -294,11 +294,12 @@ export class SelectionManager {
                 unitIds: Array.from(this.selectedEntities)
             });
         } else {
-            // Singleplayer local execution - enviar al worker si está activo
-            this.selectedEntities.forEach(id => {
-                const targetNodeId = targetNode ? targetNode.id : null;
-                this.game.setEntityTarget(id, worldX, worldY, targetNodeId);
-            });
+            // Singleplayer local execution - enviar al worker en UN SOLO MENSAJE
+            const targetNodeId = targetNode ? targetNode.id : null;
+
+            if (this.game.setMultipleEntityTargets) {
+                this.game.setMultipleEntityTargets(Array.from(this.selectedEntities), worldX, worldY, targetNodeId);
+            }
         }
     }
 
