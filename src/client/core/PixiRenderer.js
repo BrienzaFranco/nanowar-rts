@@ -12,8 +12,8 @@ export class PixiRenderer {
             width: window.innerWidth,
             height: window.innerHeight,
             backgroundColor: 0x151515,
-            antialias: true,
-            resolution: window.devicePixelRatio || 1,
+            antialias: false,
+            resolution: 1,
             autoDensity: true,
         });
         
@@ -182,11 +182,6 @@ export class PixiRenderer {
             nodeIds.add(node.id);
             
             const baseColor = node.owner === -1 ? NEUTRAL_COLOR : PLAYER_COLORS_HEX[node.owner % PLAYER_COLORS.length];
-            const colorHex = node.getColor();
-            const c = colorHex.replace('#', '');
-            const r = parseInt(c.slice(0, 2), 16) || 117;
-            const g = parseInt(c.slice(2, 4), 16) || 117;
-            const b = parseInt(c.slice(4, 6), 16) || 117;
             
             const screen = camera.worldToScreen(node.x, node.y);
             const sr = Math.max(node.radius * camera.zoom, 8);
@@ -249,10 +244,9 @@ export class PixiRenderer {
             body.drawCircle(0, 0, sr);
             
             if (hpPercent > 0) {
-                const brightR = Math.min(255, Math.floor(r * brightness));
-                const brightG = Math.min(255, Math.floor(g * brightness));
-                const brightB = Math.min(255, Math.floor(b * brightness));
-                const brightColor = (brightR << 16) | (brightG << 8) | brightB;
+                const brightColor = (Math.min(255, Math.floor(117 * brightness)) << 16) | 
+                                   (Math.min(255, Math.floor(117 * brightness)) << 8) | 
+                                   Math.min(255, Math.floor(117 * brightness));
                 
                 body.beginFill(brightColor, 1);
                 body.drawCircle(0, 0, currentRadius);
