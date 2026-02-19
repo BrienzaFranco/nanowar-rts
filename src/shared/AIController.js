@@ -149,7 +149,11 @@ export class AIController {
         const attackers = units.slice(0, count);
 
         attackers.forEach(e => {
-            e.setTarget(targetNode.x, targetNode.y, targetNode);
+            if (this.game.setEntityTarget) {
+                this.game.setEntityTarget(e.id, targetNode.x, targetNode.y, targetNode.id);
+            } else {
+                e.setTarget(targetNode.x, targetNode.y, targetNode);
+            }
         });
     }
 }

@@ -58,6 +58,7 @@ export class NodeData {
         this.nodes.type[idx] = type;
         this.nodes.spawnEffect[idx] = 0;
         this.nodes.manualSpawnReady[idx] = 0;
+        this.nodes.id[idx] = id || idx;
         
         this.count++;
         this.memory.setNodeCount(this.count);
@@ -188,5 +189,13 @@ export class NodeData {
     
     getTotalHp(index) {
         return Math.min(this.nodes.maxHp[index], this.nodes.baseHp[index]);
+    }
+    
+    getId(index) {
+        return this.nodes.id[index];
+    }
+    
+    setId(index, value) {
+        this.nodes.id[index] = value;
     }
 }

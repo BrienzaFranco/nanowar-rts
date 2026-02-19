@@ -6,6 +6,7 @@ import { Particle } from './Particle.js';
 import { sounds } from '../systems/SoundManager.js';
 import { SharedMemory, MEMORY_LAYOUT, calculateBufferSize } from '../../shared/SharedMemory.js';
 import { SharedView } from '../../shared/SharedView.js';
+import { Entity } from '../../shared/Entity.js';
 
 export class Game {
     constructor(canvasId) {
@@ -134,39 +135,57 @@ export class Game {
 
             const dt = 1 / 60;
             self.worker.postMessage({ type: 'update', data: { dt } });
-
-            setTimeout(workerLoop, 1000 / 60);
         };
         
+        this.workerLoop = workerLoop;
+        this.lastWorkerUpdate = 0;
         workerLoop();
     }
 
-    spawnEntityInWorker(x, y, owner, targetX, targetY, targetNodeId) {
+    updateWorkerLoop() {
+        if (!this.useWorker || !this.running) return;
+        
+        const now = performance.now();
+        const elapsed = now - this.lastWorkerUpdate;
+        
+        if (elapsed >= 16) {
+            this.lastWorkerUpdate = now;
+            const dt = Math.min(elapsed / 1000, 0.05);
+            this.worker.postMessage({ type: 'update', data: { dt } });
+        }
+    }
+
+    spawnEntityInWorker(x, y, owner, targetX, targetY, targetNodeId, entityId) {
         if (!this.worker || !this.useWorker) return;
 
         this.worker.postMessage({
             type: 'spawnEntity',
             data: {
                 x, y, owner, targetX, targetY, targetNodeId,
-                id: Date.now() + Math.random()
+                id: entityId || (Date.now() + Math.random())
             }
         });
     }
 
     setEntityTarget(entityId, targetX, targetY, targetNodeId) {
-        if (!this.worker || !this.useWorker) {
-            // Fallback: buscar entidad legacy
-            const ent = this.state.entities.find(e => e.id === entityId);
-            if (ent) {
-                ent.setTarget(targetX, targetY, targetNodeId ? { id: targetNodeId } : null);
+        const ent = this.state.entities.find(e => e.id === entityId);
+        if (ent) {
+            ent.currentTarget = { x: targetX, y: targetY };
+            ent.waypoints = [];
+            if (targetNodeId) {
+                const targetNode = this.state.nodes.find(n => n.id === targetNodeId);
+                ent.targetNode = targetNode || null;
+            } else {
+                ent.targetNode = null;
             }
-            return;
         }
-
-        this.worker.postMessage({
-            type: 'setEntityTargetById',
-            data: { entityId, targetX, targetY, targetNodeId }
-        });
+        
+        if (this.worker && this.useWorker) {
+            this.worker.postMessage({
+                type: 'setEntityTargetById',
+                data: { entityId, targetX, targetY, targetNodeId }
+            });
+        }
     }
 
     setEntityTargetInWorker(entityIndex, targetX, targetY, targetNodeId) {
@@ -222,6 +241,7 @@ export class Game {
         sounds.setPlayerIndex(playerIdx);
 
         if (this.useWorker && this.sharedView) {
+            this.updateWorkerLoop();
             this.updateFromWorker(dt, playerIdx);
         } else {
             this.updateLegacy(dt, playerIdx);
@@ -249,8 +269,18 @@ export class Game {
             const event = view.getDeathEvent(i);
             if (event) {
                 const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
-                if (event.type === 2 || event.type === 3) {
-                    this.spawnParticles(event.x, event.y, color, event.type === 2 ? 8 : 5, event.type === 2 ? 'explosion' : 'hit');
+                if (event.type === 2) {
+                    this.spawnParticles(event.x, event.y, color, 8, 'explosion');
+                } else if (event.type === 1) {
+                    this.spawnParticles(event.x, event.y, color, 5, 'hit');
+                } else if (event.type === 3) {
+                    for (let j = 0; j < 4; j++) {
+                        this.particles.push(new Particle(event.x, event.y, color, 2, 'absorb', event.targetX, event.targetY));
+                    }
+                } else if (event.type === 4) {
+                    for (let j = 0; j < 4; j++) {
+                        this.particles.push(new Particle(event.x, event.y, color, 1.5, 'sacrifice', event.targetX, event.targetY));
+                    }
                 }
                 if (event.type === 1 || event.type === 2) {
                     sounds.playCollision();
@@ -264,6 +294,38 @@ export class Game {
             if (event) {
                 const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
                 this.spawnParticles(event.x, event.y, color, 6, 'explosion');
+                
+                let spawnerNode = null;
+                let minDist = Infinity;
+                for (const n of this.state.nodes) {
+                    if (n.owner === event.owner) {
+                        const distSq = (n.x - event.x) ** 2 + (n.y - event.y) ** 2;
+                        if (distSq < minDist) {
+                            minDist = distSq;
+                            spawnerNode = n;
+                        }
+                    }
+                }
+
+                let tx = event.targetX;
+                let ty = event.targetY;
+                let tnodeId = event.targetNodeId;
+
+                if (spawnerNode && spawnerNode.rallyPoint) {
+                    tx = spawnerNode.rallyPoint.x;
+                    ty = spawnerNode.rallyPoint.y;
+                    tnodeId = spawnerNode.rallyTargetNode ? spawnerNode.rallyTargetNode.id : -1;
+                }
+                
+                const newId = Date.now() + Math.random();
+                const ent = new Entity(event.x, event.y, event.owner, newId);
+                
+                if (tx !== 0 || ty !== 0 || tnodeId !== -1) {
+                    ent.setTarget(tx, ty, spawnerNode?.rallyTargetNode);
+                }
+                
+                this.state.entities.push(ent);
+                this.spawnEntityInWorker(event.x, event.y, event.owner, tx, ty, tnodeId, newId);
             }
         }
 
@@ -289,16 +351,15 @@ export class Game {
     syncWorkerToLegacy() {
         const view = this.sharedView;
         
-        // Actualizar nodos
         for (let i = 0; i < this.state.nodes.length && i < view.getNodeCount(); i++) {
             const node = this.state.nodes[i];
             node.baseHp = view.getNodeBaseHp(i);
             node.spawnProgress = view.getNodeSpawnProgress(i);
             node.hitFlash = view.getNodeHitFlash(i);
             node.spawnEffect = view.getNodeSpawnEffect(i);
+            node.owner = view.getNodeOwner(i);
         }
 
-        // Actualizar entidades - mapear por índice
         for (let i = 0; i < this.state.entities.length && i < view.getEntityCount(); i++) {
             const entity = this.state.entities[i];
             entity.x = view.getEntityX(i);

@@ -7,6 +7,7 @@ let entityData = null;
 let nodeData = null;
 let syncComplete = false;
 let entityIdToIndex = new Map();
+let nodeIdToIndex = new Map();
 let gameSettings = {
     speedMultiplier: 1,
     maxEntitiesPerPlayer: 1000,
@@ -74,6 +75,10 @@ function handleAddNode(data) {
     
     const idx = nodeData.allocate(x, y, owner, nodeType, id);
     
+    if (idx !== -1 && id !== undefined) {
+        nodeIdToIndex.set(id, idx);
+    }
+    
     self.postMessage({ 
         type: 'nodeAdded', 
         data: { index: idx, x, y, owner, type, id } 
@@ -135,6 +140,7 @@ function handleUpdate(data) {
     sharedMemory.clearSpawnEvents();
     
     handleCollisionsAndCohesion();
+    handleEntityNodeCollisions();
     updateEntities(cappedDt);
     updateNodes(cappedDt);
     
@@ -292,6 +298,173 @@ function handleCollisionsAndCohesion() {
             const vy = entityData.getVy(i) + cohesionY * cohesionForce * 0.016;
             entityData.setVx(i, vx);
             entityData.setVy(i, vy);
+        }
+    }
+}
+
+function handleEntityNodeCollisions() {
+    const entityCount = entityData.getCount();
+    const nodeCount = nodeData.getCount();
+    
+    const nodeDefenders = new Array(nodeCount).fill(null).map(() => []);
+    for (let i = 0; i < entityCount; i++) {
+        if (entityData.isDead(i) || entityData.isDying(i)) continue;
+        const ex = entityData.getX(i);
+        const ey = entityData.getY(i);
+        const eOwner = entityData.getOwner(i);
+        
+        for (let n = 0; n < nodeCount; n++) {
+            const nodeOwner = nodeData.getOwner(n);
+            const nodeX = nodeData.getX(n);
+            const nodeY = nodeData.getY(n);
+            const nodeInfluenceRadius = nodeData.getInfluenceRadius(n);
+            
+            const dx = ex - nodeX;
+            const dy = ey - nodeY;
+            const distSq = dx * dx + dy * dy;
+            
+            if (distSq < nodeInfluenceRadius * nodeInfluenceRadius) {
+                if (eOwner === nodeOwner && nodeOwner !== -1) {
+                    nodeDefenders[n].push(i);
+                }
+            }
+        }
+    }
+    
+    for (let i = 0; i < entityCount; i++) {
+        if (entityData.isDead(i) || entityData.isDying(i)) continue;
+        
+        let ex = entityData.getX(i);
+        let ey = entityData.getY(i);
+        const eRadius = entityData.getRadius(i);
+        const eOwner = entityData.getOwner(i);
+        const eTargetNodeId = entityData.getTargetNodeId(i);
+        
+        for (let n = 0; n < nodeCount; n++) {
+            const nodeOwner = nodeData.getOwner(n);
+            const nodeX = nodeData.getX(n);
+            const nodeY = nodeData.getY(n);
+            const nodeRadius = nodeData.getRadius(n);
+            const nodeId = nodeData.getId(n);
+            
+            const dx = ex - nodeX;
+            const dy = ey - nodeY;
+            const distSq = dx * dx + dy * dy;
+            const touchRange = nodeRadius + eRadius;
+            const dist = Math.sqrt(distSq);
+            
+            const isTargetingThisNode = (eTargetNodeId === nodeId);
+            
+            if (dist < touchRange && dist > 0.001) {
+                const overlap = touchRange - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+                
+                if (isTargetingThisNode) {
+                    if (nodeOwner === -1) {
+                        nodeData.setOwner(n, eOwner);
+                        nodeData.setBaseHp(n, nodeData.getMaxHp(n) * 0.1);
+                        nodeData.setHitFlash(n, 0.3);
+                        
+                        entityData.setDying(i, true);
+                        entityData.setDeathType(i, DEATH_TYPES.ATTACK);
+                        entityData.setDeathTime(i, 0);
+                        sharedMemory.addDeathEvent(ex, ey, eOwner, DEATH_TYPES.ATTACK, i);
+                        break;
+                    }
+                    else if (nodeOwner === eOwner) {
+                        const baseHp = nodeData.getBaseHp(n);
+                        const maxHp = nodeData.getMaxHp(n);
+                        if (baseHp < maxHp) {
+                            nodeData.setBaseHp(n, baseHp + 1);
+                            nodeData.setHitFlash(n, 0.15);
+                            
+                            entityData.setDying(i, true);
+                            entityData.setDeathType(i, DEATH_TYPES.ABSORBED);
+                            entityData.setDeathTime(i, 0);
+                            sharedMemory.addDeathEvent(ex, ey, eOwner, DEATH_TYPES.ABSORBED, i, nodeX, nodeY);
+                            break;
+                        }
+                        else {
+                            entityData.setTargetNodeId(i, -1);
+                            entityData.setTargetX(i, ex);
+                            entityData.setTargetY(i, ey);
+                            
+                            ex = ex + nx * overlap;
+                            ey = ey + ny * overlap;
+                            entityData.setX(i, ex);
+                            entityData.setY(i, ey);
+                        }
+                    }
+                    else {
+                        const defenders = nodeDefenders[n].filter(idx => {
+                            return !entityData.isDead(idx) && !entityData.isDying(idx);
+                        });
+                        
+                        if (defenders.length > 0) {
+                            const defenderIdx = defenders[0];
+                            entityData.setDying(defenderIdx, true);
+                            entityData.setDeathType(defenderIdx, DEATH_TYPES.SACRIFICE);
+                            entityData.setDeathTime(defenderIdx, 0);
+                            const defX = entityData.getX(defenderIdx);
+                            const defY = entityData.getY(defenderIdx);
+                            const defOwner = entityData.getOwner(defenderIdx);
+                            sharedMemory.addDeathEvent(defX, defY, defOwner, DEATH_TYPES.SACRIFICE, defenderIdx, nodeX, nodeY);
+                            
+                            entityData.setDying(i, true);
+                            entityData.setDeathType(i, DEATH_TYPES.ATTACK);
+                            entityData.setDeathTime(i, 0);
+                            sharedMemory.addDeathEvent(ex, ey, eOwner, DEATH_TYPES.ATTACK, i, nodeX, nodeY);
+                            break;
+                        }
+                        else {
+                            nodeData.setBaseHp(n, nodeData.getBaseHp(n) - 1);
+                            nodeData.setHitFlash(n, 0.3);
+                            
+                            if (nodeData.getBaseHp(n) <= 0) {
+                                nodeData.setOwner(n, eOwner);
+                                nodeData.setBaseHp(n, nodeData.getMaxHp(n) * 0.1);
+                            }
+                            
+                            entityData.setDying(i, true);
+                            entityData.setDeathType(i, DEATH_TYPES.ATTACK);
+                            entityData.setDeathTime(i, 0);
+                            sharedMemory.addDeathEvent(ex, ey, eOwner, DEATH_TYPES.ATTACK, i, nodeX, nodeY);
+                            break;
+                        }
+                    }
+                }
+                else {
+                    if (nodeOwner === -1) {
+                        nodeData.setOwner(n, eOwner);
+                        nodeData.setBaseHp(n, nodeData.getMaxHp(n) * 0.1);
+                        nodeData.setHitFlash(n, 0.3);
+                        
+                        entityData.setDying(i, true);
+                        entityData.setDeathType(i, DEATH_TYPES.ATTACK);
+                        entityData.setDeathTime(i, 0);
+                        sharedMemory.addDeathEvent(ex, ey, eOwner, DEATH_TYPES.ATTACK, i, nodeX, nodeY);
+                        break;
+                    }
+                    else {
+                        ex = ex + nx * overlap;
+                        ey = ey + ny * overlap;
+                        entityData.setX(i, ex);
+                        entityData.setY(i, ey);
+                        
+                        const perpX = -ny;
+                        const perpY = nx;
+                        const targetDx = entityData.getTargetX(i) - ex;
+                        const targetDy = entityData.getTargetY(i) - ey;
+                        const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+                        if (targetDist > 0.001) {
+                            const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
+                            entityData.setVx(i, entityData.getVx(i) + perpX * side * 100);
+                            entityData.setVy(i, entityData.getVy(i) + perpY * side * 100);
+                        }
+                    }
+                }
+            }
         }
     }
 }

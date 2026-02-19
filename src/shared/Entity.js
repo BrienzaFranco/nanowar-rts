@@ -64,18 +64,11 @@ export class Entity {
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         this.processWaypoints();
-        // Handle physical collisions with other units and nodes
         this.handleCollisionsAndCohesion(spatialGrid, nodes, game);
-
-        // Movement Logic Overhaul
-        // 1. Check territory for speed boost
-        // 2. Check node proximity for Strict Absorption (target-only)
 
         let inFriendlyTerritory = false;
         const speedMult = (game?.state?.speedMultiplier) || 1;
 
-        // OPTIMIZATION: Use spatial grid to find nearby nodes instead of iterating all
-        // Use a search radius that covers the largest possible influence radius (165px max)
         const nearbyNodes = spatialGridNodes ? spatialGridNodes.retrieveNodes(this.x, this.y, 200) : nodes;
 
         if (nearbyNodes) {
@@ -84,88 +77,100 @@ export class Entity {
                 const dy = this.y - node.y;
                 const distSq = dx * dx + dy * dy;
 
-                // Check territory influence
                 if (node.owner === this.owner && node.owner !== -1) {
                     if (distSq < node.influenceRadius * node.influenceRadius) {
                         inFriendlyTerritory = true;
                     }
                 }
 
-                // Check proximity interaction (capture/absorb/attack)
                 const dist = Math.sqrt(distSq);
                 const touchRange = node.radius + this.radius;
+                const isTargetingThisNode = (this.targetNode === node);
 
-                if (dist <= touchRange) {
-                    // Neutral node - Capture
-                    if (node.owner === -1) {
-                        if (!this.dying) {
-                            node.receiveAttack(this.owner, 1, game);
-                            this.die('attack', node, game);
+                if (dist < touchRange && dist > 0.001) {
+                    const overlap = touchRange - dist;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+
+                    if (isTargetingThisNode) {
+                        if (node.owner === -1) {
+                            if (!this.dying) {
+                                node.receiveAttack(this.owner, 1, game);
+                                this.die('attack', node, game);
+                            }
+                            return;
                         }
-                        return; // Unit consumed
-                    }
-
-                    // Owned node - Strict Absorption Logic
-                    if (node.owner === this.owner && node.owner !== -1) {
-                        // Only absorb if explicit target
-                        if (this.targetNode === node) {
+                        else if (node.owner === this.owner) {
                             if (node.baseHp < node.maxHp && !this.dying) {
                                 node.baseHp += 1;
+                                node.hitFlash = 0.15;
                                 this.die('absorbed', node, game);
-                                return; // Unit consumed
+                                return;
                             }
-                            // Reached target but full health? Stop and clear target to avoid bouncing
-                            this.stop();
-                            this.targetNode = null;
+                            else {
+                                this.stop();
+                                this.targetNode = null;
+                                
+                                this.x += nx * overlap;
+                                this.y += ny * overlap;
+                            }
                         }
-                        // If passing through (no target or different target), doing nothing
-                        continue;
-                    }
-
-                    // Enemy node - Attack
-                    if (node.owner !== this.owner) {
-                        if (!this.dying && this.attackCooldown <= 0) {
+                        else {
                             const allDefenders = node.allAreaDefenders || [];
-
-                            // Prioritize defending units first
-                            const ownerDefenders = allDefenders.filter(e => e.owner === node.owner && !e.dead && !e.dying);
+                            const ownerDefenders = allDefenders.filter(e => 
+                                e.owner === node.owner && !e.dead && !e.dying
+                            );
+                            
                             if (ownerDefenders.length > 0) {
                                 ownerDefenders[0].die('sacrifice', node, game);
                                 this.die('attack', node, game);
                                 return;
                             }
-
-                            // Then rival attackers
-                            const rivalDefenders = allDefenders.filter(e => e.owner !== this.owner && e.owner !== node.owner && !e.dead && !e.dying);
-                            if (rivalDefenders.length > 0) {
-                                rivalDefenders[0].die('sacrifice', node, game);
+                            
+                            if (!this.dying) {
+                                node.receiveAttack(this.owner, 1, game);
                                 this.die('attack', node, game);
-                                return;
                             }
-
-                            // Finally hit the node
-                            node.receiveAttack(this.owner, 1, game);
-                            this.die('attack', node, game);
                             return;
+                        }
+                    }
+                    else {
+                        if (node.owner === -1) {
+                            if (!this.dying) {
+                                node.receiveAttack(this.owner, 1, game);
+                                this.die('attack', node, game);
+                            }
+                            return;
+                        }
+                        else {
+                            this.x += nx * overlap;
+                            this.y += ny * overlap;
+                            
+                            if (this.currentTarget) {
+                                const perpX = -ny;
+                                const perpY = nx;
+                                const targetDx = this.currentTarget.x - this.x;
+                                const targetDy = this.currentTarget.y - this.y;
+                                const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
+                                this.vx += perpX * side * 100;
+                                this.vy += perpY * side * 100;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Random jitter (minimal)
         const randomForce = 10;
         this.vx += (Math.random() - 0.5) * randomForce * dt;
         this.vy += (Math.random() - 0.5) * randomForce * dt;
 
-        // Move towards target (linear force, no ramp-up)
         if (this.currentTarget) {
             const dx = this.currentTarget.x - this.x;
             const dy = this.currentTarget.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             if (dist > 5) {
-                // Strong force for responsive movement
                 const moveForce = 800;
                 this.vx += (dx / dist) * moveForce * dt;
                 this.vy += (dy / dist) * moveForce * dt;

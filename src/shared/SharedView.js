@@ -102,6 +102,10 @@ export class SharedView {
         return this.memory.nodes.spawnEffect[index];
     }
     
+    getNodeId(index) {
+        return this.memory.nodes.id[index];
+    }
+    
     getDeathEventsCount() {
         return this.memory.header.deathEventsCount[0];
     }
@@ -113,6 +117,8 @@ export class SharedView {
             y: this.memory.deathEvents.y[index],
             owner: this.memory.deathEvents.owner[index],
             type: this.memory.deathEvents.type[index],
+            targetX: this.memory.deathEvents.targetX[index],
+            targetY: this.memory.deathEvents.targetY[index],
         };
     }
     
