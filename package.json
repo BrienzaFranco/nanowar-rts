@@ -1,6 +1,7 @@
 {
   "name": "nanowar-multiplayer",
   "version": "115.0.0",
+  "homepage": "https://brienzafranco.github.io/nanowar-rts/",
   "type": "module",
   "description": "Nanowar - Juego de estrategia multijugador",
   "main": "server.js",
