@@ -13,13 +13,13 @@ export class SingleplayerController {
 
     setup(playerCount = 1, difficulty = 'intermediate', testMode = false) {
         this.game.state.playerCount = playerCount;
-        
+
         // In test mode, force 4 players (1 human + 3 AI) on easy
         if (testMode) {
             this.game.state.playerCount = 4;
             difficulty = 'easy';
         }
-        
+
         this.game.state.difficulty = difficulty;
         this.testMode = testMode;
         this.playerIndex = 0;
@@ -47,8 +47,8 @@ export class SingleplayerController {
     }
 
     createInitialEntities(testMode = false) {
-        const initialCount = testMode ? 500 : 15;
-        
+        const initialCount = testMode ? 1000 : 15;
+
         this.game.state.nodes.forEach(node => {
             if (node.owner !== -1) {
                 for (let i = 0; i < initialCount; i++) {

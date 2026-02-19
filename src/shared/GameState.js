@@ -22,6 +22,7 @@ export class GameState {
         this.spatialGridNodes = new SpatialGrid(this.worldWidth, this.worldHeight, 200); // 200px cells for nodes (larger radius)
         this.maxEntitiesPerPlayer = 1000; // Increased to 1000 per user feedback
         this.unitCounts = {}; // Cache unit counts per player for capping
+        this.flockUpdateCounter = 0; // Throttling for flock detection
 
         // Statistics tracking
         this.stats = {
@@ -51,12 +52,17 @@ export class GameState {
         // Populate spatial grid once per frame
         this.spatialGrid.clear();
         this.entities.forEach(ent => {
-            ent.flockId = null; // Reset flock assignments
             this.spatialGrid.addObject(ent);
         });
 
-        // Detect flocks - group nearby units of same player
-        this._detectFlocks();
+        // --- OPTIMIZACIÓN CPU: THROTTLING DE FLOCKS ---
+        // Detectar grupos (flocks) es costoso y no necesita ser frame-perfect.
+        // Lo corremos 1 vez cada 15 frames (~4 veces por segundo).
+        this.flockUpdateCounter++;
+        if (this.flockUpdateCounter >= 15) {
+            this._detectFlocks();
+            this.flockUpdateCounter = 0;
+        }
 
         // Count units and production rates per player
         this.unitCounts = {};
@@ -237,7 +243,7 @@ export class GameState {
             accelerationEnabled: this.accelerationEnabled,
             showProduction: this.showProduction,
             stats: this.getStats(),
-                productionRates: this.productionRates
+            productionRates: this.productionRates
         };
     }
 
@@ -248,7 +254,7 @@ export class GameState {
         const FLOCK_RADIUS = 45; // Medium radius for ball formation
         const MIN_FLOCK_SIZE = 12; // Minimum units
         const MAX_FLOCK_SIZE = 25; // Max units per flock - creates big intimidating balls
-        
+
         // Reset flock assignments
         for (const ent of this.entities) {
             if (!ent.dead && !ent.dying) {
@@ -256,7 +262,7 @@ export class GameState {
                 ent.isFlockLeader = false;
             }
         }
-        
+
         // Group entities by owner and mark unassigned units
         const byOwner = {};
         for (const ent of this.entities) {
@@ -264,25 +270,25 @@ export class GameState {
             if (!byOwner[ent.owner]) byOwner[ent.owner] = [];
             byOwner[ent.owner].push(ent);
         }
-        
+
         // For each owner, find flocks using spatial grid
         for (const ownerId in byOwner) {
             const ownerEnts = byOwner[ownerId];
             let flockCounter = 0;
-            
+
             for (const ent of ownerEnts) {
                 // Skip if already assigned to a flock
                 if (ent.flockId) continue;
-                
+
                 // Find all units in this potential flock using spatial grid
                 const nearby = this.spatialGrid.retrieve(ent.x, ent.y, FLOCK_RADIUS);
                 const flock = [];
-                
+
                 for (const other of nearby) {
                     if (other.owner !== parseInt(ownerId)) continue;
                     if (other.flockId) continue;
                     if (other.dead || other.dying) continue;
-                    
+
                     // Check actual distance
                     const dx = other.x - ent.x;
                     const dy = other.y - ent.y;
@@ -291,7 +297,7 @@ export class GameState {
                         if (flock.length >= MAX_FLOCK_SIZE) break;
                     }
                 }
-                
+
                 // If we have enough units, assign flock ID
                 if (flock.length >= MIN_FLOCK_SIZE) {
                     const flockId = `flock_${ownerId}_${flockCounter++}`;

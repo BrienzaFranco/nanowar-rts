@@ -29,8 +29,8 @@ export class Entity {
         this.targetNode = null;
 
         this.cohesionRadius = 30;
-        this.cohesionForce = 60; // Increased for tighter ball formation
-        
+        this.cohesionForce = 45; // Reduced for more breathing room
+
         // Map boundary tracking
         this.outsideTime = 0;
         this.outsideWarning = false;
@@ -77,7 +77,7 @@ export class Entity {
         // OPTIMIZATION: Use spatial grid to find nearby nodes instead of iterating all
         // Use a search radius that covers the largest possible influence radius (165px max)
         const nearbyNodes = spatialGridNodes ? spatialGridNodes.retrieveNodes(this.x, this.y, 200) : nodes;
-        
+
         if (nearbyNodes) {
             for (let node of nearbyNodes) {
                 const dx = this.x - node.x;
@@ -208,7 +208,7 @@ export class Entity {
         const dx = this.x - centerX;
         const dy = this.y - centerY;
         const distFromCenter = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distFromCenter > worldRadius) {
             this.outsideTime += dt;
             this.outsideWarning = true;
@@ -268,10 +268,10 @@ export class Entity {
         // Optimized spatial query
         const searchRadius = this.cohesionRadius;
         const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
-        
+
         // Check if in flock for stronger cohesion
         const inFlock = !!this.flockId;
-        
+
         for (let other of neighbors) {
             if (other === this || other.dead || other.dying) continue;
 
@@ -282,12 +282,12 @@ export class Entity {
             if (distSq > searchRadius * searchRadius) continue;
             const dist = Math.sqrt(distSq);
 
-            // COHESION logic - stronger for flocks to create intimidating balls
-            if (other.owner === this.owner && dist > this.radius * 1.5) {
+            // COHESION logic - relaxed to prevent over-stacking
+            if (other.owner === this.owner && dist > this.radius * 2.2) {
                 if (inFlock && other.flockId === this.flockId) {
-                    // Flock: much stronger cohesion (2.5x) for tight ball formation
-                    cohesionX += (dx / dist) * 2.5;
-                    cohesionY += (dy / dist) * 2.5;
+                    // Flock: slightly stronger cohesion (1.8x) but less than before
+                    cohesionX += (dx / dist) * 1.8;
+                    cohesionY += (dy / dist) * 1.8;
                     cohesionCount++;
                 } else {
                     // Normal cohesion
@@ -297,15 +297,16 @@ export class Entity {
                 }
             }
 
-            // COLLISION logic - always check to prevent overlapping
+            // COLLISION logic - intensified to prevent overlapping
             const minDist = this.radius + other.radius;
             if (dist < minDist && dist > 0) {
                 const overlap = minDist - dist;
                 const nx = dx / dist;
                 const ny = dy / dist;
 
-                this.x -= nx * overlap * 0.3;
-                this.y -= ny * overlap * 0.3;
+                // Push apart more aggressively (0.6 instead of 0.3)
+                this.x -= nx * overlap * 0.6;
+                this.y -= ny * overlap * 0.6;
 
                 if (this.owner !== other.owner) {
                     this.die('explosion', null, game);

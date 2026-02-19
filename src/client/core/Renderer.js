@@ -7,12 +7,87 @@ export class Renderer {
         this.game = game;
         this.playerIndex = 0;
         this.trailQueue = []; // Current frame units (kept for legacy support if needed)
-        
+
         // Pre-rendered glow cache for each player color
-        // Key: "#RRGGBB", Value: { canvas, scale }
+        // Key: "#RRGGBB", Value: { canvas, size }
         this.glowCache = new Map();
+
+        // High-performance unit sprite cache
+        this.unitSpriteCache = new Map();
+
+        // High-performance particle sprite cache
+        this.particleSpriteCache = new Map();
     }
-    
+
+    /**
+     * Pre-render unit sprite for a player color
+     * Creates an offscreen canvas with the unit circle, shadow, and highlight cached
+     */
+    _getOrCreateUnitSprite(color, radius) {
+        // Round radius to avoid creating too many cache entries for slight zoom changes
+        const r = Math.round(radius);
+        const key = `${color}_${r}`;
+
+        if (this.unitSpriteCache.has(key)) {
+            return this.unitSpriteCache.get(key);
+        }
+
+        // Create offscreen canvas with padding for shadow
+        const padding = 2;
+        const size = (r + padding) * 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const center = size / 2;
+
+        // 1. Shadow (minimal)
+        ctx.beginPath();
+        ctx.arc(center + 1, center + 1, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fill();
+
+        // 2. Unit Body
+        ctx.beginPath();
+        ctx.arc(center, center, r, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // 3. Highlight
+        ctx.beginPath();
+        ctx.arc(center - r * 0.3, center - r * 0.3, r * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fill();
+
+        this.unitSpriteCache.set(key, canvas);
+        return canvas;
+    }
+
+    /**
+     * Pre-render a generic particle sprite
+     * Keyed by color, using a fixed reference size for scaling
+     */
+    _getOrCreateParticleSprite(color) {
+        if (this.particleSpriteCache.has(color)) {
+            return this.particleSpriteCache.get(color);
+        }
+
+        const size = 32; // Fixed reference size
+        const center = size / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.beginPath();
+        ctx.arc(center, center, (size / 2) - 1, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        this.particleSpriteCache.set(color, canvas);
+        return canvas;
+    }
+
     /**
      * Pre-render glow sprite for a player color
      * Creates an offscreen canvas with the glow effect cached
@@ -21,7 +96,7 @@ export class Renderer {
         if (this.glowCache.has(color)) {
             return this.glowCache.get(color);
         }
-        
+
         // Create offscreen canvas for the glow sprite
         // Size: 64x64 for good resolution with some margin
         const size = 64;
@@ -30,23 +105,23 @@ export class Renderer {
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
-        
+
         // Parse color components
         const r = parseInt(color.slice(1, 3), 16);
         const g = parseInt(color.slice(3, 5), 16);
         const b = parseInt(color.slice(5, 7), 16);
-        
+
         // Create glow using radial gradient (once, not per frame!)
         const gradient = ctx.createRadialGradient(center, center, 4, center, center, size / 2 - 2);
         gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.6)`);
         gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.3)`);
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
+
         ctx.fillStyle = gradient;
         ctx.globalCompositeOperation = 'lighter';
         ctx.fillRect(0, 0, size, size);
         ctx.globalCompositeOperation = 'source-over';
-        
+
         const glowData = { canvas, size };
         this.glowCache.set(color, glowData);
         return glowData;
@@ -68,7 +143,7 @@ export class Renderer {
     drawGrid(width, height, camera) {
         // Skip grid drawing if zoomed out too far (performance)
         if (camera.zoom < 0.15) return;
-        
+
         const gridSize = 100 * camera.zoom;
         const offsetX = (-camera.x * camera.zoom) % gridSize;
         const offsetY = (-camera.y * camera.zoom) % gridSize;
@@ -91,7 +166,7 @@ export class Renderer {
         const worldRadius = GAME_SETTINGS.WORLD_RADIUS || 1800;
         const centerX = (GAME_SETTINGS.WORLD_WIDTH || 2400) / 2;
         const centerY = (GAME_SETTINGS.WORLD_HEIGHT || 1800) / 2;
-        
+
         // Only draw boundary if any unit is near it
         let nearBoundary = false;
         if (this.game && this.game.state && this.game.state.entities) {
@@ -106,11 +181,11 @@ export class Renderer {
                 }
             }
         }
-        
+
         if (nearBoundary) {
             const screenCenter = camera.worldToScreen(centerX, centerY);
             const boundaryRadius = worldRadius * camera.zoom;
-            
+
             this.ctx.beginPath();
             this.ctx.arc(screenCenter.x, screenCenter.y, boundaryRadius, 0, Math.PI * 2);
             this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
@@ -125,27 +200,38 @@ export class Renderer {
         const screen = camera.worldToScreen(node.x, node.y);
         const sr = node.radius * camera.zoom;
         const sir = node.influenceRadius * camera.zoom;
-        
+
         // Culling for nodes - skip if completely off screen
         const margin = sir * 2;
         if (this.width && (screen.x < -margin || screen.x > this.width + margin || screen.y < -margin || screen.y > this.height + margin)) {
             return;
         }
-        
+
         const baseColor = node.getColor();
 
         const c = baseColor.slice(1);
         const areaColor = [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)].join(',');
 
-        // Aura
+        // Aura - Optimized with sprite-based rendering and reduced alpha
+        const glowData = this._getOrCreateGlow(baseColor);
+        const auraAlpha = 0.05; // Reduced from 0.08 for "subtle" look
+
+        this.ctx.save();
+        this.ctx.globalAlpha = auraAlpha;
+        this.ctx.drawImage(
+            glowData.canvas,
+            screen.x - sir,
+            screen.y - sir,
+            sir * 2,
+            sir * 2
+        );
+        this.ctx.restore();
+
+        // Dashed border (kept as vector for sharpness, but subtle)
         this.ctx.beginPath();
         this.ctx.arc(screen.x, screen.y, sir, 0, Math.PI * 2);
-        this.ctx.fillStyle = `rgba(${areaColor},0.08)`;
-        this.ctx.fill();
-        this.ctx.beginPath();
-        this.ctx.arc(screen.x, screen.y, sir, 0, Math.PI * 2);
-        this.ctx.strokeStyle = `rgba(${areaColor},0.25)`;
-        this.ctx.lineWidth = 1.5 * camera.zoom;
+        this.ctx.strokeStyle = `rgba(${areaColor},0.2)`;
+        this.ctx.lineWidth = 1.2 * camera.zoom;
         this.ctx.setLineDash([8 * camera.zoom, 6 * camera.zoom]);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
@@ -261,15 +347,20 @@ export class Renderer {
     drawEntity(entity, camera, isSelected = false) {
         if (entity.dead) return;
         const screen = camera.worldToScreen(entity.x, entity.y);
-        const sr = entity.radius * camera.zoom;
+        const margin = entity.radius * camera.zoom + 5;
 
-        // Culling
-        if (this.width && (screen.x < -sr || screen.x > this.width + sr || screen.y < -sr || screen.y > this.height + sr)) {
+        // Culling: If off screen, skip drawing (Performance)
+        if (this.width && (
+            screen.x < -margin || screen.x > this.width + margin ||
+            screen.y < -margin || screen.y > this.height + margin
+        )) {
             return;
         }
 
+        // Dying animation handling
         if (entity.dying) {
             const progress = entity.deathTime / 0.4;
+            const sr = entity.radius * camera.zoom;
             if (entity.deathType === 'explosion') {
                 const maxRadius = sr * 4;
                 const currentRadius = sr + (maxRadius - sr) * progress;
@@ -291,73 +382,59 @@ export class Renderer {
                 this.ctx.fillStyle = `rgba(255, 100, 100, ${flash * 0.4 * (1 - progress)})`;
                 this.ctx.fill();
             } else if (entity.deathType === 'sacrifice' && entity.absorbTarget) {
-                // Absorption animation - move toward node center and fade out
                 const node = entity.absorbTarget;
-
-                // Calculate position moving toward node center
-                const startX = entity.x;
-                const startY = entity.y;
-                const targetX = node.x;
-                const targetY = node.y;
-
-                // Quadratic easing for acceleration effect
                 const easeProgress = progress * progress;
-                const currentX = startX + (targetX - startX) * easeProgress;
-                const currentY = startY + (targetY - startY) * easeProgress;
-
+                const currentX = entity.x + (node.x - entity.x) * easeProgress;
+                const currentY = entity.y + (node.y - entity.y) * easeProgress;
                 const absorbScreen = camera.worldToScreen(currentX, currentY);
+                const currentRadius = sr * (1 - progress * 0.7);
+                const alpha = 1 - progress;
 
-                // Shrink and fade
-                const currentRadius = sr * (1 - progress * 0.7); // Shrink to 30%
-                const alpha = 1 - progress; // Fade out
-
-                // Get player color
                 const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
                 const r = parseInt(playerColor.slice(1, 3), 16);
                 const g = parseInt(playerColor.slice(3, 5), 16);
                 const b = parseInt(playerColor.slice(5, 7), 16);
 
-                // Draw entity with player color - BRIGHTER
                 this.ctx.save();
                 this.ctx.globalCompositeOperation = 'lighter';
-
                 this.ctx.beginPath();
                 this.ctx.arc(absorbScreen.x, absorbScreen.y, currentRadius, 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
                 this.ctx.fill();
-
-                // Trail effect
-                this.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.5})`;
-                this.ctx.lineWidth = 2 * camera.zoom;
-                this.ctx.stroke();
-
                 this.ctx.restore();
             }
             return;
         }
 
-        // Shadow
-        this.ctx.beginPath();
-        this.ctx.arc(screen.x + 1, screen.y + 1, sr, 0, Math.PI * 2);
-        this.ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        this.ctx.fill();
+        const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
+        const renderRadius = entity.radius * camera.zoom;
 
-        // Unit Glow: Pre-rendered cached sprite (MUCH faster than createRadialGradient each frame)
+        // Optimization: Image-based rendering with cached sprites
+        const sprite = this._getOrCreateUnitSprite(playerColor, renderRadius);
+        const offset = sprite.width / 2;
+
+        // Quick draw using drawImage (Bit blit is much faster than ctx.arc fill)
+        this.ctx.drawImage(sprite, (screen.x - offset) | 0, (screen.y - offset) | 0);
+
+        // Selection circle
+        if (isSelected) {
+            this.ctx.beginPath();
+            this.ctx.arc(screen.x, screen.y, renderRadius + 2, 0, Math.PI * 2);
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+        }
+
+        // Speed Boost Glow - Restored and unconditionally enabled for visual satisfaction
         const smoothedBoost = entity.speedBoost * entity.speedBoost;
-        if (!entity.dying && smoothedBoost > 0.1) {
-            const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
+        if (smoothedBoost > 0.1) {
             const glowData = this._getOrCreateGlow(playerColor);
-            
-            // Scale based on unit radius and boost level
-            // Original glow radius: sr * (1.2 + smoothedBoost * 1.5) * camera.zoom
-            const glowRadius = sr * (1.2 + smoothedBoost * 1.5) * camera.zoom;
-            const scale = (glowRadius * 2) / glowData.size; // Scale to desired radius
-            
+            const glowRadius = renderRadius * (1.2 + smoothedBoost * 1.5);
+
             this.ctx.save();
             this.ctx.globalCompositeOperation = 'lighter';
-            this.ctx.globalAlpha = smoothedBoost;
-            
-            // Draw pre-rendered glow sprite instead of expensive gradient
+            // Reduced from 0.7 to 0.45 for a cleaner, less saturated screen
+            this.ctx.globalAlpha = smoothedBoost * 0.45;
             this.ctx.drawImage(
                 glowData.canvas,
                 screen.x - glowRadius,
@@ -365,53 +442,7 @@ export class Renderer {
                 glowRadius * 2,
                 glowRadius * 2
             );
-            
             this.ctx.restore();
-        }
-
-        // Warning effect when outside map boundary - bright flash
-        let entityAlpha = 1;
-        if (entity.outsideWarning) {
-            // Bright flashing warning - yellow/white flash
-            const flash = Math.sin(Date.now() * 0.015) > 0;
-            entityAlpha = flash ? 1 : 0.3;
-        }
-
-        // Body
-        this.ctx.globalAlpha = entityAlpha;
-        this.ctx.beginPath();
-        this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
-        this.ctx.fillStyle = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
-        this.ctx.fill();
-
-        // Warning glow when outside boundary
-        if (entity.outsideWarning) {
-            this.ctx.save();
-            this.ctx.globalCompositeOperation = 'lighter';
-            const warningGlow = this.ctx.createRadialGradient(screen.x, screen.y, sr, screen.x, screen.y, sr * 2.5);
-            warningGlow.addColorStop(0, 'rgba(255, 255, 100, 0.8)');
-            warningGlow.addColorStop(1, 'rgba(255, 255, 100, 0)');
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr * 2.5, 0, Math.PI * 2);
-            this.ctx.fillStyle = warningGlow;
-            this.ctx.fill();
-            this.ctx.restore();
-        }
-
-        // Highlight
-        this.ctx.beginPath();
-        this.ctx.arc(screen.x - sr * 0.3, screen.y - sr * 0.3, sr * 0.4, 0, Math.PI * 2);
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        this.ctx.fill();
-
-        this.ctx.globalAlpha = 1;
-
-        if (isSelected) {
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr + 2 * camera.zoom, 0, Math.PI * 2);
-            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-            this.ctx.lineWidth = 0.8 * camera.zoom;
-            this.ctx.stroke();
         }
     }
 
@@ -421,11 +452,19 @@ export class Renderer {
     }
 
     drawParticle(p, camera) {
+        if (p.life <= 0) return;
         const screen = camera.worldToScreen(p.x, p.y);
+
+        // Culling
+        if (this.width && (screen.x < -20 || screen.x > this.width + 20 || screen.y < -20 || screen.y > this.height + 20)) {
+            return;
+        }
+
         this.ctx.globalAlpha = p.life / p.maxLife;
-        this.ctx.fillStyle = p.color;
 
         if (p.type === 'hit') {
+            // Hit particles are lines, keeping vector for now as they are few, 
+            // but optimized with globalAlpha
             this.ctx.beginPath();
             this.ctx.moveTo(screen.x, screen.y);
             this.ctx.lineTo(screen.x - p.vx * 0.1, screen.y - p.vy * 0.1);
@@ -433,9 +472,36 @@ export class Renderer {
             this.ctx.lineWidth = 2 * camera.zoom;
             this.ctx.stroke();
         } else {
-            this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, p.size * 0.6 * camera.zoom, 0, Math.PI * 2);
-            this.ctx.fill();
+            // Explosions/Death particles: Sprite-based
+            const sprite = this._getOrCreateParticleSprite(p.color);
+            const renderSize = p.size * 1.2 * camera.zoom;
+
+            // Speed-based particle glow (Restore requested beauty)
+            const speedSq = p.vx * p.vx + p.vy * p.vy;
+            if (speedSq > 4000) { // Only for fast moving particles
+                const glowData = this._getOrCreateGlow(p.color);
+                const glowRadius = renderSize * 2.5;
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'lighter';
+                this.ctx.globalAlpha = (p.life / p.maxLife) * 0.4;
+                this.ctx.drawImage(
+                    glowData.canvas,
+                    screen.x - glowRadius,
+                    screen.y - glowRadius,
+                    glowRadius * 2,
+                    glowRadius * 2
+                );
+                this.ctx.restore();
+            }
+
+            // Fast bit blit
+            this.ctx.drawImage(
+                sprite,
+                screen.x - renderSize / 2,
+                screen.y - renderSize / 2,
+                renderSize,
+                renderSize
+            );
         }
         this.ctx.globalAlpha = 1.0;
     }
