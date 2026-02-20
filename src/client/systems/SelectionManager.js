@@ -90,38 +90,17 @@ export class SelectionManager {
         return view ? view.isEntityDying(idx) : this.game.state.entities[idx].dying;
     }
 
-    isNodeInRect(idx, x1, y1, x2, y2, camera) {
-        const nx = this.getNodeX(idx);
-        const ny = this.getNodeY(idx);
-        const screen = camera.worldToScreen(nx, ny);
-        const radius = this.getNodeRadius(idx) * camera.zoom;
-        return screen.x + radius >= Math.min(x1, x2) &&
-            screen.x - radius <= Math.max(x1, x2) &&
-            screen.y + radius >= Math.min(y1, y2) &&
-            screen.y - radius <= Math.max(y1, y2);
-    }
-
-    isEntityInRect(idx, x1, y1, x2, y2, camera) {
-        const ex = this.getEntityX(idx);
-        const ey = this.getEntityY(idx);
-        const screen = camera.worldToScreen(ex, ey);
-        const radius = (this.getEntityRadius(idx) + 5) * camera.zoom;
-        return screen.x + radius >= Math.min(x1, x2) &&
-            screen.x - radius <= Math.max(x1, x2) &&
-            screen.y + radius >= Math.min(y1, y2) &&
-            screen.y - radius <= Math.max(y1, y2);
-    }
-
     findNodeAtScreen(mx, my) {
         const camera = this.game.camera;
         const count = this.getNodeCount();
+        const worldPos = camera.screenToWorld(mx, my);
+
         for (let i = 0; i < count; i++) {
             const nx = this.getNodeX(i);
             const ny = this.getNodeY(i);
-            const screen = camera.worldToScreen(nx, ny);
-            const radius = this.getNodeRadius(i) * camera.zoom;
-            const dx = mx - screen.x;
-            const dy = my - screen.y;
+            const radius = this.getNodeRadius(i);
+            const dx = worldPos.x - nx;
+            const dy = worldPos.y - ny;
             if (dx * dx + dy * dy < radius * radius) {
                 return i;
             }
@@ -132,14 +111,19 @@ export class SelectionManager {
     findEntityAtScreen(mx, my) {
         const camera = this.game.camera;
         const count = this.getEntityCount();
+        const worldPos = camera.screenToWorld(mx, my);
+
         for (let i = 0; i < count; i++) {
             if (this.isEntityDead(i) || this.isEntityDying(i)) continue;
             const ex = this.getEntityX(i);
             const ey = this.getEntityY(i);
-            const screen = camera.worldToScreen(ex, ey);
-            const radius = (this.getEntityRadius(i) + 5) * camera.zoom;
-            const dx = mx - screen.x;
-            const dy = my - screen.y;
+            // In screen space, radius was (r + 5) * zoom.
+            // In world space, the hit radius equivalent is just (r + 5).
+            const radius = this.getEntityRadius(i) + 5;
+
+            const dx = worldPos.x - ex;
+            const dy = worldPos.y - ey;
+
             if (dx * dx + dy * dy < radius * radius) {
                 return i;
             }
@@ -186,29 +170,24 @@ export class SelectionManager {
         const view = this.view;
         const camera = this.game.camera;
 
+        const w1 = camera.screenToWorld(x1, y1);
+        const w2 = camera.screenToWorld(x2, y2);
+        const minX = Math.min(w1.x, w2.x);
+        const maxX = Math.max(w1.x, w2.x);
+        const minY = Math.min(w1.y, w2.y);
+        const maxY = Math.max(w1.y, w2.y);
+
         if (view) {
-            return view.getEntitiesInRect(
-                camera.screenToWorld(x1, y1).x,
-                camera.screenToWorld(x1, y1).y,
-                camera.screenToWorld(x2, y2).x,
-                camera.screenToWorld(x2, y2).y,
-                owner
-            );
+            return view.getEntitiesInRect(minX, minY, maxX, maxY, owner);
         }
 
         const result = [];
-        const minX = Math.min(x1, x2);
-        const maxX = Math.max(x1, x2);
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
-
         this.game.state.entities.forEach((e, i) => {
             if (owner !== undefined && e.owner !== owner) return;
             if (e.dead || e.dying) return;
-            const screen = camera.worldToScreen(e.x, e.y);
-            const radius = (e.radius + 5) * camera.zoom;
-            if (screen.x + radius >= minX && screen.x - radius <= maxX &&
-                screen.y + radius >= minY && screen.y - radius <= maxY) {
+            const radius = e.radius + 5;
+            if (e.x + radius >= minX && e.x - radius <= maxX &&
+                e.y + radius >= minY && e.y - radius <= maxY) {
                 result.push(i);
             }
         });
@@ -216,14 +195,15 @@ export class SelectionManager {
     }
 
     getEntitiesInViewScreenRect(x1, y1, x2, y2, owner) {
-        const view = this.view;
         const camera = this.game.camera;
         const result = [];
 
-        const minX = Math.min(x1, x2);
-        const maxX = Math.max(x1, x2);
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
+        const w1 = camera.screenToWorld(x1, y1);
+        const w2 = camera.screenToWorld(x2, y2);
+        const minX = Math.min(w1.x, w2.x);
+        const maxX = Math.max(w1.x, w2.x);
+        const minY = Math.min(w1.y, w2.y);
+        const maxY = Math.max(w1.y, w2.y);
 
         const count = this.getEntityCount();
         for (let i = 0; i < count; i++) {
@@ -232,10 +212,9 @@ export class SelectionManager {
 
             const ex = this.getEntityX(i);
             const ey = this.getEntityY(i);
-            const screen = camera.worldToScreen(ex, ey);
-            const radius = (this.getEntityRadius(i) + 5) * camera.zoom;
+            const radius = this.getEntityRadius(i) + 5;
 
-            if (screen.x >= minX && screen.x <= maxX && screen.y >= minY && screen.y <= maxY) {
+            if (ex + radius >= minX && ex - radius <= maxX && ey + radius >= minY && ey - radius <= maxY) {
                 result.push(i);
             }
         }
@@ -247,8 +226,19 @@ export class SelectionManager {
         const count = this.getNodeCount();
         const result = [];
 
+        const w1 = camera.screenToWorld(x1, y1);
+        const w2 = camera.screenToWorld(x2, y2);
+        const minX = Math.min(w1.x, w2.x);
+        const maxX = Math.max(w1.x, w2.x);
+        const minY = Math.min(w1.y, w2.y);
+        const maxY = Math.max(w1.y, w2.y);
+
         for (let i = 0; i < count; i++) {
-            if (this.isNodeInRect(i, x1, y1, x2, y2, camera)) {
+            const nx = this.getNodeX(i);
+            const ny = this.getNodeY(i);
+            const radius = this.getNodeRadius(i);
+            if (nx + radius >= minX && nx - radius <= maxX &&
+                ny + radius >= minY && ny - radius <= maxY) {
                 result.push(this.getNodeId(i));
             }
         }
