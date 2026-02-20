@@ -23,16 +23,16 @@ window.initGame = (mode) => {
         const playerCount = parseInt(urlParams.get('players')) || 2;
         const difficulty = urlParams.get('difficulty') || 'intermediate';
         const testMode = urlParams.get('test') === '1';
-        
+
         game.controller = new SingleplayerController(game);
         game.controller.setup(playerCount, difficulty, testMode);
-        
+
         // Show game UI and screen
         const ui = document.getElementById('ui');
         const menu = document.getElementById('menu-screen');
         if (ui) ui.style.display = 'block';
         if (menu) menu.style.display = 'none';
-        
+
         game.resize();
         game.start();
     } else {
@@ -78,11 +78,11 @@ window.initGame = (mode) => {
                 const playerCount = parseInt(urlParams.get('players')) || 2;
                 const difficulty = urlParams.get('difficulty') || 'intermediate';
                 const testMode = urlParams.get('test') === '1';
-                
+
                 // Stop current game properly
                 game.stop();
                 game.gameOverShown = false;
-                
+
                 // Clear state - create fresh GameState
                 game.state = new GameState();
                 game.state.playerCount = game.controller.ais.length + 1;
@@ -90,9 +90,27 @@ window.initGame = (mode) => {
                 game.commandIndicators = [];
                 game.waypointLines = [];
                 game.systems.selection.clear();
-                
-                // Re-setup with new map
+
+                // Reset UIManager stat caches
+                const ui = game.systems.ui;
+                ui._lastCounts = {};
+                ui._ratesCache = {};
+                ui._totalProduced = {};
+                ui._currentCounts = {};
+                ui._lastSampleTime = 0;
+
+                // Re-setup with new map (creates new nodes + entities)
                 game.controller.setup(playerCount, difficulty, testMode);
+
+                // Re-sync worker: terminate old, init new
+                if (game.worker) {
+                    game.worker.terminate();
+                    game.worker = null;
+                    game.useWorker = false;
+                    game.workerRunning = false;
+                    game.initWorker();
+                }
+
                 game.start();
             });
         }
@@ -117,8 +135,8 @@ window.initGame = (mode) => {
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('game-canvas')) {
         // Check if singleplayer by path or by URL params
-        const isSingle = window.location.pathname.includes('singleplayer') || 
-                         new URLSearchParams(window.location.search).has('players');
+        const isSingle = window.location.pathname.includes('singleplayer') ||
+            new URLSearchParams(window.location.search).has('players');
         window.initGame(isSingle ? 'singleplayer' : 'multiplayer');
     }
 });

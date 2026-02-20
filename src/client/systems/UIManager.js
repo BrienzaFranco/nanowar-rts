@@ -35,37 +35,62 @@ export class UIManager {
         return counts;
     }
 
+    _computeProdRates() {
+        // Compute theoretical prod/min from owned nodes' base spawn interval.
+        // spawnInterval is: small=4.5, medium=3.5, large=2.4 (units/sec at 100% HP)
+        // healthScaling ≈ 0.3 + healthPercent*1.2 → at 25% start HP = 0.3+0.25*1.2 ≈ 0.6
+        // We use the base (unscaled) rate 60/spawnInterval for simplicity (max HP).
+        const SPAWN_INTERVALS = { 0: 4.5, 1: 3.5, 2: 2.4 }; // keyed by NODE_TYPE index
+        const rates = {};
+
+        const view = this.game.sharedView;
+        if (view) {
+            const nodeCount = view.getNodeCount();
+            for (let n = 0; n < nodeCount; n++) {
+                const owner = view.getNodeOwner(n);
+                if (owner < 0) continue;
+                const type = view.memory.nodes.type[n]; // 0=small, 1=medium, 2=large
+                const baseInterval = SPAWN_INTERVALS[type] || 3.5;
+                const baseHp = view.getNodeBaseHp(n);
+                const maxHp = view.getNodeMaxHp(n);
+                const hpPct = Math.min(baseHp / maxHp, 1.0);
+                const healthScaling = 0.3 + hpPct * 1.2 + (type === 2 ? 0.5 : 0);
+                const effectiveInterval = baseInterval / healthScaling;
+                rates[owner] = (rates[owner] || 0) + (60 / effectiveInterval);
+            }
+        } else {
+            // Fallback: use game.state.productionRates (multiplayer)  
+            const serverRates = this.game.state?.productionRates;
+            if (serverRates) {
+                for (const pid in serverRates) {
+                    rates[parseInt(pid)] = serverRates[pid] * 60;
+                }
+            }
+        }
+        return rates;
+    }
+
     _updateStatsCache() {
         const now = performance.now();
         const dt = (now - this._lastSampleTime) / 1000;
-        if (dt < 1) return; // Sample every second
+        if (dt < 1) return; // Update every second
 
         const currentCounts = this._countEntitiesPerPlayer();
         const playerCount = this.game.state?.playerCount || 2;
 
-        // Read spawn counts accumulated by Game.js from the worker's spawn events
+        // Count new spawns from accumulated spawn events (for TOT column)
         const spawnCounts = this.game.state?.spawnCounts || {};
-
         for (let i = 0; i < playerCount; i++) {
             const spawned = spawnCounts[i] || 0;
             this._totalProduced[i] = (this._totalProduced[i] || 0) + spawned;
-            // prod/min = spawns-in-this-interval * (60 / dt)
-            this._ratesCache[i] = dt > 0 ? (spawned / dt) * 60 : 0;
             this._lastCounts[i] = currentCounts[i] || 0;
         }
-
-        // Reset spawn counts after consuming them
+        // Reset spawn counts after consuming
         if (this.game.state?.spawnCounts) {
             this.game.state.spawnCounts = {};
         }
 
-        // Override with server-provided values when in multiplayer mode
-        const serverRates = this.game.state?.productionRates;
-        if (serverRates) {
-            for (const pid in serverRates) {
-                this._ratesCache[parseInt(pid)] = serverRates[pid] * 60; // convert units/sec to units/min
-            }
-        }
+        // Sync server-provided totals (multiplayer)
         const serverProduced = this.game.state?.stats?.unitsProduced;
         if (serverProduced) {
             for (const pid in serverProduced) {
@@ -74,8 +99,10 @@ export class UIManager {
         }
 
         this._currentCounts = currentCounts;
+        this._ratesCache = this._computeProdRates(); // Always live from nodes
         this._lastSampleTime = now;
     }
+
 
     draw(renderer) {
         // Initialize on first frame
