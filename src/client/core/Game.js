@@ -53,6 +53,11 @@ export class Game {
         }
 
         try {
+            if (this.worker) {
+                this.worker.terminate();
+                this.worker = null;
+            }
+
             const bufferSize = calculateBufferSize();
             const sharedBuffer = new SharedArrayBuffer(bufferSize);
 
@@ -93,9 +98,8 @@ export class Game {
     syncStateToWorker() {
         if (!this.worker || !this.useWorker) return;
 
-        if (!this.sharedNodeData) {
-            this.sharedNodeData = new NodeData(this.sharedView.memory);
-        }
+        // Force recreation of NodeData to guarantee it points to the new fresh buffer
+        this.sharedNodeData = new NodeData(this.sharedView.memory);
 
         for (let i = 0; i < this.state.nodes.length; i++) {
             const node = this.state.nodes[i];
@@ -138,7 +142,9 @@ export class Game {
         });
 
         setTimeout(() => {
-            this.worker.postMessage({ type: 'syncComplete' });
+            if (this.worker) {
+                this.worker.postMessage({ type: 'syncComplete' });
+            }
         }, 100);
     }
 
@@ -276,6 +282,12 @@ export class Game {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
+
+        // Clear DO engine memory so restarts get a fresh buffer instead of ghost entities
+        this.sharedMemory = null;
+        this.sharedView = null;
+        this.sharedEngine = null;
+        this.sharedNodeData = null;
     }
 
     update(dt) {

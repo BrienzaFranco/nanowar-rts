@@ -119,13 +119,12 @@ window.initGame = (mode) => {
                 // Re-setup with new map (creates new nodes + entities)
                 game.controller.setup(playerCount, difficulty, testMode);
 
-                // Re-sync worker: terminate old, init new
+                // Re-sync worker: terminate old
                 if (game.worker) {
                     game.worker.terminate();
                     game.worker = null;
                     game.useWorker = false;
                     game.workerRunning = false;
-                    game.initWorker();
                 }
 
                 game.start();
