@@ -84,11 +84,11 @@ export class GameEngine {
         // Swarm tuning constants
         // -----------------------------------------------------------
         // SEPARATION: hard push away from overlapping neighbors
-        const SEP_RADIUS = 14;     // px – personal space bubble
-        const SEP_FORCE = 900;    // acceleration when fully overlapping
+        const SEP_RADIUS = 8;     // allow more clumping
+        const SEP_FORCE = 300;    // softer separation
         // ALIGNMENT: match velocity with nearby friends (gives the "school of fish" feel)
         const ALI_RADIUS = 90;
-        const ALI_FORCE = 55;
+        const ALI_FORCE = 25;     // less rigid alignment
         // COHESION: drift toward center of nearby friends
         const COH_RADIUS = 120;
         const COH_FORCE = 18;
@@ -96,7 +96,7 @@ export class GameEngine {
         const ENE_RADIUS = 50;
         const ENE_FORCE = 220;
         // Node-body repulsion radius (extra push away from node circles)
-        const NODE_BODY_MARGIN = 18; // px beyond node radius
+        const NODE_BODY_MARGIN = 2; // VERY tight margin so they can dive into nodes
 
         for (let i = 0; i < count; i++) {
             if (this.entityData.isDead(i) || this.entityData.isDying(i)) continue;
@@ -126,11 +126,11 @@ export class GameEngine {
                     const overlap = minDist - dist;
                     const nx = dx / dist;
                     const ny = dy / dist;
-                    // Positional correction + velocity kick
-                    x += nx * overlap * 0.8;
-                    y += ny * overlap * 0.8;
-                    vx += nx * overlap * 6;
-                    vy += ny * overlap * 6;
+                    // Positional correction + velocity kick (gentler to allow grazing)
+                    x += nx * overlap * 0.4;
+                    y += ny * overlap * 0.4;
+                    vx += nx * overlap * 3;
+                    vy += ny * overlap * 3;
                 }
             }
             this.entityData.setX(i, x);
@@ -170,10 +170,10 @@ export class GameEngine {
                     const ny = dy / dist;
 
                     if (isFriend) {
-                        // Soft elastic push — let friends overlap a bit
-                        const pushFactor = overlap * 0.5;
-                        x -= nx * pushFactor * 0.6;
-                        y -= ny * pushFactor * 0.6;
+                        // Soft elastic push — let friends overlap heavily
+                        const pushFactor = overlap * 0.2;
+                        x -= nx * pushFactor;
+                        y -= ny * pushFactor;
 
                         // Velocity exchange (elastic collision, mass=1)
                         const ovx = this.entityData.getVx(other);
@@ -522,7 +522,7 @@ export class GameEngine {
                 ? Math.min(1.0, speedBoost + dt * 1.8)
                 : Math.max(0.0, speedBoost - dt * 0.9);
 
-            
+
             // B. Seek target -- direct drive, no orbit
             //    * Node target  -> straight in (separation handles spacing)
             //    * Point target -> 12px golden-angle spread across units
@@ -536,19 +536,18 @@ export class GameEngine {
                 let arrivalX = targetX;
                 let arrivalY = targetY;
 
-                // Point-only targets: tiny spread so large groups distribute
+                let seekThreshold = 2;
+
+                // Point-only targets: stop seeking when close to let the group settle naturally
                 if (targetNodeId === -1) {
-                    const phase = i * 2.399963; // golden angle
-                    const SPREAD = 12;
-                    arrivalX = targetX + Math.cos(phase) * SPREAD;
-                    arrivalY = targetY + Math.sin(phase) * SPREAD;
+                    seekThreshold = 25;
                 }
 
                 const dx = arrivalX - x;
                 const dy = arrivalY - y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist > 2) {
+                if (dist > seekThreshold) {
                     const SEEK_FORCE = 900;
                     vx += (dx / dist) * SEEK_FORCE * dt;
                     vy += (dy / dist) * SEEK_FORCE * dt;
@@ -573,7 +572,7 @@ export class GameEngine {
                             const dot = (ndx / nDist) * dirX + (ndy / nDist) * dirY;
                             if (dot > 0.2) {
                                 const perpX = -dirY;
-                                const perpY =  dirX;
+                                const perpY = dirX;
                                 const side = (ndx * dirY - ndy * dirX) > 0 ? 1 : -1;
                                 const avoidStrength = (1 - nDist / (nRadius + lookAhead)) * 2000;
                                 vx += perpX * side * avoidStrength * dt;
@@ -586,23 +585,24 @@ export class GameEngine {
 
             // C. Organic wobble -- gentle, fades at speed
             //    Idle cells wander slowly; moving cells are nearly straight
-            const wobbleFreq  = 0.9 + (i % 7) * 0.11;
+            const wobbleFreq = 0.9 + (i % 7) * 0.11;
             const wobblePhase = i * 1.618;
-            const wobbleAmp   = 2.5;
+            const wobbleAmp = 2.5;
             const speed = Math.sqrt(vx * vx + vy * vy);
             const speedFade = Math.max(0, 1 - speed / 30);
             if (speed > 0.5) {
                 const perpX = -vy / speed;
-                const perpY =  vx / speed;
+                const perpY = vx / speed;
                 const wobble = Math.sin(now * wobbleFreq + wobblePhase) * wobbleAmp * speedFade;
                 vx += perpX * wobble * dt;
                 vy += perpY * wobble * dt;
             } else {
                 // Idle: slow biological drift
-                vx += Math.sin(now * wobbleFreq + wobblePhase)       * wobbleAmp * 0.4 * dt;
+                vx += Math.sin(now * wobbleFreq + wobblePhase) * wobbleAmp * 0.4 * dt;
                 vy += Math.cos(now * wobbleFreq + wobblePhase + 0.8) * wobbleAmp * 0.4 * dt;
             }
-
+
+
 
             // ─────────────────────────────────────────────────────────────────
             // D. Friction + speed cap
