@@ -30,10 +30,10 @@ export class Entity {
         this.absorbTarget = null;
         this.targetNode = null;
 
-        this.cohesionRadius = 45;
-        this.cohesionForce = 30;
-        this.separationRadius = 18;
-        this.separationForce = 65;
+        this.cohesionRadius = 70;
+        this.cohesionForce = 25;
+        this.separationRadius = 26;
+        this.separationForce = 180;
 
         // Map boundary tracking
         this.outsideTime = 0;
@@ -295,9 +295,17 @@ export class Entity {
         for (let other of neighbors) {
             if (other === this || other.dead || other.dying) continue;
 
-            const dx = other.x - this.x;
-            const dy = other.y - this.y;
-            const distSq = dx * dx + dy * dy;
+            let dx = other.x - this.x;
+            let dy = other.y - this.y;
+            let distSq = dx * dx + dy * dy;
+
+            // Critical fix for PERFECT overlaps (e.g mass rally onto the same pixel)
+            if (distSq < 0.0001) {
+                const angle = Math.random() * Math.PI * 2;
+                dx = Math.cos(angle) * 0.1;
+                dy = Math.sin(angle) * 0.1;
+                distSq = 0.01;
+            }
 
             if (distSq > searchRadius * searchRadius) continue;
             const dist = Math.sqrt(distSq);
@@ -386,8 +394,10 @@ export class Entity {
                 fy += (cohesionY / cohesionCount) * this.cohesionForce;
             }
             if (separationCount > 0) {
-                fx += (separationX / separationCount) * this.separationForce;
-                fy += (separationY / separationCount) * this.separationForce;
+                // Diminishing returns after 6 overlapping units, instead of flat average
+                const densityMult = Math.min(separationCount, 6) / separationCount;
+                fx += (separationX * densityMult) * this.separationForce;
+                fy += (separationY * densityMult) * this.separationForce;
             }
 
             this.vx += fx * 0.016;
