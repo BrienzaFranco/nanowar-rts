@@ -454,16 +454,72 @@ export class MultiplayerController {
             prevOwners[i] = view.getNodeOwner(i);
         }
 
-        // Copy the full server buffer (header + entity SOA + node SOA) into client memory.
-        // Both server and client use the same SharedMemory layout constants, so offsets match.
+        // Copy the full server buffer (header + node SOA) into client memory, 
+        // but softly interpolate entity positions to avoid stuttering against client-side prediction.
         if (serverState.syncBuffer) {
-            const dest = new Uint8Array(this.game.sharedMemory.buffer);
-            const src = new Uint8Array(serverState.syncBuffer);
-            dest.set(src);
-            // The header in syncBuffer already has correct counts, but update them
-            // explicitly to keep EntityData.count / NodeData.count instance vars in sync.
-            this.game.sharedMemory.setEntityCount(serverState.entityCount);
+            const srcView = new SharedView(serverState.syncBuffer);
+
+            // 1. Copy Nodes directly (they don't move)
+            const nodeBytes = 19 * 4 * MEMORY_LAYOUT.MAX_NODES; // 19 fields * 4 bytes
+            const nodeDest = new Uint8Array(this.game.sharedMemory.buffer, MEMORY_LAYOUT.NODE_DATA_START, nodeBytes);
+            const nodeSrc = new Uint8Array(serverState.syncBuffer, MEMORY_LAYOUT.NODE_DATA_START, nodeBytes);
+            nodeDest.set(nodeSrc);
+
+            // 2. Softly sync Entities (lerp positions if close, snap if far)
+            const serverEntityCount = srcView.getEntityCount();
+
+            // The header in syncBuffer already has correct counts, update them
+            this.game.sharedMemory.setEntityCount(serverEntityCount);
             this.game.sharedMemory.setNodeCount(serverState.nodeCount);
+
+            // Make sure the local Engine uses the new count
+            if (this.game.sharedEngine && this.game.sharedEngine.entityData) {
+                this.game.sharedEngine.entityData.syncCount();
+            }
+
+            for (let i = 0; i < serverEntityCount; i++) {
+                const sDead = srcView.isEntityDead(i);
+                view.memory.setDead(i, sDead);
+                if (sDead) continue;
+
+                const sX = srcView.getEntityX(i);
+                const sY = srcView.getEntityY(i);
+                const sVx = srcView.getEntityVx(i);
+                const sVy = srcView.getEntityVy(i);
+
+                const cX = view.getEntityX(i);
+                const cY = view.getEntityY(i);
+
+                // If local predicts it's close to server, smoothly blend. If far (e.g. new spawn or teleport), snap.
+                const dx = sX - cX;
+                const dy = sY - cY;
+                const distSq = dx * dx + dy * dy;
+
+                if (distSq > 400 || cX === 0 || cY === 0) { // 20px diff
+                    view.memory.entities.x[i] = sX;
+                    view.memory.entities.y[i] = sY;
+                } else {
+                    view.memory.entities.x[i] = cX + dx * 0.3; // Soft lerp
+                    view.memory.entities.y[i] = cY + dy * 0.3;
+                }
+
+                // Always take server velocity, targets and states
+                view.memory.entities.vx[i] = sVx;
+                view.memory.entities.vy[i] = sVy;
+                view.memory.entities.owner[i] = srcView.getEntityOwner(i);
+                view.memory.entities.radius[i] = srcView.getEntityRadius(i);
+                view.memory.entities.maxSpeed[i] = srcView.getEntityMaxSpeed(i);
+                view.memory.entities.friction[i] = srcView.getEntityFriction(i);
+                view.memory.entities.hp[i] = srcView.getEntityHp(i);
+                view.memory.entities.speedBoost[i] = srcView.getEntitySpeedBoost(i);
+                view.memory.entities.flags[i] = srcView.memory.entities.flags[i];
+                view.memory.entities.deathTime[i] = srcView.getEntityDeathTime(i);
+                view.memory.entities.deathType[i] = srcView.getEntityDeathType(i);
+                view.memory.entities.targetX[i] = srcView.getEntityTargetX(i);
+                view.memory.entities.targetY[i] = srcView.getEntityTargetY(i);
+                view.memory.entities.targetNodeId[i] = srcView.getEntityTargetNodeId(i);
+                view.memory.entities.id[i] = srcView.getEntityId(i);
+            }
         }
 
         // Check for node captures to play sound
