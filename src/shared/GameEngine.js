@@ -80,10 +80,23 @@ export class GameEngine {
         this.buildSpatialGrid();
 
         const count = this.entityData.getCount();
-        const cohesionRadius = 80;
-        const cohesionForce = 35;
-        const separationRadius = 32;
-        const separationForce = 150;
+
+        // Swarm tuning constants
+        // -----------------------------------------------------------
+        // SEPARATION: hard push away from overlapping neighbors
+        const SEP_RADIUS = 14;     // px – personal space bubble
+        const SEP_FORCE = 900;    // acceleration when fully overlapping
+        // ALIGNMENT: match velocity with nearby friends (gives the "school of fish" feel)
+        const ALI_RADIUS = 90;
+        const ALI_FORCE = 55;
+        // COHESION: drift toward center of nearby friends
+        const COH_RADIUS = 120;
+        const COH_FORCE = 18;
+        // Enemy repulsion (steer AROUND enemies – not combat, that's handled elsewhere)
+        const ENE_RADIUS = 50;
+        const ENE_FORCE = 220;
+        // Node-body repulsion radius (extra push away from node circles)
+        const NODE_BODY_MARGIN = 18; // px beyond node radius
 
         for (let i = 0; i < count; i++) {
             if (this.entityData.isDead(i) || this.entityData.isDying(i)) continue;
@@ -92,42 +105,47 @@ export class GameEngine {
             let y = this.entityData.getY(i);
             const owner = this.entityData.getOwner(i);
             const radius = this.entityData.getRadius(i);
+            let vx = this.entityData.getVx(i);
+            let vy = this.entityData.getVy(i);
 
+            // ──────────────────────────────────────
+            // 1. Hard push OUT of node bodies
+            // ──────────────────────────────────────
             for (let n = 0; n < this.nodeData.getCount(); n++) {
                 const nodeX = this.nodeData.getX(n);
                 const nodeY = this.nodeData.getY(n);
                 const nodeRadius = this.nodeData.getRadius(n);
+                const minDist = nodeRadius + radius + NODE_BODY_MARGIN;
 
                 const dx = x - nodeX;
                 const dy = y - nodeY;
                 const distSq = dx * dx + dy * dy;
-                const minDist = nodeRadius + radius;
 
-                if (distSq < minDist * minDist && distSq > 0) {
+                if (distSq < minDist * minDist && distSq > 0.001) {
                     const dist = Math.sqrt(distSq);
                     const overlap = minDist - dist;
                     const nx = dx / dist;
                     const ny = dy / dist;
-
-                    x += nx * overlap;
-                    y += ny * overlap;
-
-                    const vx = this.entityData.getVx(i) + nx * 50 * 0.016;
-                    const vy = this.entityData.getVy(i) + ny * 50 * 0.016;
-                    this.entityData.setVx(i, vx);
-                    this.entityData.setVy(i, vy);
+                    // Positional correction + velocity kick
+                    x += nx * overlap * 0.8;
+                    y += ny * overlap * 0.8;
+                    vx += nx * overlap * 6;
+                    vy += ny * overlap * 6;
                 }
             }
-
             this.entityData.setX(i, x);
             this.entityData.setY(i, y);
 
-            let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
-            let separationX = 0, separationY = 0, separationCount = 0;
+            // ──────────────────────────────────────
+            // 2. Reynolds Boids forces
+            // ──────────────────────────────────────
+            let sepX = 0, sepY = 0, sepN = 0;
+            let aliVx = 0, aliVy = 0, aliN = 0;
+            let cohX = 0, cohY = 0, cohN = 0;
+            let eneX = 0, eneY = 0, eneN = 0;
 
-            const neighborCount = this.getNearbyEntities(x, y, cohesionRadius);
-            const flockId = this.entityData.getFlockId(i);
-            const inFlock = flockId !== -1;
+            const queryR = Math.max(SEP_RADIUS, ALI_RADIUS, COH_RADIUS, ENE_RADIUS);
+            const neighborCount = this.getNearbyEntities(x, y, queryR);
 
             for (let nIdx = 0; nIdx < neighborCount; nIdx++) {
                 const other = this.queryResultArray[nIdx];
@@ -139,24 +157,35 @@ export class GameEngine {
                 const dx = ox - x;
                 const dy = oy - y;
                 const distSq = dx * dx + dy * dy;
-
-                if (distSq > cohesionRadius * cohesionRadius) continue;
                 const dist = Math.sqrt(distSq);
 
                 const otherOwner = this.entityData.getOwner(other);
-                const minDist = radius + this.entityData.getRadius(other);
+                const isFriend = (otherOwner === owner);
 
-                if (dist < minDist && dist > 0) {
-                    const overlap = minDist - dist;
+                // ── Hard collision: entities physically overlapping ──
+                const combinedR = radius + this.entityData.getRadius(other);
+                if (dist < combinedR && dist > 0.001) {
+                    const overlap = combinedR - dist;
                     const nx = dx / dist;
                     const ny = dy / dist;
 
-                    let xi = this.entityData.getX(i) - nx * overlap * 0.6;
-                    let yi = this.entityData.getY(i) - ny * overlap * 0.6;
-                    this.entityData.setX(i, xi);
-                    this.entityData.setY(i, yi);
+                    if (isFriend) {
+                        // Soft elastic push — let friends overlap a bit
+                        const pushFactor = overlap * 0.5;
+                        x -= nx * pushFactor * 0.6;
+                        y -= ny * pushFactor * 0.6;
 
-                    if (owner !== otherOwner) {
+                        // Velocity exchange (elastic collision, mass=1)
+                        const ovx = this.entityData.getVx(other);
+                        const ovy = this.entityData.getVy(other);
+                        const relV = (vx - ovx) * nx + (vy - ovy) * ny;
+                        if (relV > 0) {
+                            vx -= relV * nx * 0.4;
+                            vy -= relV * ny * 0.4;
+                        }
+                    } else {
+                        // COMBAT: both die — handled by combat pass
+                        // But we still do positional correction to avoid z-fighting
                         this.entityData.setDying(i, true);
                         this.entityData.setDeathType(i, DEATH_TYPES.EXPLOSION);
                         this.entityData.setDeathTime(i, 0);
@@ -170,61 +199,72 @@ export class GameEngine {
                         this.sharedMemory.addDeathEvent(ox2, oy2, otherOwner, DEATH_TYPES.EXPLOSION, other);
                         break;
                     }
-
-                    const ovx = this.entityData.getVx(other);
-                    const ovy = this.entityData.getVy(other);
-                    const ivx = this.entityData.getVx(i);
-                    const ivy = this.entityData.getVy(i);
-                    const dvx = ovx - ivx;
-                    const dvy = ovy - ivy;
-                    const velAlongNormal = dvx * nx + dvy * ny;
-
-                    if (velAlongNormal > 0) {
-                        const j = -(1.3) * velAlongNormal * 0.5;
-                        this.entityData.setVx(i, ivx - j * nx);
-                        this.entityData.setVy(i, ivy - j * ny);
-                        this.entityData.setVx(other, ovx + j * nx);
-                        this.entityData.setVy(other, ovy + j * ny);
-                    }
                 }
 
-                if (otherOwner === owner) {
-                    if (dist < separationRadius) {
-                        const safeDist = Math.max(0.1, dist);
-                        const force = (1 - safeDist / separationRadius);
-                        separationX -= (dx / safeDist) * force;
-                        separationY -= (dy / safeDist) * force;
-                        separationCount++;
-                    } else if (dist > radius * 2.5) {
-                        const safeDist = Math.max(0.1, dist);
-                        if (inFlock && this.entityData.getFlockId(other) === flockId) {
-                            cohesionX += (dx / safeDist) * 1.5;
-                            cohesionY += (dy / safeDist) * 1.5;
-                        } else {
-                            cohesionX += dx / safeDist;
-                            cohesionY += dy / safeDist;
-                        }
-                        cohesionCount++;
+                // ── Boids forces (only apply to friends in respective radii) ──
+                if (isFriend) {
+                    if (dist < SEP_RADIUS && dist > 0.001) {
+                        // Separation: exponentially stronger when very close
+                        const strength = (1 - dist / SEP_RADIUS) * (1 - dist / SEP_RADIUS);
+                        sepX -= (dx / dist) * strength;
+                        sepY -= (dy / dist) * strength;
+                        sepN++;
+                    }
+                    if (dist < ALI_RADIUS) {
+                        // Alignment: weighted by proximity
+                        const w = 1 - dist / ALI_RADIUS;
+                        aliVx += this.entityData.getVx(other) * w;
+                        aliVy += this.entityData.getVy(other) * w;
+                        aliN++;
+                    }
+                    if (dist < COH_RADIUS) {
+                        cohX += ox;
+                        cohY += oy;
+                        cohN++;
+                    }
+                } else {
+                    // Enemy repulsion (steer around — combat handled separately)
+                    if (dist < ENE_RADIUS && dist > 0.001) {
+                        const strength = (1 - dist / ENE_RADIUS);
+                        eneX -= (dx / dist) * strength;
+                        eneY -= (dy / dist) * strength;
+                        eneN++;
                     }
                 }
             }
 
-            if (cohesionCount > 0 || separationCount > 0) {
-                let fx = 0, fy = 0;
-                if (cohesionCount > 0) {
-                    fx += (cohesionX / cohesionCount) * cohesionForce;
-                    fy += (cohesionY / cohesionCount) * cohesionForce;
-                }
-                if (separationCount > 0) {
-                    fx += (separationX / separationCount) * separationForce;
-                    fy += (separationY / separationCount) * separationForce;
-                }
-
-                const vx = this.entityData.getVx(i) + fx * 0.016;
-                const vy = this.entityData.getVy(i) + fy * 0.016;
-                this.entityData.setVx(i, vx);
-                this.entityData.setVy(i, vy);
+            // Apply Boids forces
+            let fx = 0, fy = 0;
+            if (sepN > 0) {
+                fx += (sepX / sepN) * SEP_FORCE;
+                fy += (sepY / sepN) * SEP_FORCE;
             }
+            if (aliN > 0) {
+                // Drive velocity toward flock average
+                const targetVx = aliVx / aliN;
+                const targetVy = aliVy / aliN;
+                fx += (targetVx - vx) * ALI_FORCE * 0.016;
+                fy += (targetVy - vy) * ALI_FORCE * 0.016;
+            }
+            if (cohN > 0) {
+                const cx = cohX / cohN - x;
+                const cy = cohY / cohN - y;
+                const cDist = Math.sqrt(cx * cx + cy * cy) || 1;
+                fx += (cx / cDist) * COH_FORCE;
+                fy += (cy / cDist) * COH_FORCE;
+            }
+            if (eneN > 0) {
+                fx += (eneX / eneN) * ENE_FORCE;
+                fy += (eneY / eneN) * ENE_FORCE;
+            }
+
+            vx += fx * 0.016;
+            vy += fy * 0.016;
+
+            this.entityData.setX(i, x);
+            this.entityData.setY(i, y);
+            this.entityData.setVx(i, vx);
+            this.entityData.setVy(i, vy);
         }
     }
 
@@ -424,10 +464,12 @@ export class GameEngine {
     updateEntities(dt) {
         const bounds = this.entityData.getWorldBounds();
         const speedMult = this.gameSettings.speedMultiplier || 1;
+        const now = (Date.now() * 0.001); // seconds, for oscillation
 
         for (let i = 0; i < this.entityData.getCount(); i++) {
             if (this.entityData.isDead(i)) continue;
 
+            // ── Death animation ──
             if (this.entityData.isDying(i)) {
                 let deathTime = this.entityData.getDeathTime(i) + dt;
                 this.entityData.setDeathTime(i, deathTime);
@@ -460,99 +502,162 @@ export class GameEngine {
             let speedBoost = this.entityData.getSpeedBoost(i);
             const owner = this.entityData.getOwner(i);
 
+            // ─────────────────────────────────────────────────────────────────
+            // A. Speed-boost: faster in friendly territory (acceleration lane)
+            // ─────────────────────────────────────────────────────────────────
             let inFriendlyTerritory = false;
             if (owner !== -1) {
                 for (let n = 0; n < this.nodeData.getCount(); n++) {
                     if (this.nodeData.getOwner(n) !== owner) continue;
-                    const nx = this.nodeData.getX(n);
-                    const ny = this.nodeData.getY(n);
-                    const influenceRadius = this.nodeData.getInfluenceRadius(n);
-                    const dx = x - nx;
-                    const dy = y - ny;
-                    if (dx * dx + dy * dy < influenceRadius * influenceRadius) {
+                    const ndx = x - this.nodeData.getX(n);
+                    const ndy = y - this.nodeData.getY(n);
+                    const ir = this.nodeData.getInfluenceRadius(n);
+                    if (ndx * ndx + ndy * ndy < ir * ir) {
                         inFriendlyTerritory = true;
                         break;
                     }
                 }
             }
+            speedBoost = inFriendlyTerritory
+                ? Math.min(1.0, speedBoost + dt * 1.8)
+                : Math.max(0.0, speedBoost - dt * 0.9);
 
-            // 10% boost en territorio friendly, 5% fuera
-            if (inFriendlyTerritory) {
-                speedBoost = Math.min(1.0, speedBoost + dt * 2.0);
-            } else {
-                speedBoost = Math.max(0.5, speedBoost - dt * 1.0);
-            }
-
+            // ─────────────────────────────────────────────────────────────────
+            // B. Seek target with Arrival behaviour
+            //    – Full speed until inside slowRadius
+            //    – Decelerates smoothly as it enters the "parking zone"
+            //    – Formation offset: each unit aims for a point on a circle
+            //      AROUND the target rather than the exact centre
+            // ─────────────────────────────────────────────────────────────────
+            const hasTarget = this.entityData.hasTarget(i);
             const targetX = this.entityData.getTargetX(i);
             const targetY = this.entityData.getTargetY(i);
-            const hasTarget = this.entityData.hasTarget(i);
+            const targetNodeId = this.entityData.getTargetNodeId(i);
 
-            const dx = targetX - x;
-            const dy = targetY - y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (hasTarget) {
+                let arrivalX = targetX;
+                let arrivalY = targetY;
 
-            if (hasTarget && dist > 5) {
-                const moveForce = 800;
-                vx += (dx / dist) * moveForce * dt;
-                vy += (dy / dist) * moveForce * dt;
+                // Find the radius of the target node (if targeting one)
+                let targetNodeRadius = 0;
+                if (targetNodeId !== -1) {
+                    for (let n = 0; n < this.nodeData.getCount(); n++) {
+                        if (this.nodeData.getId(n) === targetNodeId) {
+                            targetNodeRadius = this.nodeData.getRadius(n);
+                            break;
+                        }
+                    }
+                }
 
-                const targetNx = dx / dist;
-                const targetNy = dy / dist;
-                const targetNodeId = this.entityData.getTargetNodeId(i);
+                // Formation angle: use entity index + a slow drift for an
+                // organic, ever-shifting ring around the target
+                const FORMATION_SPREAD = targetNodeRadius + 22; // orbit radius beyond node surface
+                const phase = i * 2.399963; // golden-angle spacing (radians)
+                const drift = now * 0.35;   // slow drift — feels organic
+                const formAngle = phase + drift;
 
-                for (let n = 0; n < this.nodeData.getCount(); n++) {
-                    if (targetNodeId === this.nodeData.getId(n)) continue;
+                if (targetNodeRadius > 0) {
+                    // Orbiting/attacking a node: aim for a point on the ring
+                    arrivalX = targetX + Math.cos(formAngle) * FORMATION_SPREAD;
+                    arrivalY = targetY + Math.sin(formAngle) * FORMATION_SPREAD;
+                }
 
-                    const nx = this.nodeData.getX(n);
-                    const ny = this.nodeData.getY(n);
-                    const nRadius = this.nodeData.getRadius(n);
+                const dx = arrivalX - x;
+                const dy = arrivalY - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    const ndx = nx - x;
-                    const ndy = ny - y;
-                    const nDist = Math.sqrt(ndx * ndx + ndy * ndy);
+                if (dist > 2) {
+                    // Arrival: target speed tapering off inside slowRadius
+                    const SEEK_FORCE = 900;
+                    const SLOW_RADIUS = 80;   // start slowing here
+                    const arrivalScale = Math.min(1, dist / SLOW_RADIUS);
 
-                    if (nDist < nRadius + 60 && nDist > 10) {
-                        const dot = (ndx / nDist) * targetNx + (ndy / nDist) * targetNy;
-                        if (dot > 0.3) {
-                            const perpX = -targetNy;
-                            const perpY = targetNx;
-                            const side = (ndx * targetNy - ndy * targetNx) > 0 ? 1 : -1;
-                            const forceMult = (1 - (nDist / (nRadius + 60))) * 2500;
-                            vx += perpX * side * forceMult * 0.016;
-                            vy += perpY * side * forceMult * 0.016;
+                    vx += (dx / dist) * SEEK_FORCE * arrivalScale * dt;
+                    vy += (dy / dist) * SEEK_FORCE * arrivalScale * dt;
+
+                    // ── Obstacle avoidance: steer AROUND non-target nodes ──
+                    const lookAhead = 60 + Math.sqrt(vx * vx + vy * vy) * 0.18;
+                    const dirX = vx / (Math.sqrt(vx * vx + vy * vy) || 1);
+                    const dirY = vy / (Math.sqrt(vx * vx + vy * vy) || 1);
+
+                    for (let n = 0; n < this.nodeData.getCount(); n++) {
+                        if (this.nodeData.getId(n) === targetNodeId) continue;
+                        const nx = this.nodeData.getX(n);
+                        const ny = this.nodeData.getY(n);
+                        const nRadius = this.nodeData.getRadius(n);
+
+                        const ndx = nx - x;
+                        const ndy = ny - y;
+                        const nDist = Math.sqrt(ndx * ndx + ndy * ndy);
+
+                        if (nDist < nRadius + lookAhead && nDist > 1) {
+                            const dot = (ndx / nDist) * dirX + (ndy / nDist) * dirY;
+                            if (dot > 0.1) {
+                                // Choose the shorter perpendicular side
+                                const perpX = -dirY;
+                                const perpY = dirX;
+                                const side = (ndx * dirY - ndy * dirX) > 0 ? 1 : -1;
+                                const avoidStrength = (1 - nDist / (nRadius + lookAhead)) * 3800;
+                                vx += perpX * side * avoidStrength * dt;
+                                vy += perpY * side * avoidStrength * dt;
+                            }
                         }
                     }
                 }
             }
 
-            const randomForce = 10;
-            vx += (Math.random() - 0.5) * randomForce * dt;
-            vy += (Math.random() - 0.5) * randomForce * dt;
+            // ─────────────────────────────────────────────────────────────────
+            // C. Organic wobble: subtle per-entity sine-wave lateral jitter
+            //    Makes cells feel alive even when stationary
+            // ─────────────────────────────────────────────────────────────────
+            const wobbleFreq = 1.6 + (i % 7) * 0.18;  // different freq per cell
+            const wobblePhase = i * 1.618;               // golden-ratio phase offset
+            const wobbleAmp = 6;                       // pixels/s
+            const speed = Math.sqrt(vx * vx + vy * vy);
+            // Wobble is perpendicular to current velocity
+            if (speed > 1) {
+                const perpX = -vy / speed;
+                const perpY = vx / speed;
+                const wobble = Math.sin(now * wobbleFreq + wobblePhase) * wobbleAmp;
+                vx += perpX * wobble * dt;
+                vy += perpY * wobble * dt;
+            } else {
+                // No clear velocity direction — just gentle 2D oscillation
+                vx += Math.sin(now * wobbleFreq + wobblePhase) * wobbleAmp * 0.5 * dt;
+                vy += Math.cos(now * wobbleFreq + wobblePhase + 1.1) * wobbleAmp * 0.5 * dt;
+            }
 
-            let friction = this.entityData.getFriction(i);
+            // ─────────────────────────────────────────────────────────────────
+            // D. Friction + speed cap
+            // ─────────────────────────────────────────────────────────────────
+            const friction = this.entityData.getFriction(i);
             vx *= friction;
             vy *= friction;
 
-            // speedBoost ya se calculó en el bloque de friendly territory
-            let maxSpeed = this.entityData.getMaxSpeed(i) * (1 + speedBoost * 0.4) * speedMult;
-
+            const maxSpeed = this.entityData.getMaxSpeed(i) * (1 + speedBoost * 0.5) * speedMult;
             const speedSq = vx * vx + vy * vy;
-            const maxSpdSq = maxSpeed * maxSpeed;
-
-            if (speedSq > maxSpdSq) {
-                const speed = Math.sqrt(speedSq);
-                vx = (vx / speed) * maxSpeed;
-                vy = (vy / speed) * maxSpeed;
+            if (speedSq > maxSpeed * maxSpeed) {
+                const s = Math.sqrt(speedSq);
+                vx = (vx / s) * maxSpeed;
+                vy = (vy / s) * maxSpeed;
             }
 
             x += vx * dt;
             y += vy * dt;
 
+            // ─────────────────────────────────────────────────────────────────
+            // E. World boundary — push back and die if outside too long
+            // ─────────────────────────────────────────────────────────────────
             const centerDx = x - bounds.centerX;
             const centerDy = y - bounds.centerY;
             const distFromCenter = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
 
             if (distFromCenter > bounds.worldRadius) {
+                // Soft push back toward center
+                const pushStr = (distFromCenter - bounds.worldRadius) * 3;
+                vx -= (centerDx / distFromCenter) * pushStr * dt;
+                vy -= (centerDy / distFromCenter) * pushStr * dt;
+
                 let outsideTime = this.entityData.getOutsideTime(i) + dt;
                 this.entityData.setOutsideTime(i, outsideTime);
                 this.entityData.setOutsideWarning(i, true);
