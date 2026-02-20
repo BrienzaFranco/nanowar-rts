@@ -300,8 +300,10 @@ export class Entity {
             let distSq = dx * dx + dy * dy;
 
             // Critical fix for PERFECT overlaps (e.g mass rally onto the same pixel)
+            // Deterministic hash to avoid desyncs between client/server
             if (distSq < 0.0001) {
-                const angle = Math.random() * Math.PI * 2;
+                const hash = (this.id * 31 + other.id) % 360;
+                const angle = (hash * Math.PI) / 180;
                 dx = Math.cos(angle) * 0.1;
                 dy = Math.sin(angle) * 0.1;
                 distSq = 0.01;
@@ -364,13 +366,13 @@ export class Entity {
                 if (velAlongNormal > 0) {
                     const j = -(1.3) * velAlongNormal * 0.5;
                     // Cap the physics impulse to prevent erratic zooming
-                    const maxJ = 200;
+                    const maxJ = 100;
                     const safeJ = Math.max(-maxJ, Math.min(maxJ, j));
 
+                    // ONLY modify 'this' to prevent exponential O(N^2) feedback loops
+                    // 'other' will update itself during its own update() cycle
                     this.vx -= safeJ * nx;
                     this.vy -= safeJ * ny;
-                    other.vx += safeJ * nx;
-                    other.vy += safeJ * ny;
                 }
             }
         }
