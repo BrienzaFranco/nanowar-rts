@@ -2,6 +2,9 @@ import { PLAYER_COLORS, GAME_SETTINGS } from './GameConfig.js';
 
 export class Entity {
     static idCounter = 0;
+    static resetIdCounter() {
+        Entity.idCounter = 0;
+    }
 
     constructor(x, y, ownerId, id) {
         this.id = id !== undefined ? id : ++Entity.idCounter;

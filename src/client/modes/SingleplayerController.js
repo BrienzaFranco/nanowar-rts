@@ -58,8 +58,7 @@ export class SingleplayerController {
                     const ent = new Entity(
                         node.x + Math.cos(angle) * dist,
                         node.y + Math.sin(angle) * dist,
-                        node.owner,
-                        Date.now() + i + (node.owner * 10000)
+                        node.owner
                     );
                     this.game.state.entities.push(ent);
                 }

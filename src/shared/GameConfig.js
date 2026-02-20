@@ -1,14 +1,21 @@
-export let PLAYER_COLORS = [
+const DEFAULT_COLORS = [
     '#4CAF50', '#f44336', '#2196F3', '#FF9800',
     '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'
 ];
 
+export let PLAYER_COLORS = [...DEFAULT_COLORS];
+
 export function setPlayerColor(index) {
-    if (index > 0 && index < PLAYER_COLORS.length) {
-        // Swap selected color with first color (Player 0)
-        const temp = PLAYER_COLORS[0];
-        PLAYER_COLORS[0] = PLAYER_COLORS[index];
-        PLAYER_COLORS[index] = temp;
+    if (index >= 0 && index < DEFAULT_COLORS.length) {
+        // Reset to default first to be idempotent
+        PLAYER_COLORS = [...DEFAULT_COLORS];
+
+        if (index > 0) {
+            // Swap selected color with first color (Player 0)
+            const temp = PLAYER_COLORS[0];
+            PLAYER_COLORS[0] = PLAYER_COLORS[index];
+            PLAYER_COLORS[index] = temp;
+        }
     }
 }
 

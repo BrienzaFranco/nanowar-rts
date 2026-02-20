@@ -89,9 +89,15 @@ window.initGame = (mode) => {
                 game.stop();
                 game.gameOverShown = false;
 
+                // Reset Entity IDs to prevent ghost units
+                import('../shared/Entity.js').then(m => m.Entity.resetIdCounter());
+
                 // Clear state - create fresh GameState
                 game.state = new GameState();
                 game.state.playerCount = game.controller.ais.length + 1;
+                game.ais = []; // Clear old AIs
+                if (game.controller.ais) game.controller.ais = [];
+
                 game.particles = [];
                 game.commandIndicators = [];
                 game.waypointLines = [];
