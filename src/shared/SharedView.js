@@ -38,6 +38,34 @@ export class SharedView {
         return this.memory.entities.radius[index];
     }
 
+    getEntityMaxSpeed(index) {
+        return this.memory.entities.maxSpeed[index];
+    }
+
+    getEntityFriction(index) {
+        return this.memory.entities.friction[index];
+    }
+
+    getEntityHp(index) {
+        return this.memory.entities.hp[index];
+    }
+
+    getEntitySpeedBoost(index) {
+        return this.memory.entities.speedBoost[index];
+    }
+
+    getEntityTargetX(index) {
+        return this.memory.entities.targetX[index];
+    }
+
+    getEntityTargetY(index) {
+        return this.memory.entities.targetY[index];
+    }
+
+    getEntityTargetNodeId(index) {
+        return this.memory.entities.targetNodeId[index];
+    }
+
     getEntityId(index) {
         return this.memory.entities.id[index];
     }
