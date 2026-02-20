@@ -1,6 +1,8 @@
 import { PLAYER_COLORS, GAME_SETTINGS } from '../../shared/GameConfig.js';
 import { hexToRgba } from '../utils/helpers.js';
 
+const DEATH_TYPES = ['none', 'attack', 'explosion', 'absorbed', 'sacrifice', 'outOfBounds'];
+
 export class Renderer {
     constructor(ctx, game) {
         this.ctx = ctx;
@@ -26,10 +28,16 @@ export class Renderer {
     _getOrCreateUnitSprite(color, radius) {
         // Round radius to avoid creating too many cache entries for slight zoom changes
         const r = Math.round(radius);
-        const key = `${color}_${r}`;
 
-        if (this.unitSpriteCache.has(key)) {
-            return this.unitSpriteCache.get(key);
+        let colorCache = this.unitSpriteCache.get(color);
+        if (!colorCache) {
+            colorCache = new Map();
+            this.unitSpriteCache.set(color, colorCache);
+        }
+
+        let sprite = colorCache.get(r);
+        if (sprite) {
+            return sprite;
         }
 
         // Create offscreen canvas with padding for shadow
@@ -59,7 +67,7 @@ export class Renderer {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.fill();
 
-        this.unitSpriteCache.set(key, canvas);
+        colorCache.set(r, canvas);
         return canvas;
     }
 
@@ -201,13 +209,14 @@ export class Renderer {
     }
 
     drawNode(node, camera, isSelected = false) {
-        const screen = camera.worldToScreen(node.x, node.y);
+        const screenX = (node.x - camera.x) * camera.zoom;
+        const screenY = (node.y - camera.y) * camera.zoom;
         const sr = node.radius * camera.zoom;
         const sir = node.influenceRadius * camera.zoom;
 
         // Culling for nodes - skip if completely off screen
         const margin = sir * 2;
-        if (this.width && (screen.x < -margin || screen.x > this.width + margin || screen.y < -margin || screen.y > this.height + margin)) {
+        if (this.width && (screenX < -margin || screenX > this.width + margin || screenY < -margin || screenY > this.height + margin)) {
             return;
         }
 
@@ -221,7 +230,7 @@ export class Renderer {
             this.ctx.save();
             this.ctx.globalAlpha = 0.15;
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sir, 0, Math.PI * 2);
+            this.ctx.arc(screenX, screenY, sir, 0, Math.PI * 2);
             this.ctx.fillStyle = baseColor;
             this.ctx.fill();
             this.ctx.restore();
@@ -229,7 +238,7 @@ export class Renderer {
 
         // Dashed border - stronger for territory visibility
         this.ctx.beginPath();
-        this.ctx.arc(screen.x, screen.y, sir, 0, Math.PI * 2);
+        this.ctx.arc(screenX, screenY, sir, 0, Math.PI * 2);
         this.ctx.strokeStyle = node.owner !== -1 ? `rgba(${areaColor},0.5)` : `rgba(${areaColor},0.15)`;
         this.ctx.lineWidth = 2 * camera.zoom;
         this.ctx.setLineDash([8 * camera.zoom, 6 * camera.zoom]);
@@ -241,7 +250,7 @@ export class Renderer {
             const rx = (node.rallyPoint.x - camera.x) * camera.zoom;
             const ry = (node.rallyPoint.y - camera.y) * camera.zoom;
             this.ctx.beginPath();
-            this.ctx.moveTo(screen.x, screen.y);
+            this.ctx.moveTo(screenX, screenY);
             this.ctx.lineTo(rx, ry);
             this.ctx.strokeStyle = `rgba(${areaColor},0.5)`;
             this.ctx.setLineDash([4 * camera.zoom, 4 * camera.zoom]);
@@ -278,7 +287,7 @@ export class Renderer {
             }
 
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+            this.ctx.arc(screenX, screenY, sr + 5 * camera.zoom, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
             this.ctx.strokeStyle = progressColor;
             this.ctx.lineWidth = lineWidth;
             this.ctx.stroke();
@@ -303,7 +312,7 @@ export class Renderer {
 
         // Background / Capacity indicator
         this.ctx.beginPath();
-        this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
+        this.ctx.arc(screenX, screenY, sr, 0, Math.PI * 2);
         this.ctx.fillStyle = 'rgba(40,40,40,0.4)';
         this.ctx.fill();
         this.ctx.strokeStyle = 'rgba(255,255,255,0.1)';
@@ -311,33 +320,33 @@ export class Renderer {
         this.ctx.stroke();
 
         if (hpPercent > 0) {
-            const grad = this.ctx.createRadialGradient(screen.x, screen.y, 0, screen.x, screen.y, currentRadius);
+            const grad = this.ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, currentRadius);
             grad.addColorStop(0, `rgba(${r * 0.8}, ${g * 0.8}, ${b * 0.8}, 1)`);
             grad.addColorStop(1, brightColor);
 
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, currentRadius, 0, Math.PI * 2);
+            this.ctx.arc(screenX, screenY, currentRadius, 0, Math.PI * 2);
             this.ctx.fillStyle = grad;
             this.ctx.fill();
         }
 
         const borderColorStr = isSelected ? 'rgba(255,255,255,0.9)' : `rgba(${areaColor},0.5)`;
         this.ctx.beginPath();
-        this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
+        this.ctx.arc(screenX, screenY, sr, 0, Math.PI * 2);
         this.ctx.strokeStyle = borderColorStr;
         this.ctx.lineWidth = isSelected ? 3 * camera.zoom : 1.5 * camera.zoom;
         this.ctx.stroke();
 
         if (node.hitFlash > 0) {
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr, 0, Math.PI * 2);
+            this.ctx.arc(screenX, screenY, sr, 0, Math.PI * 2);
             this.ctx.strokeStyle = `rgba(255,100,100,${node.hitFlash})`;
             this.ctx.lineWidth = 5 * camera.zoom;
             this.ctx.stroke();
         }
         if (node.spawnEffect > 0) {
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, sr * (1.3 + (0.5 - node.spawnEffect) * 0.6), 0, Math.PI * 2);
+            this.ctx.arc(screenX, screenY, sr * (1.3 + (0.5 - node.spawnEffect) * 0.6), 0, Math.PI * 2);
             this.ctx.strokeStyle = `rgba(255,255,255,${node.spawnEffect * 1.5})`;
             this.ctx.lineWidth = 3 * camera.zoom;
             this.ctx.stroke();
@@ -346,21 +355,20 @@ export class Renderer {
 
     drawEntity(entity, camera, isSelected = false) {
         if (entity.dead) return;
-        const screen = camera.worldToScreen(entity.x, entity.y);
+        const screenX = (entity.x - camera.x) * camera.zoom;
+        const screenY = (entity.y - camera.y) * camera.zoom;
         const margin = entity.radius * camera.zoom + 5;
 
         // Culling: If off screen, skip drawing (Performance)
         if (this.width && (
-            screen.x < -margin || screen.x > this.width + margin ||
-            screen.y < -margin || screen.y > this.height + margin
+            screenX < -margin || screenX > this.width + margin ||
+            screenY < -margin || screenY > this.height + margin
         )) {
             return;
         }
 
         const deathType = entity.deathType;
-        const deathTypeStr = typeof deathType === 'number' ?
-            ['none', 'attack', 'explosion', 'absorbed', 'sacrifice', 'outOfBounds'][deathType] :
-            deathType;
+        const deathTypeStr = typeof deathType === 'number' ? DEATH_TYPES[deathType] : deathType;
 
         // Dying animation handling
         if (entity.dying) {
@@ -372,18 +380,18 @@ export class Renderer {
                 const alpha = 1 - progress;
 
                 this.ctx.beginPath();
-                this.ctx.arc(screen.x, screen.y, currentRadius, 0, Math.PI * 2);
+                this.ctx.arc(screenX, screenY, currentRadius, 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 200, 50, ${alpha * 0.3})`;
                 this.ctx.fill();
 
                 this.ctx.beginPath();
-                this.ctx.arc(screen.x, screen.y, sr * (1 - progress * 0.8), 0, Math.PI * 2);
+                this.ctx.arc(screenX, screenY, sr * (1 - progress * 0.8), 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
                 this.ctx.fill();
             } else if (deathTypeStr === 'attack') {
                 const flash = Math.sin(progress * Math.PI * 6) * 0.5 + 0.5;
                 this.ctx.beginPath();
-                this.ctx.arc(screen.x, screen.y, sr * (1 + progress * 2), 0, Math.PI * 2);
+                this.ctx.arc(screenX, screenY, sr * (1 + progress * 2), 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 100, 100, ${flash * 0.4 * (1 - progress)})`;
                 this.ctx.fill();
             } else if (deathTypeStr === 'sacrifice' || deathTypeStr === 'absorbed') {
@@ -397,13 +405,13 @@ export class Renderer {
                 this.ctx.save();
                 this.ctx.globalAlpha = alpha;
                 this.ctx.beginPath();
-                this.ctx.arc(screen.x + vibX, screen.y + vibY, sr * (1 - progress * 0.5), 0, Math.PI * 2);
+                this.ctx.arc(screenX + vibX, screenY + vibY, sr * (1 - progress * 0.5), 0, Math.PI * 2);
                 this.ctx.fillStyle = playerColor;
                 this.ctx.fill();
 
                 // Bright core
                 this.ctx.beginPath();
-                this.ctx.arc(screen.x + vibX, screen.y + vibY, sr * (0.3 * (1 - progress)), 0, Math.PI * 2);
+                this.ctx.arc(screenX + vibX, screenY + vibY, sr * (0.3 * (1 - progress)), 0, Math.PI * 2);
                 this.ctx.fillStyle = 'white';
                 this.ctx.fill();
                 this.ctx.restore();
@@ -419,12 +427,12 @@ export class Renderer {
         const offset = sprite.width / 2;
 
         // Quick draw using drawImage (Bit blit is much faster than ctx.arc fill)
-        this.ctx.drawImage(sprite, (screen.x - offset) | 0, (screen.y - offset) | 0);
+        this.ctx.drawImage(sprite, (screenX - offset) | 0, (screenY - offset) | 0);
 
         // Selection circle
         if (isSelected) {
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, renderRadius + 4 * camera.zoom, 0, Math.PI * 2);
+            this.ctx.arc(screenX, screenY, renderRadius + 4 * camera.zoom, 0, Math.PI * 2);
             this.ctx.strokeStyle = '#FFFFFF';
             this.ctx.lineWidth = 2 * camera.zoom;
             this.ctx.stroke();
@@ -442,8 +450,8 @@ export class Renderer {
             this.ctx.globalAlpha = smoothedBoost * 0.45;
             this.ctx.drawImage(
                 glowData.canvas,
-                screen.x - glowRadius,
-                screen.y - glowRadius,
+                screenX - glowRadius,
+                screenY - glowRadius,
                 glowRadius * 2,
                 glowRadius * 2
             );
@@ -458,10 +466,11 @@ export class Renderer {
 
     drawParticle(p, camera) {
         if (p.life <= 0) return;
-        const screen = camera.worldToScreen(p.x, p.y);
+        const screenX = (p.x - camera.x) * camera.zoom;
+        const screenY = (p.y - camera.y) * camera.zoom;
 
         // Culling
-        if (this.width && (screen.x < -20 || screen.x > this.width + 20 || screen.y < -20 || screen.y > this.height + 20)) {
+        if (this.width && (screenX < -20 || screenX > this.width + 20 || screenY < -20 || screenY > this.height + 20)) {
             return;
         }
 
@@ -471,8 +480,8 @@ export class Renderer {
             // Hit particles are lines, keeping vector for now as they are few, 
             // but optimized with globalAlpha
             this.ctx.beginPath();
-            this.ctx.moveTo(screen.x, screen.y);
-            this.ctx.lineTo(screen.x - p.vx * 0.1, screen.y - p.vy * 0.1);
+            this.ctx.moveTo(screenX, screenY);
+            this.ctx.lineTo(screenX - p.vx * 0.1, screenY - p.vy * 0.1);
             this.ctx.strokeStyle = p.color;
             this.ctx.lineWidth = 2 * camera.zoom;
             this.ctx.stroke();
@@ -492,8 +501,8 @@ export class Renderer {
                     this.ctx.globalAlpha = (p.life / p.maxLife) * 0.4;
                     this.ctx.drawImage(
                         glowData.canvas,
-                        screen.x - glowRadius,
-                        screen.y - glowRadius,
+                        screenX - glowRadius,
+                        screenY - glowRadius,
                         glowRadius * 2,
                         glowRadius * 2
                     );
@@ -504,8 +513,8 @@ export class Renderer {
             // Fast bit blit
             this.ctx.drawImage(
                 sprite,
-                screen.x - renderSize / 2,
-                screen.y - renderSize / 2,
+                screenX - renderSize / 2,
+                screenY - renderSize / 2,
                 renderSize,
                 renderSize
             );
@@ -514,7 +523,8 @@ export class Renderer {
     }
 
     drawCommandIndicator(ci, camera) {
-        const screen = camera.worldToScreen(ci.x, ci.y);
+        const screenX = (ci.x - camera.x) * camera.zoom;
+        const screenY = (ci.y - camera.y) * camera.zoom;
         const alpha = Math.max(0, ci.life / ci.maxLife);
         const size = 10 * camera.zoom;
 
@@ -522,16 +532,16 @@ export class Renderer {
             this.ctx.strokeStyle = `rgba(255, 100, 100, ${alpha})`;
             this.ctx.lineWidth = 2 * camera.zoom;
             this.ctx.beginPath();
-            this.ctx.moveTo(screen.x - size, screen.y - size);
-            this.ctx.lineTo(screen.x + size, screen.y + size);
-            this.ctx.moveTo(screen.x + size, screen.y - size);
-            this.ctx.lineTo(screen.x - size, screen.y + size);
+            this.ctx.moveTo(screenX - size, screenY - size);
+            this.ctx.lineTo(screenX + size, screenY + size);
+            this.ctx.moveTo(screenX + size, screenY - size);
+            this.ctx.lineTo(screenX - size, screenY + size);
             this.ctx.stroke();
         } else {
             this.ctx.strokeStyle = `rgba(100, 200, 255, ${alpha})`;
             this.ctx.lineWidth = 2 * camera.zoom;
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, size * (1 - alpha), 0, Math.PI * 2);
+            this.ctx.arc(screenX, screenY, size * (1 - alpha), 0, Math.PI * 2);
             this.ctx.stroke();
         }
     }
@@ -553,11 +563,13 @@ export class Renderer {
     drawPath(points, camera, color = 'rgba(255, 255, 255, 0.4)', lineWidth = 2, dashed = false) {
         if (points.length < 2) return;
         this.ctx.beginPath();
-        const start = camera.worldToScreen(points[0].x, points[0].y);
-        this.ctx.moveTo(start.x, start.y);
+        const startX = (points[0].x - camera.x) * camera.zoom;
+        const startY = (points[0].y - camera.y) * camera.zoom;
+        this.ctx.moveTo(startX, startY);
         for (let i = 1; i < points.length; i++) {
-            const p = camera.worldToScreen(points[i].x, points[i].y);
-            this.ctx.lineTo(p.x, p.y);
+            const px = (points[i].x - camera.x) * camera.zoom;
+            const py = (points[i].y - camera.y) * camera.zoom;
+            this.ctx.lineTo(px, py);
         }
         this.ctx.strokeStyle = color;
         this.ctx.lineWidth = lineWidth * camera.zoom;
@@ -582,20 +594,23 @@ export class Renderer {
         this.ctx.strokeStyle = rgba;
 
         this.ctx.beginPath();
-        const start = camera.worldToScreen(wl.points[0].x, wl.points[0].y);
-        this.ctx.moveTo(start.x, start.y);
+        const startX = (wl.points[0].x - camera.x) * camera.zoom;
+        const startY = (wl.points[0].y - camera.y) * camera.zoom;
+        this.ctx.moveTo(startX, startY);
 
         for (let i = 1; i < wl.points.length; i++) {
-            const p = camera.worldToScreen(wl.points[i].x, wl.points[i].y);
-            this.ctx.lineTo(p.x, p.y);
+            const px = (wl.points[i].x - camera.x) * camera.zoom;
+            const py = (wl.points[i].y - camera.y) * camera.zoom;
+            this.ctx.lineTo(px, py);
         }
         this.ctx.stroke();
         this.ctx.setLineDash([]);
 
         wl.points.forEach((point, i) => {
-            const screen = camera.worldToScreen(point.x, point.y);
+            const sx = (point.x - camera.x) * camera.zoom;
+            const sy = (point.y - camera.y) * camera.zoom;
             this.ctx.beginPath();
-            this.ctx.arc(screen.x, screen.y, (i === wl.points.length - 1 ? 6 : 3) * camera.zoom, 0, Math.PI * 2);
+            this.ctx.arc(sx, sy, (i === wl.points.length - 1 ? 6 : 3) * camera.zoom, 0, Math.PI * 2);
             this.ctx.fillStyle = `rgba(255, 255, 255, ${alpha * (i === wl.points.length - 1 ? 1 : 0.6)})`;
             this.ctx.fill();
         });
