@@ -351,41 +351,19 @@
 
 <body>
 
-    <div id="commander-profile">
+    <div id="commander-profile" style="display: none;">
         <div class="profile-info">
             <span style="opacity:0.5">COMANDANTE:</span>
             <strong id="profile-name" style="color:white;">---</strong>
-            <span id="profile-color-dot"></span>
-        </div>
-        <button id="btn-logout"
-            style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#aaa; font-family:monospace; font-size:9px; padding:4px 10px; border-radius:3px; cursor:pointer;">CAMBIAR</button>
-    </div>
-
-    <!-- SCREEN 1: LOGIN -->
-    <div id="screen-login" class="screen active">
-        <div class="menu-container">
-            <h1 class="game-title">NANOWAR</h1>
-            <p class="game-subtitle">Stable 1.1</p>
-
-            <div class="input-group">
-                <label>IDENTIFICACIÓN DE COMANDANTE</label>
-                <input type="text" id="player-name" placeholder="Tu nombre" maxlength="15">
-            </div>
-
-            <div class="input-group" style="text-align: center;">
-                <label style="text-align: center;">COLOR DE FLOTA</label>
-                <div class="color-picker" id="color-picker">
-                    <!-- Configured via JS -->
-                </div>
-            </div>
-
-            <button class="btn" id="btn-login" style="margin-top: 30px;">ENTRAR AL SISTEMA</button>
+            <span id="profile-color-dot" style="display: none;"></span>
         </div>
     </div>
 
     <!-- SCREEN 2: MODE SELECTION -->
-    <div id="screen-modes" class="screen">
+    <div id="screen-modes" class="screen active">
         <div class="menu-container">
+            <h1 class="game-title" style="font-size: 48px; margin-top: -20px;">NANOWAR</h1>
+            <p class="game-subtitle">Stable 1.1</p>
             <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">
                 SELECCIÓN DE OPERACIÓN</h2>
 
@@ -403,8 +381,6 @@
                     <p>Combate táctico en red contra otros comandantes.</p>
                 </div>
             </div>
-
-            <button class="btn secondary" id="btn-back-login" style="margin-top: 40px;">← SALIR</button>
         </div>
     </div>
 
@@ -432,6 +408,13 @@
                     <option value="hard">Difícil</option>
                     <option value="expert">Experto (Nightmare)</option>
                 </select>
+            </div>
+
+            <div class="input-group" style="text-align: center; margin-top: 25px;">
+                <label style="text-align: center;">COLOR DE FLOTA</label>
+                <div class="color-picker" id="single-color-picker">
+                    <!-- Configured via JS -->
+                </div>
             </div>
 
             <button class="btn" id="btn-start-single" style="margin-top: 30px;">INICIAR SIMULACIÓN</button>
@@ -470,7 +453,12 @@
                 DE ESPERA: <span id="lobby-id-text" style="color:white;">---</span></h2>
 
             <div class="input-group" style="text-align: center; margin-bottom: 15px;">
-                <label style="text-align: center;">VELOCIDAD DE UNIDADES</label>
+                <label style="text-align: center;">TU COLOR DE FLOTA</label>
+                <div class="color-picker" id="multi-color-picker" style="margin-bottom: 20px;">
+                    <!-- Configured via JS -->
+                </div>
+
+                <label style="text-align: center; margin-top: 15px;">VELOCIDAD DE UNIDADES</label>
                 <div class="slider-container">
                     <span style="font-size: 11px; opacity: 0.5;">0.5x</span>
                     <input type="range" id="lobby-speed" min="0.5" max="2" step="0.1" value="1">
@@ -500,7 +488,6 @@
 
             // -- Screens --
             const screens = {
-                login: document.getElementById('screen-login'),
                 modes: document.getElementById('screen-modes'),
                 single: document.getElementById('screen-single'),
                 multi: document.getElementById('screen-multi'),
@@ -509,54 +496,51 @@
 
             function showScreen(id) {
                 Object.values(screens).forEach(s => s.classList.remove('active'));
-                screens[id].classList.add('active');
+                if (screens[id]) screens[id].classList.add('active');
 
                 const profileBar = document.getElementById('commander-profile');
-                if (profileBar) {
-                    if (id === 'login') {
-                        profileBar.style.display = 'none';
-                    } else {
-                        profileBar.style.display = 'flex';
-                        document.getElementById('profile-name').innerText = playerName;
-                        const cDot = document.getElementById('profile-color-dot');
-                        if (cDot) cDot.style.backgroundColor = PLAYER_COLORS[selectedColorIndex];
-                    }
+                if (id === 'modes') {
+                    profileBar.style.display = 'none';
+                } else if (id === 'lobby') {
+                    profileBar.style.display = 'none';
                 }
             }
 
-            // -- INIT LOGIN --
-            const nickInput = document.getElementById('player-name');
-            nickInput.value = playerName;
-            const colorPicker = document.getElementById('color-picker');
-            PLAYER_COLORS.forEach((color, idx) => {
-                const circle = document.createElement('div');
-                circle.className = 'color-circle' + (idx === 0 ? ' selected' : '');
-                circle.style.backgroundColor = color;
-                circle.addEventListener('click', () => {
-                    document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
-                    circle.classList.add('selected');
-                    selectedColorIndex = idx;
-                });
-                colorPicker.appendChild(circle);
-            });
+            if (!playerName) {
+                playerName = 'CMD-' + Math.floor(Math.random() * 9000 + 1000);
+            }
 
-            document.getElementById('btn-login').addEventListener('click', () => {
-                if (!nickInput.value.trim()) { alert('Identificación requerida.'); return; }
-                playerName = nickInput.value.trim();
-                localStorage.setItem('nanowar_nickname', playerName);
-                showScreen('modes');
-            });
-
-            const btnLogout = document.getElementById('btn-logout');
-            if (btnLogout) {
-                btnLogout.addEventListener('click', () => {
-                    showScreen('login');
+            // Function to generate color pickers
+            function populateColorPicker(containerId, onSelectCallback) {
+                const colorPicker = document.getElementById(containerId);
+                if (!colorPicker) return;
+                colorPicker.innerHTML = '';
+                PLAYER_COLORS.forEach((color, idx) => {
+                    const circle = document.createElement('div');
+                    circle.className = 'color-circle' + (idx === selectedColorIndex ? ' selected' : '');
+                    circle.style.backgroundColor = color;
+                    circle.addEventListener('click', () => {
+                        colorPicker.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
+                        circle.classList.add('selected');
+                        selectedColorIndex = idx;
+                        if (onSelectCallback) onSelectCallback(idx);
+                    });
+                    colorPicker.appendChild(circle);
                 });
             }
 
+            populateColorPicker('single-color-picker', null);
+            populateColorPicker('multi-color-picker', (idx) => {
+                if (window.multiplayer && window.multiplayer.socket) {
+                    window.multiplayer.socket.emit('setColor', idx);
+                }
+            });
+
             // -- INIT MODES --
-            document.getElementById('btn-back-login').addEventListener('click', () => showScreen('login'));
-            document.getElementById('btn-mode-single').addEventListener('click', () => showScreen('single'));
+            document.getElementById('btn-mode-single').addEventListener('click', () => {
+                showScreen('single');
+                populateColorPicker('single-color-picker', null);
+            });
 
             document.getElementById('btn-mode-multi').addEventListener('click', () => {
                 showScreen('multi');
@@ -641,6 +625,13 @@
             window.updateLobbyUI = function (players, roomId) {
                 showScreen('lobby');
                 if (roomId) document.getElementById('lobby-id-text').innerText = roomId;
+
+                // Keep multi-color-picker up to date with the server's acknowledgment of our color just in case
+                populateColorPicker('multi-color-picker', (idx) => {
+                    if (window.multiplayer && window.multiplayer.socket) {
+                        window.multiplayer.socket.emit('setColor', idx);
+                    }
+                });
 
                 const container = document.getElementById('lobby-players-container');
                 container.innerHTML = players.map(p => {
