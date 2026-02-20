@@ -38,26 +38,32 @@ export class UIManager {
     _updateStatsCache() {
         const now = performance.now();
         const dt = (now - this._lastSampleTime) / 1000;
-        if (dt < 2) return; // Sample at most every 2 seconds
+        if (dt < 1) return; // Sample every second
 
         const currentCounts = this._countEntitiesPerPlayer();
         const playerCount = this.game.state?.playerCount || 2;
 
-        for (let i = 0; i < playerCount; i++) {
-            const cur = currentCounts[i] || 0;
-            const prev = this._lastCounts[i] !== undefined ? this._lastCounts[i] : cur;
-            const delta = Math.max(0, cur - prev); // new units since last sample
+        // Read spawn counts accumulated by Game.js from the worker's spawn events
+        const spawnCounts = this.game.state?.spawnCounts || {};
 
-            this._totalProduced[i] = (this._totalProduced[i] || 0) + delta;
-            this._ratesCache[i] = dt > 0 ? delta / dt : 0; // units/sec
-            this._lastCounts[i] = cur;
+        for (let i = 0; i < playerCount; i++) {
+            const spawned = spawnCounts[i] || 0;
+            this._totalProduced[i] = (this._totalProduced[i] || 0) + spawned;
+            // prod/min = spawns-in-this-interval * (60 / dt)
+            this._ratesCache[i] = dt > 0 ? (spawned / dt) * 60 : 0;
+            this._lastCounts[i] = currentCounts[i] || 0;
+        }
+
+        // Reset spawn counts after consuming them
+        if (this.game.state?.spawnCounts) {
+            this.game.state.spawnCounts = {};
         }
 
         // Override with server-provided values when in multiplayer mode
         const serverRates = this.game.state?.productionRates;
         if (serverRates) {
             for (const pid in serverRates) {
-                this._ratesCache[parseInt(pid)] = serverRates[pid];
+                this._ratesCache[parseInt(pid)] = serverRates[pid] * 60; // convert units/sec to units/min
             }
         }
         const serverProduced = this.game.state?.stats?.unitsProduced;
@@ -148,7 +154,7 @@ export class UIManager {
             const pColor = colors[i % colors.length];
 
             const rate = this._ratesCache[i] || 0;
-            const ratePerMin = Math.round(rate * 60);
+            const ratePerMin = Math.round(rate); // already in units/min
             const produced = this._totalProduced[i] || 0;
             const current = this._currentCounts?.[i] || 0;
 

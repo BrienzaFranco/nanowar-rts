@@ -326,12 +326,17 @@ export class Game {
             }
         }
 
+        if (!this.state.spawnCounts) this.state.spawnCounts = {};
+
         const spawnCount = view.getSpawnEventsCount();
         for (let i = 0; i < spawnCount; i++) {
             const event = view.getSpawnEvent(i);
             if (event) {
                 const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
                 this.spawnParticles(event.x, event.y, color, 6, 'explosion');
+
+                // Accumulate spawn counts for UIManager prod/min tracking
+                this.state.spawnCounts[event.owner] = (this.state.spawnCounts[event.owner] || 0) + 1;
 
                 let spawnerNode = null;
                 let minDist = Infinity;
@@ -355,7 +360,7 @@ export class Game {
                     tnodeId = spawnerNode.rallyTargetNode ? spawnerNode.rallyTargetNode.id : -1;
                 }
 
-                const newId = Date.now() + Math.random();
+                const newId = ++Entity.idCounter;
                 const ent = new Entity(event.x, event.y, event.owner, newId);
 
                 if (tx !== 0 || ty !== 0 || tnodeId !== -1) {
