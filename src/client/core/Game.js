@@ -338,33 +338,16 @@ export class Game {
                 // Accumulate spawn counts for UIManager prod/min tracking
                 this.state.spawnCounts[event.owner] = (this.state.spawnCounts[event.owner] || 0) + 1;
 
-                let spawnerNode = null;
-                let minDist = Infinity;
-                for (const n of this.state.nodes) {
-                    if (n.owner === event.owner) {
-                        const distSq = (n.x - event.x) ** 2 + (n.y - event.y) ** 2;
-                        if (distSq < minDist) {
-                            minDist = distSq;
-                            spawnerNode = n;
-                        }
-                    }
-                }
-
                 let tx = event.targetX;
                 let ty = event.targetY;
                 let tnodeId = event.targetNodeId;
-
-                if (spawnerNode && spawnerNode.rallyPoint) {
-                    tx = spawnerNode.rallyPoint.x;
-                    ty = spawnerNode.rallyPoint.y;
-                    tnodeId = spawnerNode.rallyTargetNode ? spawnerNode.rallyTargetNode.id : -1;
-                }
 
                 const newId = ++Entity.idCounter;
                 const ent = new Entity(event.x, event.y, event.owner, newId);
 
                 if (tx !== 0 || ty !== 0 || tnodeId !== -1) {
-                    ent.setTarget(tx, ty, spawnerNode?.rallyTargetNode);
+                    const targetNodeObj = tnodeId !== -1 ? this.state.nodes.find(n => n.id === tnodeId) : null;
+                    ent.setTarget(tx, ty, targetNodeObj);
                 }
 
                 this.state.entities.push(ent);
