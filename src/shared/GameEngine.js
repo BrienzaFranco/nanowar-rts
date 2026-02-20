@@ -522,13 +522,11 @@ export class GameEngine {
                 ? Math.min(1.0, speedBoost + dt * 1.8)
                 : Math.max(0.0, speedBoost - dt * 0.9);
 
-            // ─────────────────────────────────────────────────────────────────
-            // B. Seek target with Arrival behaviour
-            //    – Full speed until inside slowRadius
-            //    – Decelerates smoothly as it enters the "parking zone"
-            //    – Formation offset: each unit aims for a point on a circle
-            //      AROUND the target rather than the exact centre
-            // ─────────────────────────────────────────────────────────────────
+            
+            // B. Seek target -- direct drive, no orbit
+            //    * Node target  -> straight in (separation handles spacing)
+            //    * Point target -> 12px golden-angle spread across units
+            //    * Obstacle avoidance: minimal swerve, graze close to nodes
             const hasTarget = this.entityData.hasTarget(i);
             const targetX = this.entityData.getTargetX(i);
             const targetY = this.entityData.getTargetY(i);
@@ -538,28 +536,12 @@ export class GameEngine {
                 let arrivalX = targetX;
                 let arrivalY = targetY;
 
-                // Find the radius of the target node (if targeting one)
-                let targetNodeRadius = 0;
-                if (targetNodeId !== -1) {
-                    for (let n = 0; n < this.nodeData.getCount(); n++) {
-                        if (this.nodeData.getId(n) === targetNodeId) {
-                            targetNodeRadius = this.nodeData.getRadius(n);
-                            break;
-                        }
-                    }
-                }
-
-                // Formation angle: use entity index + a slow drift for an
-                // organic, ever-shifting ring around the target
-                const FORMATION_SPREAD = targetNodeRadius + 22; // orbit radius beyond node surface
-                const phase = i * 2.399963; // golden-angle spacing (radians)
-                const drift = now * 0.35;   // slow drift — feels organic
-                const formAngle = phase + drift;
-
-                if (targetNodeRadius > 0) {
-                    // Orbiting/attacking a node: aim for a point on the ring
-                    arrivalX = targetX + Math.cos(formAngle) * FORMATION_SPREAD;
-                    arrivalY = targetY + Math.sin(formAngle) * FORMATION_SPREAD;
+                // Point-only targets: tiny spread so large groups distribute
+                if (targetNodeId === -1) {
+                    const phase = i * 2.399963; // golden angle
+                    const SPREAD = 12;
+                    arrivalX = targetX + Math.cos(phase) * SPREAD;
+                    arrivalY = targetY + Math.sin(phase) * SPREAD;
                 }
 
                 const dx = arrivalX - x;
@@ -567,35 +549,33 @@ export class GameEngine {
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist > 2) {
-                    // Full seek force — no deceleration near target
                     const SEEK_FORCE = 900;
-
                     vx += (dx / dist) * SEEK_FORCE * dt;
                     vy += (dy / dist) * SEEK_FORCE * dt;
 
-                    // ── Obstacle avoidance: steer AROUND non-target nodes ──
-                    const lookAhead = 60 + Math.sqrt(vx * vx + vy * vy) * 0.18;
-                    const dirX = vx / (Math.sqrt(vx * vx + vy * vy) || 1);
-                    const dirY = vy / (Math.sqrt(vx * vx + vy * vy) || 1);
+                    // Obstacle avoidance: graze non-target nodes (tight)
+                    const speed2 = Math.sqrt(vx * vx + vy * vy);
+                    const lookAhead = 30 + speed2 * 0.12;
+                    const dirX = vx / (speed2 || 1);
+                    const dirY = vy / (speed2 || 1);
 
                     for (let n = 0; n < this.nodeData.getCount(); n++) {
                         if (this.nodeData.getId(n) === targetNodeId) continue;
-                        const nx = this.nodeData.getX(n);
-                        const ny = this.nodeData.getY(n);
+                        const nnx = this.nodeData.getX(n);
+                        const nny = this.nodeData.getY(n);
                         const nRadius = this.nodeData.getRadius(n);
 
-                        const ndx = nx - x;
-                        const ndy = ny - y;
+                        const ndx = nnx - x;
+                        const ndy = nny - y;
                         const nDist = Math.sqrt(ndx * ndx + ndy * ndy);
 
                         if (nDist < nRadius + lookAhead && nDist > 1) {
                             const dot = (ndx / nDist) * dirX + (ndy / nDist) * dirY;
-                            if (dot > 0.1) {
-                                // Choose the shorter perpendicular side
+                            if (dot > 0.2) {
                                 const perpX = -dirY;
-                                const perpY = dirX;
+                                const perpY =  dirX;
                                 const side = (ndx * dirY - ndy * dirX) > 0 ? 1 : -1;
-                                const avoidStrength = (1 - nDist / (nRadius + lookAhead)) * 3800;
+                                const avoidStrength = (1 - nDist / (nRadius + lookAhead)) * 2000;
                                 vx += perpX * side * avoidStrength * dt;
                                 vy += perpY * side * avoidStrength * dt;
                             }
@@ -604,26 +584,25 @@ export class GameEngine {
                 }
             }
 
-            // ─────────────────────────────────────────────────────────────────
-            // C. Organic wobble: subtle per-entity sine-wave lateral jitter
-            //    Makes cells feel alive even when stationary
-            // ─────────────────────────────────────────────────────────────────
-            const wobbleFreq = 1.6 + (i % 7) * 0.18;  // different freq per cell
-            const wobblePhase = i * 1.618;               // golden-ratio phase offset
-            const wobbleAmp = 6;                       // pixels/s
+            // C. Organic wobble -- gentle, fades at speed
+            //    Idle cells wander slowly; moving cells are nearly straight
+            const wobbleFreq  = 0.9 + (i % 7) * 0.11;
+            const wobblePhase = i * 1.618;
+            const wobbleAmp   = 2.5;
             const speed = Math.sqrt(vx * vx + vy * vy);
-            // Wobble is perpendicular to current velocity
-            if (speed > 1) {
+            const speedFade = Math.max(0, 1 - speed / 30);
+            if (speed > 0.5) {
                 const perpX = -vy / speed;
-                const perpY = vx / speed;
-                const wobble = Math.sin(now * wobbleFreq + wobblePhase) * wobbleAmp;
+                const perpY =  vx / speed;
+                const wobble = Math.sin(now * wobbleFreq + wobblePhase) * wobbleAmp * speedFade;
                 vx += perpX * wobble * dt;
                 vy += perpY * wobble * dt;
             } else {
-                // No clear velocity direction — just gentle 2D oscillation
-                vx += Math.sin(now * wobbleFreq + wobblePhase) * wobbleAmp * 0.5 * dt;
-                vy += Math.cos(now * wobbleFreq + wobblePhase + 1.1) * wobbleAmp * 0.5 * dt;
+                // Idle: slow biological drift
+                vx += Math.sin(now * wobbleFreq + wobblePhase)       * wobbleAmp * 0.4 * dt;
+                vy += Math.cos(now * wobbleFreq + wobblePhase + 0.8) * wobbleAmp * 0.4 * dt;
             }
+
 
             // ─────────────────────────────────────────────────────────────────
             // D. Friction + speed cap
