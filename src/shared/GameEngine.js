@@ -667,7 +667,7 @@ export class GameEngine {
         // Precalculate unit counts per player to enforce global cap efficiently
         const playerUnitCounts = {};
         for (let i = 0; i < this.entityData.getCount(); i++) {
-            if (this.entityData.getDead(i) || this.entityData.getDying(i)) continue;
+            if (this.entityData.isDead(i) || this.entityData.isDying(i)) continue;
             const owner = this.entityData.getOwner(i);
             if (owner !== -1) {
                 playerUnitCounts[owner] = (playerUnitCounts[owner] || 0) + 1;
