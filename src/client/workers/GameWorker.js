@@ -230,8 +230,10 @@ function handleCollisionsAndCohesion() {
     buildSpatialGrid();
 
     const count = entityData.getCount();
-    const cohesionRadius = 30;
-    const cohesionForce = 45;
+    const cohesionRadius = 45;
+    const cohesionForce = 30;
+    const separationRadius = 18;
+    const separationForce = 65;
 
     for (let i = 0; i < count; i++) {
         if (entityData.isDead(i) || entityData.isDying(i)) continue;
@@ -271,6 +273,7 @@ function handleCollisionsAndCohesion() {
         entityData.setY(i, y);
 
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
+        let separationX = 0, separationY = 0, separationCount = 0;
 
         const neighborCount = getNearbyEntities(x, y, cohesionRadius);
         const flockId = entityData.getFlockId(i);
@@ -336,22 +339,36 @@ function handleCollisionsAndCohesion() {
             }
 
             if (otherOwner === owner) {
-                if (dist > radius * 2.2) {
+                if (dist < separationRadius) {
+                    const safeDist = Math.max(0.1, dist);
+                    const force = (1 - safeDist / separationRadius);
+                    separationX -= (dx / safeDist) * force;
+                    separationY -= (dy / safeDist) * force;
+                    separationCount++;
+                } else if (dist > radius * 2.5) {
+                    const safeDist = Math.max(0.1, dist);
                     if (inFlock && entityData.getFlockId(other) === flockId) {
-                        cohesionX += (dx / dist) * 1.8;
-                        cohesionY += (dy / dist) * 1.8;
+                        cohesionX += (dx / safeDist) * 1.5;
+                        cohesionY += (dy / safeDist) * 1.5;
                     } else {
-                        cohesionX += dx / dist;
-                        cohesionY += dy / dist;
+                        cohesionX += dx / safeDist;
+                        cohesionY += dy / safeDist;
                     }
                     cohesionCount++;
                 }
             }
         }
 
-        if (cohesionCount > 0) {
-            const fx = (cohesionX / cohesionCount) * cohesionForce;
-            const fy = (cohesionY / cohesionCount) * cohesionForce;
+        if (cohesionCount > 0 || separationCount > 0) {
+            let fx = 0, fy = 0;
+            if (cohesionCount > 0) {
+                fx += (cohesionX / cohesionCount) * cohesionForce;
+                fy += (cohesionY / cohesionCount) * cohesionForce;
+            }
+            if (separationCount > 0) {
+                fx += (separationX / separationCount) * separationForce;
+                fy += (separationY / separationCount) * separationForce;
+            }
 
             const vx = entityData.getVx(i) + fx * 0.016;
             const vy = entityData.getVy(i) + fy * 0.016;
@@ -634,12 +651,13 @@ function updateEntities(dt) {
 
                 if (nDist < nRadius + 60 && nDist > 10) {
                     const dot = (ndx / nDist) * targetNx + (ndy / nDist) * targetNy;
-                    if (dot > 0.5) {
+                    if (dot > 0.3) {
                         const perpX = -targetNy;
                         const perpY = targetNx;
                         const side = (ndx * targetNy - ndy * targetNx) > 0 ? 1 : -1;
-                        vx += perpX * side * 150 * 0.016;
-                        vy += perpY * side * 150 * 0.016;
+                        const forceMult = (1 - (nDist / (nRadius + 60))) * 2500;
+                        vx += perpX * side * forceMult * 0.016;
+                        vy += perpY * side * forceMult * 0.016;
                     }
                 }
             }

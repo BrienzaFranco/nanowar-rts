@@ -96,9 +96,9 @@ export class SelectionManager {
         const screen = camera.worldToScreen(nx, ny);
         const radius = this.getNodeRadius(idx) * camera.zoom;
         return screen.x + radius >= Math.min(x1, x2) &&
-               screen.x - radius <= Math.max(x1, x2) &&
-               screen.y + radius >= Math.min(y1, y2) &&
-               screen.y - radius <= Math.max(y1, y2);
+            screen.x - radius <= Math.max(x1, x2) &&
+            screen.y + radius >= Math.min(y1, y2) &&
+            screen.y - radius <= Math.max(y1, y2);
     }
 
     isEntityInRect(idx, x1, y1, x2, y2, camera) {
@@ -107,9 +107,9 @@ export class SelectionManager {
         const screen = camera.worldToScreen(ex, ey);
         const radius = (this.getEntityRadius(idx) + 5) * camera.zoom;
         return screen.x + radius >= Math.min(x1, x2) &&
-               screen.x - radius <= Math.max(x1, x2) &&
-               screen.y + radius >= Math.min(y1, y2) &&
-               screen.y - radius <= Math.max(y1, y2);
+            screen.x - radius <= Math.max(x1, x2) &&
+            screen.y + radius >= Math.min(y1, y2) &&
+            screen.y - radius <= Math.max(y1, y2);
     }
 
     findNodeAtScreen(mx, my) {
@@ -165,11 +165,11 @@ export class SelectionManager {
         const ny = this.getNodeY(nodeIdx);
         const radius = this.getNodeInfluenceRadius(nodeIdx);
         const owner = this.getNodeOwner(nodeIdx);
-        
+
         if (view) {
             return view.getEntitiesInRadius(nx, ny, radius, owner);
         }
-        
+
         const result = [];
         this.game.state.entities.forEach((e, i) => {
             if (e.owner === owner && !e.dead && !e.dying) {
@@ -185,7 +185,7 @@ export class SelectionManager {
     getEntitiesInScreenRect(x1, y1, x2, y2, owner) {
         const view = this.view;
         const camera = this.game.camera;
-        
+
         if (view) {
             return view.getEntitiesInRect(
                 camera.screenToWorld(x1, y1).x,
@@ -195,13 +195,13 @@ export class SelectionManager {
                 owner
             );
         }
-        
+
         const result = [];
         const minX = Math.min(x1, x2);
         const maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2);
         const maxY = Math.max(y1, y2);
-        
+
         this.game.state.entities.forEach((e, i) => {
             if (owner !== undefined && e.owner !== owner) return;
             if (e.dead || e.dying) return;
@@ -219,22 +219,22 @@ export class SelectionManager {
         const view = this.view;
         const camera = this.game.camera;
         const result = [];
-        
+
         const minX = Math.min(x1, x2);
         const maxX = Math.max(x1, x2);
         const minY = Math.min(y1, y2);
         const maxY = Math.max(y1, y2);
-        
+
         const count = this.getEntityCount();
         for (let i = 0; i < count; i++) {
             if (this.isEntityDead(i) || this.isEntityDying(i)) continue;
             if (owner !== undefined && this.getEntityOwner(i) !== owner) continue;
-            
+
             const ex = this.getEntityX(i);
             const ey = this.getEntityY(i);
             const screen = camera.worldToScreen(ex, ey);
             const radius = (this.getEntityRadius(i) + 5) * camera.zoom;
-            
+
             if (screen.x >= minX && screen.x <= maxX && screen.y >= minY && screen.y <= maxY) {
                 result.push(i);
             }
@@ -242,18 +242,14 @@ export class SelectionManager {
         return result;
     }
 
-    getNodeEntityIdsInRect(x1, y1, x2, y2) {
+    getNodesInRect(x1, y1, x2, y2) {
         const camera = this.game.camera;
         const count = this.getNodeCount();
         const result = [];
-        
+
         for (let i = 0; i < count; i++) {
-            if (!this.isNodeInRect(i, x1, y1, x2, y2, camera)) continue;
-            result.push(this.getNodeId(i));
-            
-            const entityIdxs = this.getEntitiesInNodeArea(i);
-            for (const eIdx of entityIdxs) {
-                result.push(this.getEntityId(eIdx));
+            if (this.isNodeInRect(i, x1, y1, x2, y2, camera)) {
+                result.push(this.getNodeId(i));
             }
         }
         return result;
@@ -338,7 +334,7 @@ export class SelectionManager {
     handleDoubleClick(mx, my) {
         const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
         const clickedNodeIdx = this.findNodeAtScreen(mx, my);
-        
+
         if (clickedNodeIdx >= 0) {
             const owner = this.getNodeOwner(clickedNodeIdx);
             const count = this.getNodeCount();
@@ -355,7 +351,7 @@ export class SelectionManager {
             }
             return;
         }
-        
+
         const clickedEntityIdx = this.findEntityAtScreen(mx, my);
         if (clickedEntityIdx >= 0) {
             const owner = this.getEntityOwner(clickedEntityIdx);
@@ -389,7 +385,7 @@ export class SelectionManager {
     selectAt(mx, my) {
         const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
         const clickedNodeIdx = this.findNodeAtScreen(mx, my);
-        
+
         if (clickedNodeIdx >= 0) {
             this.selectedNodes.add(this.getNodeId(clickedNodeIdx));
             if (this.getNodeOwner(clickedNodeIdx) === playerIndex) {
@@ -412,17 +408,22 @@ export class SelectionManager {
 
     selectInBox(x1, y1, x2, y2) {
         const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
-        
+
         const entityIdxs = this.getEntitiesInScreenRect(x1, y1, x2, y2, playerIndex);
         for (const eIdx of entityIdxs) {
             this.selectedEntities.add(this.getEntityId(eIdx));
         }
 
-        const nodeIds = this.getNodeEntityIdsInRect(x1, y1, x2, y2);
+        const nodeIds = this.getNodesInRect(x1, y1, x2, y2);
         for (const id of nodeIds) {
             const idx = this.findNodeById(id);
             if (idx >= 0 && this.getNodeOwner(idx) === playerIndex) {
                 this.selectedNodes.add(id);
+                // Si seleccionamos el nodo en recuadro, también seleccionamos todas sus unidades flotantes
+                const nestedEntityIdxs = this.getEntitiesInNodeArea(idx);
+                for (const nestedIdx of nestedEntityIdxs) {
+                    this.selectedEntities.add(this.getEntityId(nestedIdx));
+                }
             }
         }
     }
