@@ -450,13 +450,10 @@ export class GameServer {
                     );
                     if (index === -1) break;
 
-                    // Set entity ID = its buffer index so client can resolve selections
                     this.entityData.setId(index, index);
                     this.entityData.setVx(index, 0);
                     this.entityData.setVy(index, 0);
                     this.entityData.setRadius(index, 5);
-                    this.entityData.setMaxSpeed(index, 90 + Math.random() * 20);
-                    this.entityData.setFriction(index, 0.98);
                     this.entityData.setHasTarget(index, false);
                 }
             }
