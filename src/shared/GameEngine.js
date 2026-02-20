@@ -111,7 +111,11 @@ export class GameEngine {
             // ──────────────────────────────────────
             // 1. Hard push OUT of node bodies
             // ──────────────────────────────────────
+            const targetNodeId = this.entityData.getTargetNodeId(i);
             for (let n = 0; n < this.nodeData.getCount(); n++) {
+                // If this is the node we want to enter, don't push us away physically!
+                if (this.nodeData.getId(n) === targetNodeId) continue;
+
                 const nodeX = this.nodeData.getX(n);
                 const nodeY = this.nodeData.getY(n);
                 const nodeRadius = this.nodeData.getRadius(n);
