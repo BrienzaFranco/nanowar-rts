@@ -138,6 +138,18 @@ export class SharedView {
         return this.memory.nodes.id[index];
     }
 
+    getNodeRallyX(index) {
+        return this.memory.nodes.rallyX[index];
+    }
+
+    getNodeRallyY(index) {
+        return this.memory.nodes.rallyY[index];
+    }
+
+    getNodeRallyTargetNodeId(index) {
+        return this.memory.nodes.rallyTargetNodeId[index];
+    }
+
     getDeathEventsCount() {
         return this.memory.header.deathEventsCount[0];
     }

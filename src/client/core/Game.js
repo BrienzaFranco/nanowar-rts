@@ -531,6 +531,19 @@ export class Game {
             const owner = view.getNodeOwner(nodeIndex);
             const baseHp = view.getNodeBaseHp(nodeIndex);
             const maxHp = view.getNodeMaxHp(nodeIndex);
+
+            const rX = view.getNodeRallyX(nodeIndex);
+            const rY = view.getNodeRallyY(nodeIndex);
+            const rallyTargetNodeId = view.getNodeRallyTargetNodeId(nodeIndex);
+            let rallyPoint = null;
+            let rallyTargetNode = null;
+
+            if (rallyTargetNodeId !== -1) {
+                rallyTargetNode = this.state.nodes.find(n => n.id === rallyTargetNodeId) || null;
+            } else if (rX !== 0 || rY !== 0) {
+                rallyPoint = { x: rX, y: rY };
+            }
+
             const node = {
                 x: view.getNodeX(nodeIndex),
                 y: view.getNodeY(nodeIndex),
@@ -543,8 +556,8 @@ export class Game {
                 hitFlash: view.getNodeHitFlash(nodeIndex),
                 spawnEffect: view.getNodeSpawnEffect(nodeIndex),
                 id: view.getNodeId(nodeIndex),
-                rallyPoint: this.state.nodes[nodeIndex]?.rallyPoint,
-                rallyTargetNode: this.state.nodes[nodeIndex]?.rallyTargetNode,
+                rallyPoint: rallyPoint,
+                rallyTargetNode: rallyTargetNode,
                 getColor: () => owner === -1 ? '#757575' : PLAYER_COLORS[owner % PLAYER_COLORS.length],
                 getTotalHp: () => Math.min(maxHp, baseHp),
             };
