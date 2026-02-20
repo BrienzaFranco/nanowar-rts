@@ -10,496 +10,621 @@
         body {
             background: #0a0a0a;
             font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            color: white;
         }
 
         .screen {
-            background: #0a0a0a;
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .screen.active {
+            display: flex;
         }
 
         .menu-container {
+            width: 100%;
             max-width: 500px;
-            margin: 0 auto;
-            padding: 60px 20px;
+            padding: 40px;
+            background: rgba(14, 14, 18, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
             text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
         }
 
         .game-title {
-            font-size: 72px;
+            font-size: 64px;
             font-weight: bold;
-            margin-bottom: 8px;
-            text-shadow: 0 0 30px rgba(76, 175, 80, 0.5);
-            background: none;
-            -webkit-text-fill-color: #4CAF50;
+            margin: 0 0 10px;
             color: #4CAF50;
-            letter-spacing: 8px;
+            letter-spacing: 10px;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
         }
 
         .game-subtitle {
-            font-size: 12px;
-            margin-bottom: 50px;
-            opacity: 0.5;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-        }
-
-        .player-input {
-            margin-bottom: 30px;
-        }
-
-        .player-input label {
-            display: block;
-            margin-bottom: 10px;
             font-size: 11px;
-            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 45px;
+            opacity: 0.5;
+            letter-spacing: 4px;
             text-transform: uppercase;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 8px;
             letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
-        .player-input input {
-            padding: 14px 20px;
-            font-size: 14px;
-            border: 1px solid rgba(76, 175, 80, 0.3);
-            border-radius: 4px;
+        .input-group input[type="text"],
+        .input-group select {
             width: 100%;
-            max-width: 280px;
-            text-align: center;
-            background: rgba(20, 20, 25, 0.9);
-            color: #4CAF50;
+            padding: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
             font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 4px;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+            text-align: center;
         }
 
-        .player-input input:focus {
-            outline: none;
+        .input-group input[type="text"]:focus,
+        .input-group select:focus {
+            border-color: #4CAF50;
+        }
+
+        /* Color Picker */
+        .color-picker {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .color-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .color-circle:hover {
+            transform: scale(1.15);
+        }
+
+        .color-circle.selected {
+            border-color: white;
+            transform: scale(1.15);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .btn {
+            display: inline-block;
+            width: 100%;
+            padding: 16px;
+            margin-top: 15px;
+            background: transparent;
+            color: #4CAF50;
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: all 0.2s;
+            box-sizing: border-box;
+            text-decoration: none;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: rgba(76, 175, 80, 0.15);
             border-color: #4CAF50;
             box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
         }
 
-        .player-input input::placeholder {
-            color: rgba(255, 255, 255, 0.2);
+        .btn.secondary {
+            color: #aaa;
+            border-color: rgba(255, 255, 255, 0.2);
+            margin-top: 10px;
         }
 
-        .menu-buttons {
-            margin-bottom: 50px;
+        .btn.secondary:hover {
+            color: white;
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: none;
         }
 
-        .btn-primary {
-            padding: 14px 40px;
-            font-size: 12px;
-            background: transparent;
-            color: #4CAF50;
-            border: 1px solid rgba(76, 175, 80, 0.4);
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 3px;
+        .btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            border-color: #555;
+            color: #555;
         }
 
-        .btn-primary:hover {
-            background: rgba(76, 175, 80, 0.15);
-            border-color: #4CAF50;
-            box-shadow: 0 0 30px rgba(76, 175, 80, 0.3);
-        }
-
-        .mode-selection {
-            margin-top: 40px;
-            padding: 30px;
-            background: rgba(20, 20, 25, 0.5);
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .mode-selection h2 {
-            margin-bottom: 25px;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.4);
-            letter-spacing: 3px;
-            text-transform: uppercase;
-        }
-
+        /* Modes Screen */
         .mode-buttons {
             display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 15px;
         }
 
         .btn-mode {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 25px 35px;
-            background: rgba(20, 20, 25, 0.8);
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: white;
-            text-decoration: none;
+            text-align: center;
             cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 160px;
+            border-radius: 4px;
+            transition: all 0.2s;
         }
 
-        .btn-mode:hover {
-            transform: translateY(-3px);
-            background: rgba(30, 30, 40, 0.9);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-single:hover {
+        .btn-mode:hover:not(.disabled) {
+            background: rgba(255, 255, 255, 0.05);
             border-color: #4CAF50;
-            box-shadow: 0 10px 40px rgba(76, 175, 80, 0.2);
+            transform: translateY(-2px);
         }
 
-        .btn-multi:hover {
-            border-color: #2196F3;
-            box-shadow: 0 10px 40px rgba(33, 150, 243, 0.2);
+        .btn-mode.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            border-color: #333;
         }
 
-        .mode-icon {
-            font-size: 32px;
-            margin-bottom: 12px;
-            opacity: 0.8;
-        }
-
-        .mode-title {
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 4px;
+        .btn-mode h3 {
+            margin: 0 0 5px;
+            font-size: 16px;
+            color: white;
             letter-spacing: 2px;
             text-transform: uppercase;
         }
 
-        .mode-desc {
-            font-size: 10px;
+        .btn-mode p {
+            margin: 0;
+            font-size: 11px;
             opacity: 0.5;
         }
 
+        /* Room List */
         .rooms-section {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(20, 20, 25, 0.5);
-            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        #room-list {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 15px;
+            padding-right: 5px;
+        }
+
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 8px;
+            border-radius: 4px;
         }
 
-        .rooms-section h2 {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.4);
-            letter-spacing: 2px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
+        .room-item .info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
-        #refresh-rooms-btn {
-            margin-bottom: 15px;
-            padding: 8px 20px;
+        .room-item .id {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .room-item .players {
             font-size: 10px;
-            background: transparent;
-            color: rgba(255, 255, 255, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 3px;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            opacity: 0.6;
         }
 
-        #refresh-rooms-btn:hover {
-            color: white;
-            border-color: rgba(255, 255, 255, 0.3);
+        .room-item button {
+            margin: 0;
+            padding: 8px 15px;
+            width: auto;
+            font-size: 11px;
+            margin-top: 0;
         }
 
         .no-rooms {
-            padding: 20px;
-            opacity: 0.3;
             font-size: 11px;
+            opacity: 0.5;
+            text-align: center;
+            padding: 20px;
             font-style: italic;
+        }
+
+        /* Lobby */
+        .lobby-players-list {
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 5px;
+            min-height: 100px;
+        }
+
+        .lobby-player {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }
+
+        .lobby-player:last-child {
+            border-bottom: none;
+        }
+
+        .lobby-player .ready {
+            color: #4CAF50;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        .lobby-player .not-ready {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            accent-color: #4CAF50;
+        }
+
+        .slider-value {
+            color: #4CAF50;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
         }
     </style>
 </head>
 
 <body>
-    <div id="game-container">
-        <div id="menu-screen" class="screen">
-            <div class="menu-container">
-                <h1 class="game-title">NANOWAR</h1>
-                <p class="game-subtitle">Guerra de Nodos <span id="game-version"
-                        style="opacity: 0.4; font-size: 10px;">Stable 1.1</span></p>
 
-                <div class="player-input">
-                    <label for="player-name">Comandante</label>
-                    <input type="text" id="player-name" placeholder="Tu nombre" maxlength="20">
-                </div>
+    <!-- SCREEN 1: LOGIN -->
+    <div id="screen-login" class="screen active">
+        <div class="menu-container">
+            <h1 class="game-title">NANOWAR</h1>
+            <p class="game-subtitle">Stable 1.1</p>
 
-                <div id="mode-selection-container" class="mode-selection">
-                    <h2>Seleccionar Modo</h2>
-                    <div id="singleplayer-options">
-                        <div
-                            style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Rivales:</label>
-                            <select id="player-count-select"
-                                style="background: #141419; color: #4CAF50; border: 1px solid rgba(76,175,80,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
-                                <option value="2">1 vs 1 (1 IA)</option>
-                                <option value="3">1 vs 2 (2 IAs)</option>
-                                <option value="4" selected>1 vs 3 (3 IAs)</option>
-                            </select>
-                        </div>
-                        <div
-                            style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                            <label style="font-size: 11px; opacity: 0.6; text-transform: uppercase;">Dificultad:</label>
-                            <select id="difficulty-select"
-                                style="background: #141419; color: #2196F3; border: 1px solid rgba(33,150,243,0.3); padding: 5px 10px; border-radius: 4px; font-family: 'Courier New', monospace;">
-                                <option value="easy">Fácil</option>
-                                <option value="intermediate" selected>Intermedio</option>
-                                <option value="hard">Difícil</option>
-                                <option value="expert">Experto</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="nickname-section" style="margin-bottom: 25px;">
-                        <label for="nickname-input"
-                            style="display: block; font-size: 10px; color: #4CAF50; margin-bottom: 5px; opacity: 0.8;">IDENTIFICACIÓN
-                            DE COMANDANTE</label>
-                        <input type="text" id="nickname-input" placeholder="Comandante" maxlength="15"
-                            style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(76,175,80,0.4); color: white; padding: 10px; border-radius: 4px; text-align: center; font-family: 'Courier New', monospace;">
-                    </div>
-
-                    <div class="mode-buttons">
-                        <a href="singleplayer.html" id="singleplayer-link" class="btn-mode btn-single">
-                            <span class="mode-icon">&#9679;</span>
-                            <span class="mode-title">Singleplayer</span>
-                        </a>
-                        <button id="multiplayer-mode-btn" class="btn-mode btn-multi">
-                            <span class="mode-icon">&#9670;</span>
-                            <span class="mode-title">Multiplayer</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="multiplayer-setup-container" style="display: none;">
-                    <div class="menu-buttons" style="margin-bottom: 20px;">
-                        <button id="create-room-btn" class="btn-primary">Crear Sala</button>
-                    </div>
-
-                    <div class="rooms-section">
-                        <h2>Salas Disponibles</h2>
-                        <button id="refresh-rooms-btn" class="btn-secondary">Actualizar</button>
-                        <div id="room-list">
-                            <p class="no-rooms">No hay salas disponibles</p>
-                        </div>
-                    </div>
-
-                    <button id="back-to-modes-btn" class="btn-secondary"
-                        style="margin-top: 30px; width: 100%; max-width: 200px;">VOLVER</button>
-                </div>
-
+            <div class="input-group">
+                <label>IDENTIFICACIÓN DE COMANDANTE</label>
+                <input type="text" id="player-name" placeholder="Tu nombre" maxlength="15">
             </div>
-        </div>
 
-        <div id="lobby-screen" class="screen" style="display: none;">
-            <div class="lobby-container"
-                style="max-width: 500px; margin: 100px auto; padding: 40px; background: rgba(20,20,25,0.95); border: 2px solid #4CAF50; border-radius: 12px; text-align: center; box-shadow: 0 0 30px rgba(76,175,80,0.2);">
-                <h2
-                    style="color: #4CAF50; letter-spacing: 4px; margin-bottom: 30px; border-bottom: 1px solid rgba(76,175,80,0.3); padding-bottom: 15px;">
-                    SALA DE ESPERA</h2>
-                <div id="lobby-players"
-                    style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px;">
-                    <p style="font-size: 13px; color: white;">Esperando a otros comandantes...</p>
+            <div class="input-group" style="text-align: center;">
+                <label style="text-align: center;">COLOR DE FLOTA</label>
+                <div class="color-picker" id="color-picker">
+                    <!-- Configured via JS -->
                 </div>
+            </div>
 
-                <!-- Room Settings -->
+            <button class="btn" id="btn-login" style="margin-top: 30px;">ENTRAR AL SISTEMA</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 2: MODE SELECTION -->
+    <div id="screen-modes" class="screen">
+        <div class="menu-container">
+            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">
+                SELECCIÓN DE OPERACIÓN</h2>
+
+            <div class="mode-buttons">
+                <div class="btn-mode disabled">
+                    <h3>CAMPAÑA</h3>
+                    <p>Misiones clasíficadas. (Próximamente)</p>
+                </div>
+                <div class="btn-mode" id="btn-mode-single">
+                    <h3>SINGLEPLAYER</h3>
+                    <p>Simulación de combate contra IAs.</p>
+                </div>
+                <div class="btn-mode" id="btn-mode-multi">
+                    <h3>MULTIPLAYER</h3>
+                    <p>Combate táctico en red contra otros comandantes.</p>
+                </div>
+            </div>
+
+            <button class="btn secondary" id="btn-back-login" style="margin-top: 40px;">← SALIR</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 3: SINGLEPLAYER SETUP -->
+    <div id="screen-single" class="screen">
+        <div class="menu-container">
+            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">
+                CONFIGURACIÓN SINGLEPLAYER</h2>
+
+            <div class="input-group">
+                <label>CANTIDAD DE RIVALES (IAs)</label>
+                <select id="single-rivals">
+                    <option value="2">1 Enemigo</option>
+                    <option value="3">2 Enemigos</option>
+                    <option value="4" selected>3 Enemigos</option>
+                    <option value="5">4 Enemigos</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>NIVEL DE DIFICULTAD</label>
+                <select id="single-diff">
+                    <option value="easy">Fácil</option>
+                    <option value="intermediate" selected>Intermedio</option>
+                    <option value="hard">Difícil</option>
+                    <option value="expert">Experto (Nightmare)</option>
+                </select>
+            </div>
+
+            <button class="btn" id="btn-start-single" style="margin-top: 30px;">INICIAR SIMULACIÓN</button>
+            <button class="btn secondary" id="btn-back-modes-1">← VOLVER</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 4: MULTIPLAYER ROOMS -->
+    <div id="screen-multi" class="screen">
+        <div class="menu-container">
+            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">RED
+                MULTIPLAYER</h2>
+
+            <button class="btn" id="btn-create-room">NUEVA SALA OPERATIVA</button>
+
+            <div class="rooms-section">
                 <div
-                    style="margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.3); border-radius: 6px; text-align: left;">
-                    <h3 style="color: #4CAF50; font-size: 12px; margin-bottom: 15px; letter-spacing: 2px;">CONFIGURACIÓN
-                    </h3>
-
-                    <div style="margin-bottom: 12px;">
-                        <label style="color: #888; font-size: 11px;">Velocidad de unidades</label>
-                        <select id="speed-setting"
-                            style="width: 100%; padding: 6px; background: #222; color: white; border: 1px solid #444; border-radius: 4px; margin-top: 4px;">
-                            <option value="0.5">Lento (0.5x)</option>
-                            <option value="1" selected>Normal (1x)</option>
-                            <option value="1.5">Rápido (1.5x)</option>
-                            <option value="2">Muy rápido (2x)</option>
-                        </select>
-                    </div>
-
-                    <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="accel-setting" checked style="width: 16px; height: 16px;">
-                        <label style="color: #888; font-size: 11px;">Aceleración enabled</label>
-                    </div>
-
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="production-setting" checked style="width: 16px; height: 16px;">
-                        <label style="color: #888; font-size: 11px;">Mostrar producción en vivo</label>
-                    </div>
+                    style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+                    <label style="font-size: 11px; opacity: 0.6; letter-spacing: 2px;">SALAS ACTIVAS</label>
+                    <button class="btn secondary" id="btn-refresh-rooms"
+                        style="width: auto; padding: 4px 10px; margin: 0; font-size: 9px;">ACTUALIZAR</button>
                 </div>
-
-                <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
-                    <button id="ready-btn" class="btn-primary" style="flex: 1;">ESTOY LISTO</button>
-                    <button onclick="location.reload()" class="btn-secondary" style="flex: 1;">SALIR</button>
+                <div id="room-list">
+                    <p class="no-rooms">No hay señales de salas disponibles.</p>
                 </div>
             </div>
+
+            <button class="btn secondary" id="btn-back-modes-2" style="margin-top: 30px;">← VOLVER</button>
         </div>
+    </div>
 
-        <div id="game-screen" class="screen" style="display: none;">
-            <div id="ui-top"
-                style="position: absolute; top: 0; left: 0; right: 0; z-index: 10; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; pointer-events: none;">
-                <h1 style="margin: 0; color: white; font-size: 18px; text-shadow: 0 0 10px black;">NANOWAR</h1>
-                <div style="pointer-events: auto; display: flex; gap: 10px;">
-                    <button id="mute-btn" title="Silenciar"
-                        style="background: rgba(76,175,80,0.8); color: white; border: 1px solid #4CAF50; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 16px;">🔊</button>
-                    <button id="surrender-btn"
-                        style="background: rgba(244,67,54,0.8); color: white; border: 1px solid #f44336; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace; display: none;">RENDIRSE</button>
-                    <button id="reset-btn"
-                        style="background: rgba(76,175,80,0.8); color: white; border: 1px solid #4CAF50; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace;">REINICIAR</button>
-                    <button id="menu-btn"
-                        style="background: rgba(128,128,128,0.8); color: white; border: 1px solid #888; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-family: 'Courier New', monospace;">MENU</button>
+    <!-- SCREEN 5: MULTIPLAYER LOBBY -->
+    <div id="screen-lobby" class="screen">
+        <div class="menu-container">
+            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 20px; letter-spacing: 4px; color: #4CAF50;">SALA
+                DE ESPERA: <span id="lobby-id-text" style="color:white;">---</span></h2>
+
+            <div class="input-group" style="text-align: center; margin-bottom: 15px;">
+                <label style="text-align: center;">VELOCIDAD DE UNIDADES</label>
+                <div class="slider-container">
+                    <span style="font-size: 11px; opacity: 0.5;">0.5x</span>
+                    <input type="range" id="lobby-speed" min="0.5" max="2" step="0.1" value="1">
+                    <span style="font-size: 11px; opacity: 0.5;">2.0x</span>
                 </div>
+                <div class="slider-value" id="lobby-speed-val" style="margin-top: 8px; font-size: 13px;">1.0x</div>
             </div>
-            <canvas id="game-canvas"></canvas>
+
+            <div class="lobby-players-list" id="lobby-players-container">
+                <p class="no-rooms">Esperando comandantes...</p>
+            </div>
+
+            <button class="btn" id="btn-ready-lobby" style="margin-top: 15px;">ESTOY LISTO</button>
+            <button class="btn secondary" id="btn-leave-lobby">ABANDONAR SALA</button>
         </div>
     </div>
 
     <script src="dist/bundle.js"></script>
 
     <script>
-        // Use DOMContentLoaded or put script at end to ensure elements exist
         document.addEventListener('DOMContentLoaded', () => {
-            const select = document.getElementById('player-count-select');
-            const difficultySelect = document.getElementById('difficulty-select');
-            const link = document.getElementById('singleplayer-link');
-            const multiBtn = document.getElementById('multiplayer-mode-btn');
-            const backBtn = document.getElementById('back-to-modes-btn');
-            const modeContainer = document.getElementById('mode-selection-container');
-            const multiContainer = document.getElementById('multiplayer-setup-container');
+            // -- Globals & Colors --
+            const PLAYER_COLORS = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
+            let selectedColorIndex = 0;
+            let playerName = localStorage.getItem('nanowar_nickname') || '';
+            const testMode = window.location.search.includes('test=1');
 
-            const createRoomBtn = document.getElementById('create-room-btn');
-            const refreshBtn = document.getElementById('refresh-rooms-btn');
-            const roomListDiv = document.getElementById('room-list');
-            const nickInput = document.getElementById('nickname-input');
-            const readyBtn = document.getElementById('ready-btn');
+            // -- Screens --
+            const screens = {
+                login: document.getElementById('screen-login'),
+                modes: document.getElementById('screen-modes'),
+                single: document.getElementById('screen-single'),
+                multi: document.getElementById('screen-multi'),
+                lobby: document.getElementById('screen-lobby')
+            };
 
-            // Load saved nickname
-            const savedNick = localStorage.getItem('nanowar_nickname');
-            if (savedNick) nickInput.value = savedNick;
+            function showScreen(id) {
+                Object.values(screens).forEach(s => s.classList.remove('active'));
+                screens[id].classList.add('active');
 
-            const singleplayerOptions = document.getElementById('singleplayer-options');
-
-            nickInput.addEventListener('input', () => {
-                localStorage.setItem('nanowar_nickname', nickInput.value);
-                if (window.multiplayer && window.multiplayer.socket) {
-                    window.multiplayer.socket.emit('setNickname', nickInput.value);
+                const profileBar = document.getElementById('commander-profile');
+                if (id === 'login') {
+                    profileBar.style.display = 'none';
+                } else {
+                    profileBar.style.display = 'flex';
+                    document.getElementById('profile-name').innerText = playerName;
+                    document.getElementById('profile-color-dot').style.backgroundColor = PLAYER_COLORS[selectedColorIndex];
                 }
-            });
-
-            function updateLink() {
-                const difficulty = difficultySelect.value;
-                const testMode = nickInput.value.includes('115');
-                let url = `singleplayer.html?players=${select.value}&difficulty=${difficulty}`;
-                if (testMode) url += '&test=1';
-                link.href = url;
             }
 
-            select.addEventListener('change', updateLink);
-            difficultySelect.addEventListener('change', updateLink);
-            nickInput.addEventListener('input', updateLink);
-            updateLink(); // Initial call
+            // -- INIT LOGIN --
+            const nickInput = document.getElementById('player-name');
+            nickInput.value = playerName;
+            const colorPicker = document.getElementById('color-picker');
+            PLAYER_COLORS.forEach((color, idx) => {
+                const circle = document.createElement('div');
+                circle.className = 'color-circle' + (idx === 0 ? ' selected' : '');
+                circle.style.backgroundColor = color;
+                circle.addEventListener('click', () => {
+                    document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
+                    circle.classList.add('selected');
+                    selectedColorIndex = idx;
+                });
+                colorPicker.appendChild(circle);
+            });
 
-            multiBtn.addEventListener('click', () => {
-                if (!nickInput.value.trim()) {
-                    alert('Ingresa un nombre de comandante');
-                    return;
-                }
-                modeContainer.style.display = 'none';
-                multiContainer.style.display = 'block';
-                if (singleplayerOptions) singleplayerOptions.style.display = 'none';
+            document.getElementById('btn-login').addEventListener('click', () => {
+                if (!nickInput.value.trim()) { alert('Identificación requerida.'); return; }
+                playerName = nickInput.value.trim();
+                localStorage.setItem('nanowar_nickname', playerName);
+                showScreen('modes');
+            });
 
-                // Initialize multiplayer if not already done
+            document.getElementById('btn-logout').addEventListener('click', () => {
+                showScreen('login');
+            });
+
+            // -- INIT MODES --
+            document.getElementById('btn-back-login').addEventListener('click', () => showScreen('login'));
+            document.getElementById('btn-mode-single').addEventListener('click', () => showScreen('single'));
+
+            document.getElementById('btn-mode-multi').addEventListener('click', () => {
+                showScreen('multi');
+                // Ensure multiplayer is initialized
                 if (!window.multiplayer) {
                     window.initGame('multiplayer');
                 }
-
-                // Wait for socket to connect then list rooms
                 setTimeout(() => {
                     if (window.multiplayer && window.multiplayer.socket) {
+                        window.multiplayer.socket.emit('setNickname', playerName);
+                        window.multiplayer.socket.emit('setColor', selectedColorIndex);
                         window.multiplayer.socket.emit('listRooms');
                     }
-                }, 500);
+                }, 300);
             });
 
-            backBtn.addEventListener('click', () => {
-                modeContainer.style.display = 'block';
-                multiContainer.style.display = 'none';
-                if (singleplayerOptions) singleplayerOptions.style.display = 'block';
+            // -- INIT SINGLEPLAYER --
+            document.getElementById('btn-back-modes-1').addEventListener('click', () => showScreen('modes'));
+            document.getElementById('btn-back-modes-2').addEventListener('click', () => showScreen('modes'));
+
+            document.getElementById('btn-start-single').addEventListener('click', () => {
+                const players = document.getElementById('single-rivals').value;
+                const diff = document.getElementById('single-diff').value;
+                let url = `singleplayer.html?players=${players}&difficulty=${diff}&color=${selectedColorIndex}`;
+                if (testMode || playerName.includes('115')) url += '&test=1';
+                window.location.href = url;
             });
 
-            // Callback for MultiplayerController
+            // -- INIT MULTIPLAYER (ROOMS) --
+            document.getElementById('btn-refresh-rooms').addEventListener('click', () => {
+                if (window.multiplayer && window.multiplayer.socket) window.multiplayer.socket.emit('listRooms');
+            });
+
+            document.getElementById('btn-create-room').addEventListener('click', () => {
+                if (window.multiplayer) {
+                    window.multiplayer.socket.emit('setNickname', playerName);
+                    window.multiplayer.socket.emit('setColor', selectedColorIndex);
+                    window.multiplayer.createRoom(4); // Default 4 players max
+                }
+            });
+
+            // Callbacks for MultiplayerController
+            const roomListDiv = document.getElementById('room-list');
             window.updateRoomListUI = function (rooms) {
                 if (rooms.length === 0) {
-                    roomListDiv.innerHTML = '<p class="no-rooms">No hay salas disponibles</p>';
+                    roomListDiv.innerHTML = '<p class="no-rooms">No hay señales de salas disponibles.</p>';
                     return;
                 }
-
                 roomListDiv.innerHTML = rooms.map(room => `
-                    <div class="room-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px dashed rgba(76, 175, 80, 0.2); background: rgba(0,0,0,0.2); margin-bottom: 5px; border-radius: 4px;">
-                        <div style="text-align: left;">
-                            <div style="font-size: 12px; color: #4CAF50; font-family: monospace; font-weight: bold;">${room.id}</div>
-                            <div style="font-size: 10px; opacity: 0.6; text-transform: uppercase;">Jugadores: ${room.players}/${room.maxPlayers}</div>
+                    <div class="room-item">
+                        <div class="info">
+                            <span class="id">${room.id}</span>
+                            <span class="players">JUGADORES: ${room.players}/${room.maxPlayers}</span>
                         </div>
-                        <button onclick="joinRoom('${room.id}')" class="btn-primary" style="padding: 4px 12px; font-size: 10px; min-width: 80px;">UNIRSE</button>
+                        <button class="btn" onclick="joinRoom('${room.id}')">UNIRSE</button>
                     </div>
                 `).join('');
             };
 
             window.joinRoom = function (roomId) {
                 if (window.multiplayer) {
+                    window.multiplayer.socket.emit('setNickname', playerName);
+                    window.multiplayer.socket.emit('setColor', selectedColorIndex);
                     window.multiplayer.joinRoom(roomId);
                 }
             };
 
-            window.updateLobbyUI = function (players) {
-                const lobbyList = document.getElementById('lobby-players');
-                if (!lobbyList) return;
+            // -- INIT MULTIPLAYER LOBBY --
+            const lobbySpeed = document.getElementById('lobby-speed');
+            const lobbySpeedVal = document.getElementById('lobby-speed-val');
 
-                lobbyList.innerHTML = players.map(p => `
-                    <div style="display: flex; justify-content: space-between; padding: 12px 20px; background: ${p.ready ? 'rgba(76,175,80,0.15)' : 'rgba(255,255,255,0.05)'}; margin-bottom: 8px; border-radius: 6px; border: 1px solid ${p.ready ? '#4CAF50' : 'rgba(255,255,255,0.1)'}">
-                        <span style="color: white; font-size: 14px; font-family: monospace;">${p.nickname} ${p.id === window.multiplayer.socket.id ? '<span style="color:#4CAF50; font-size:10px;">(TÚ)</span>' : ''}</span>
-                        <span style="color: ${p.ready ? '#4CAF50' : '#888'}; font-size: 11px; font-weight: bold; letter-spacing: 1px;">${p.ready ? 'LISTO' : 'PREPARANDO...'}</span>
-                    </div>
-                `).join('');
-
-                const myPlayer = players.find(p => p.id === window.multiplayer.socket.id);
-                if (myPlayer && readyBtn) {
-                    readyBtn.innerText = myPlayer.ready ? 'CANCELAR LISTO' : 'ESTOY LISTO';
-                    readyBtn.className = myPlayer.ready ? 'btn-secondary' : 'btn-primary';
-                }
-            }
-
-            window.joinRoom = function (roomId) {
-                if (window.multiplayer) {
-                    window.multiplayer.socket.emit('setNickname', nickInput.value);
-                    window.multiplayer.joinRoom(roomId);
-                }
-            };
-
-            createRoomBtn.addEventListener('click', () => {
-                if (window.multiplayer) {
-                    window.multiplayer.socket.emit('setNickname', nickInput.value);
-                    window.multiplayer.createRoom(4);
-                }
-            });
-
-            refreshBtn.addEventListener('click', () => {
+            lobbySpeed.addEventListener('input', (e) => {
+                const speed = parseFloat(e.target.value).toFixed(1);
+                lobbySpeedVal.innerText = speed + 'x';
                 if (window.multiplayer && window.multiplayer.socket) {
-                    window.multiplayer.socket.emit('listRooms');
+                    window.multiplayer.socket.emit('updateRoomSettings', { speed: parseFloat(speed) }); // Assume server supports this later or handles it
                 }
             });
 
-            readyBtn.addEventListener('click', () => {
+            // Actually going into lobby visually is handled when server responds to join / create (done in MultiplayerController ideally)
+            // But we need to overwrite updateLobbyUI here
+            window.updateLobbyUI = function (players, roomId) {
+                showScreen('lobby');
+                if (roomId) document.getElementById('lobby-id-text').innerText = roomId;
+
+                const container = document.getElementById('lobby-players-container');
+                container.innerHTML = players.map(p => {
+                    const isMe = window.multiplayer && p.id === window.multiplayer.socket.id;
+                    const pColor = PLAYER_COLORS[p.colorIndex || 0] || '#fff';
+                    return `
+                    <div class="lobby-player">
+                        <span style="color: ${pColor}; font-weight: ${isMe ? 'bold' : 'normal'}">
+                            ${p.nickname} ${isMe ? '<span style="font-size:10px; opacity:0.6;">(TÚ)</span>' : ''}
+                        </span>
+                        <span class="${p.ready ? 'ready' : 'not-ready'}">${p.ready ? 'LISTO' : 'PREPARANDO'}</span>
+                    </div>
+                `}).join('');
+
+                const myPlayer = players.find(p => window.multiplayer && p.id === window.multiplayer.socket.id);
+                const btnReady = document.getElementById('btn-ready-lobby');
+                if (myPlayer) {
+                    btnReady.innerText = myPlayer.ready ? 'CANCELAR LISTO' : 'ESTOY LISTO';
+                    btnReady.className = myPlayer.ready ? 'btn secondary' : 'btn';
+                }
+            };
+
+            document.getElementById('btn-ready-lobby').addEventListener('click', () => {
                 if (window.multiplayer) window.multiplayer.toggleReady();
             });
+
+            document.getElementById('btn-leave-lobby').addEventListener('click', () => {
+                // If the server doesn't have leaveRoom, reload handles it cleanly
+                location.reload();
+            });
+
         });
     </script>
 </body>

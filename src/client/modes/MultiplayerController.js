@@ -3,6 +3,7 @@ import { Entity } from '../../shared/Entity.js';
 import { Node } from '../../shared/Node.js';
 import { GameState } from '../../shared/GameState.js';
 import { sounds } from '../systems/SoundManager.js';
+import { PLAYER_COLORS } from '../../shared/GameConfig.js';
 
 export class MultiplayerController {
     constructor(game) {
@@ -51,12 +52,19 @@ export class MultiplayerController {
         this.socket.on('lobbyUpdate', (data) => {
             console.log('Lobby Update:', data);
             if (window.updateLobbyUI) {
-                window.updateLobbyUI(data.players);
+                window.updateLobbyUI(data.players, this.roomId);
             }
         });
 
         this.socket.on('gameStart', (initialState) => {
             console.log('Game starting!');
+
+            if (initialState.playerColors) {
+                const defaultColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
+                initialState.playerColors.forEach((colorIdx, i) => {
+                    PLAYER_COLORS[i] = defaultColors[colorIdx] || defaultColors[i];
+                });
+            }
 
             // Clear existing state and initialize from server
             this.game.state = new GameState();

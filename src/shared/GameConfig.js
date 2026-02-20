@@ -1,7 +1,16 @@
-export const PLAYER_COLORS = [
+export let PLAYER_COLORS = [
     '#4CAF50', '#f44336', '#2196F3', '#FF9800',
     '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'
 ];
+
+export function setPlayerColor(index) {
+    if (index > 0 && index < PLAYER_COLORS.length) {
+        // Swap selected color with first color (Player 0)
+        const temp = PLAYER_COLORS[0];
+        PLAYER_COLORS[0] = PLAYER_COLORS[index];
+        PLAYER_COLORS[index] = temp;
+    }
+}
 
 export const GAME_SETTINGS = {
     WORLD_WIDTH: 2400,

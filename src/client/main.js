@@ -6,6 +6,7 @@ import { SingleplayerController } from './modes/SingleplayerController.js';
 import { MultiplayerController } from './modes/MultiplayerController.js';
 import { GameState } from '../shared/GameState.js';
 import { sounds } from './systems/SoundManager.js';
+import { setPlayerColor } from '../shared/GameConfig.js';
 
 window.initGame = (mode) => {
     const game = new Game('game-canvas');
@@ -23,6 +24,9 @@ window.initGame = (mode) => {
         const playerCount = parseInt(urlParams.get('players')) || 2;
         const difficulty = urlParams.get('difficulty') || 'intermediate';
         const testMode = urlParams.get('test') === '1';
+        const colorIndex = parseInt(urlParams.get('color')) || 0;
+
+        setPlayerColor(colorIndex);
 
         game.controller = new SingleplayerController(game);
         game.controller.setup(playerCount, difficulty, testMode);
@@ -78,6 +82,8 @@ window.initGame = (mode) => {
                 const playerCount = parseInt(urlParams.get('players')) || 2;
                 const difficulty = urlParams.get('difficulty') || 'intermediate';
                 const testMode = urlParams.get('test') === '1';
+                const colorIndex = parseInt(urlParams.get('color')) || 0;
+                setPlayerColor(colorIndex);
 
                 // Stop current game properly
                 game.stop();
