@@ -13,12 +13,14 @@ export class AIController {
         }
 
         const baseIntervals = {
-            'Easy': 5.0,
-            'Normal': 1.2,
+            'Easy': 6.0,
+            'Intermediate': 3.5,
+            'Normal': 1.5,
             'Hard': 0.8,
-            'Nightmare': 0.4
+            'Expert': 0.4,
+            'Impossible': 0.15
         };
-        this.decisionInterval = baseIntervals[this.difficulty] + (Math.random() * 0.5);
+        this.decisionInterval = (baseIntervals[this.difficulty] || 1.5) + (Math.random() * 0.5);
 
         console.log(`[AI INFO] Player ${playerId} initialized: Difficulty=${this.difficulty}, Personality=${this.personality}`);
     }
@@ -148,7 +150,7 @@ export class AIController {
 
     makeDecision() {
         const myNodeIdxs = this.getNodesByOwner(this.playerId);
-        
+
         if (myNodeIdxs.length === 0) return;
 
         for (const sourceIdx of myNodeIdxs) {
@@ -159,26 +161,37 @@ export class AIController {
             const defenderIdxs = this.getEntitiesInRadius(sourceX, sourceY, sourceInfluence, this.playerId);
             const defenderCount = defenderIdxs.length;
 
-            let minDefendersToStay = 5;
-            if (this.difficulty === 'Nightmare') minDefendersToStay = 2;
-            if (this.difficulty === 'Hard') minDefendersToStay = 4;
-            if (this.difficulty === 'Easy') minDefendersToStay = 18;
+            let minDefendersToStay = 8;
+            if (this.difficulty === 'Impossible') minDefendersToStay = 1;
+            if (this.difficulty === 'Expert') minDefendersToStay = 3;
+            if (this.difficulty === 'Hard') minDefendersToStay = 5;
+            if (this.difficulty === 'Normal') minDefendersToStay = 10;
+            if (this.difficulty === 'Intermediate') minDefendersToStay = 15;
+            if (this.difficulty === 'Easy') minDefendersToStay = 25;
 
             if (this.personality === 'defensive') minDefendersToStay += 5;
             if (this.personality === 'aggressive') minDefendersToStay -= 2;
 
             const neutralCount = this.getNodesByOwner(-1).length;
             if (this.difficulty === 'Easy' && neutralCount > 0) {
-                minDefendersToStay = 30;
+                minDefendersToStay = 40;
             }
 
             const nodeBaseHp = this.getNodeBaseHp(sourceIdx);
             const nodeMaxHp = this.getNodeMaxHp(sourceIdx);
-            if (this.personality === 'defensive' && nodeBaseHp < nodeMaxHp * 0.9) {
+            if (this.personality === 'defensive' && nodeBaseHp < nodeMaxHp * 0.95) {
                 continue;
             }
 
-            if (defenderCount > minDefendersToStay || (defenderCount > 2 && Math.random() < 0.15)) {
+            // Easy/Intermediate are more likely to stay passive
+            let activityThreshold = 0.5;
+            if (this.difficulty === 'Easy') activityThreshold = 0.05;
+            if (this.difficulty === 'Intermediate') activityThreshold = 0.2;
+            if (this.difficulty === 'Normal') activityThreshold = 0.6;
+            if (this.difficulty === 'Hard') activityThreshold = 0.8;
+            if (this.difficulty === 'Expert' || this.difficulty === 'Impossible') activityThreshold = 1.0;
+
+            if (defenderCount > minDefendersToStay || (defenderCount > 2 && Math.random() < activityThreshold * 0.15)) {
                 let bestTargetIdx = -1;
                 let bestScore = -Infinity;
 
@@ -200,24 +213,38 @@ export class AIController {
                     if (targetOwner === -1) {
                         let expansionWeight = 1.5;
                         if (this.personality === 'expansive') expansionWeight = 3.0;
-                        if (this.difficulty === 'Easy') expansionWeight = 5.0;
-                        if (myNodeIdxs.length > 5) expansionWeight *= 0.5;
+                        if (this.difficulty === 'Easy') expansionWeight = 10.0; // Focus ONLY on neutral if easy
+                        if (this.difficulty === 'Intermediate') expansionWeight = 5.0;
+
+                        if (myNodeIdxs.length > 5 && this.difficulty !== 'Easy') expansionWeight *= 0.5;
                         score *= expansionWeight;
                     } else if (targetOwner !== this.playerId) {
                         let attackWeight = 1.0;
                         if (this.personality === 'aggressive') attackWeight = 2.5;
-                        if (this.difficulty === 'Nightmare') attackWeight = 3.0;
+                        if (this.difficulty === 'Impossible') attackWeight = 4.0;
+                        if (this.difficulty === 'Expert') attackWeight = 3.0;
                         if (this.difficulty === 'Hard') attackWeight = 2.0;
-                        if (this.difficulty === 'Easy') attackWeight = 0.1;
-                        if ((this.difficulty === 'Hard' || this.difficulty === 'Nightmare') && targetBaseHp < targetMaxHp * 0.4) {
+                        if (this.difficulty === 'Intermediate') attackWeight = 0.5;
+                        if (this.difficulty === 'Easy') attackWeight = 0.01; // Almost never attack players early
+
+                        if (this.difficulty !== 'Easy' && this.difficulty !== 'Intermediate' && targetBaseHp < targetMaxHp * 0.4) {
                             attackWeight *= 2.0;
                         }
                         score *= attackWeight;
                     } else {
                         if (this.personality === 'defensive' && targetBaseHp < targetMaxHp * 0.5) {
                             score *= 2.0;
+                        } else if (this.difficulty === 'Impossible' && targetBaseHp < targetMaxHp * 0.9) {
+                            score *= 1.5; // Impossible AI heals its nodes efficiently
                         } else {
                             score *= 0.1;
+                        }
+                    }
+
+                    // Add "Stupidity" for Intermediate - sometimes choose nodes that are too strong
+                    if (this.difficulty === 'Intermediate') {
+                        if (targetBaseHp > nodeBaseHp * 1.5) {
+                            score *= (0.5 + Math.random() * 2.0); // Randomly overvalue strong nodes
                         }
                     }
 
@@ -243,7 +270,7 @@ export class AIController {
         const targetId = this.getNodeId(targetIdx);
 
         const unitIdxs = this.getEntitiesInRadius(sourceX, sourceY, sourceInfluence, this.playerId);
-        
+
         const filteredUnits = [];
         for (const idx of unitIdxs) {
             if (this.isEntityDead(idx) || this.isEntityDying(idx)) continue;
@@ -255,10 +282,14 @@ export class AIController {
         if (filteredUnits.length === 0) return;
 
         let attackPercent = 0.5;
-        if (this.personality === 'aggressive') attackPercent = 0.8;
-        if (this.difficulty === 'Nightmare') attackPercent = 0.9;
-        if (this.difficulty === 'Hard') attackPercent = 0.65;
-        if (this.difficulty === 'Easy') attackPercent = 0.05;
+        if (this.difficulty === 'Impossible') attackPercent = 1.0;
+        if (this.difficulty === 'Expert') attackPercent = 0.9;
+        if (this.difficulty === 'Hard') attackPercent = 0.7;
+        if (this.difficulty === 'Normal') attackPercent = 0.5;
+        if (this.difficulty === 'Intermediate') attackPercent = 0.2;
+        if (this.difficulty === 'Easy') attackPercent = 0.1;
+
+        if (this.personality === 'aggressive') attackPercent += 0.1;
 
         filteredUnits.sort((a, b) => {
             const distSqA = (this.getEntityX(a) - sourceX) ** 2 + (this.getEntityY(a) - sourceY) ** 2;
@@ -266,12 +297,13 @@ export class AIController {
             return distSqB - distSqA;
         });
 
-        const count = Math.ceil(filteredUnits.length * Math.min(attackPercent, 0.95));
-        
+        const count = Math.ceil(filteredUnits.length * Math.min(attackPercent, 1.0));
+
         for (let i = 0; i < count; i++) {
             const entityIdx = filteredUnits[i];
             const entityId = this.getEntityId(entityIdx);
             this.game.setEntityTarget(entityId, targetX, targetY, targetId);
         }
     }
+
 }

@@ -28,9 +28,11 @@ export class SingleplayerController {
 
         const difficultyMap = {
             'easy': 'Easy',
-            'intermediate': 'Normal',
+            'intermediate': 'Intermediate',
+            'normal': 'Normal',
             'hard': 'Hard',
-            'expert': 'Nightmare'
+            'expert': 'Expert',
+            'impossible': 'Impossible'
         };
 
         // Create AIs for CPUs (indices > 0)
