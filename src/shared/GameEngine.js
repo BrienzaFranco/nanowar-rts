@@ -567,13 +567,11 @@ export class GameEngine {
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist > 2) {
-                    // Arrival: target speed tapering off inside slowRadius
+                    // Full seek force — no deceleration near target
                     const SEEK_FORCE = 900;
-                    const SLOW_RADIUS = 80;   // start slowing here
-                    const arrivalScale = Math.min(1, dist / SLOW_RADIUS);
 
-                    vx += (dx / dist) * SEEK_FORCE * arrivalScale * dt;
-                    vy += (dy / dist) * SEEK_FORCE * arrivalScale * dt;
+                    vx += (dx / dist) * SEEK_FORCE * dt;
+                    vy += (dy / dist) * SEEK_FORCE * dt;
 
                     // ── Obstacle avoidance: steer AROUND non-target nodes ──
                     const lookAhead = 60 + Math.sqrt(vx * vx + vy * vy) * 0.18;
