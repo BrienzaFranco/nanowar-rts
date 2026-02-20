@@ -315,10 +315,51 @@
             min-width: 40px;
             text-align: right;
         }
+
+        /* Commander Profile Top Bar */
+        #commander-profile {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 10px 20px;
+            background: rgba(10, 10, 12, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            z-index: 100;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1.5px;
+        }
+
+        #commander-profile .profile-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #profile-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
     </style>
 </head>
 
 <body>
+
+    <div id="commander-profile">
+        <div class="profile-info">
+            <span style="opacity:0.5">COMANDANTE:</span>
+            <strong id="profile-name" style="color:white;">---</strong>
+            <span id="profile-color-dot"></span>
+        </div>
+        <button id="btn-logout"
+            style="background:transparent; border:1px solid rgba(255,255,255,0.2); color:#aaa; font-family:monospace; font-size:9px; padding:4px 10px; border-radius:3px; cursor:pointer;">CAMBIAR</button>
+    </div>
 
     <!-- SCREEN 1: LOGIN -->
     <div id="screen-login" class="screen active">
@@ -471,12 +512,15 @@
                 screens[id].classList.add('active');
 
                 const profileBar = document.getElementById('commander-profile');
-                if (id === 'login') {
-                    profileBar.style.display = 'none';
-                } else {
-                    profileBar.style.display = 'flex';
-                    document.getElementById('profile-name').innerText = playerName;
-                    document.getElementById('profile-color-dot').style.backgroundColor = PLAYER_COLORS[selectedColorIndex];
+                if (profileBar) {
+                    if (id === 'login') {
+                        profileBar.style.display = 'none';
+                    } else {
+                        profileBar.style.display = 'flex';
+                        document.getElementById('profile-name').innerText = playerName;
+                        const cDot = document.getElementById('profile-color-dot');
+                        if (cDot) cDot.style.backgroundColor = PLAYER_COLORS[selectedColorIndex];
+                    }
                 }
             }
 
@@ -503,9 +547,12 @@
                 showScreen('modes');
             });
 
-            document.getElementById('btn-logout').addEventListener('click', () => {
-                showScreen('login');
-            });
+            const btnLogout = document.getElementById('btn-logout');
+            if (btnLogout) {
+                btnLogout.addEventListener('click', () => {
+                    showScreen('login');
+                });
+            }
 
             // -- INIT MODES --
             document.getElementById('btn-back-login').addEventListener('click', () => showScreen('login'));
