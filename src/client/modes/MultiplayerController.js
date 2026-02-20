@@ -457,7 +457,12 @@ export class MultiplayerController {
         // Copy the full server buffer (header + node SOA) into client memory, 
         // but softly interpolate entity positions to avoid stuttering against client-side prediction.
         if (serverState.syncBuffer) {
-            const srcView = new SharedView(serverState.syncBuffer);
+            // The server sends a truncated buffer (header + entities + nodes) to save bandwidth.
+            // SharedView expects the full TOTAL_SIZE buffer, so we pad it.
+            const fullTempBuf = new ArrayBuffer(MEMORY_LAYOUT.TOTAL_SIZE);
+            const tempDest = new Uint8Array(fullTempBuf);
+            tempDest.set(new Uint8Array(serverState.syncBuffer));
+            const srcView = new SharedView(fullTempBuf);
 
             // 1. Copy Nodes directly (they don't move)
             const nodeBytes = 19 * 4 * MEMORY_LAYOUT.MAX_NODES; // 19 fields * 4 bytes
