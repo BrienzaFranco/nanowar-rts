@@ -30,10 +30,10 @@ export class Entity {
         this.absorbTarget = null;
         this.targetNode = null;
 
-        this.cohesionRadius = 70;
-        this.cohesionForce = 25;
-        this.separationRadius = 26;
-        this.separationForce = 180;
+        this.cohesionRadius = 80;
+        this.cohesionForce = 35;
+        this.separationRadius = 32;
+        this.separationForce = 150;
 
         // Map boundary tracking
         this.outsideTime = 0;
@@ -62,6 +62,15 @@ export class Entity {
         if (this.dying) {
             this.deathTime += dt;
             if (this.deathTime > 0.4) { this.dead = true; }
+
+            // Pull towards node center for violent absorption
+            if (this.absorbTarget && (this.deathType === 'absorbed' || this.deathType === 'sacrifice')) {
+                const pullFactor = Math.pow(this.deathTime / 0.4, 2); // Accelerate into the center
+                const dx = this.absorbTarget.x - this.x;
+                const dy = this.absorbTarget.y - this.y;
+                this.x += dx * pullFactor * 0.5; // Smooth pull
+                this.y += dy * pullFactor * 0.5;
+            }
             return;
         }
 
@@ -126,7 +135,19 @@ export class Entity {
                             );
 
                             if (ownerDefenders.length > 0) {
-                                ownerDefenders[0].die('sacrifice', node, game);
+                                // Choose closest defender to node center
+                                let closest = ownerDefenders[0];
+                                let minDist = Infinity;
+                                for (const def of ownerDefenders) {
+                                    const ddx = def.x - node.x;
+                                    const ddy = def.y - node.y;
+                                    const d = ddx * ddx + ddy * ddy;
+                                    if (d < minDist) {
+                                        minDist = d;
+                                        closest = def;
+                                    }
+                                }
+                                closest.die('sacrifice', node, game);
                                 this.die('attack', node, game);
                                 return;
                             }
@@ -139,29 +160,21 @@ export class Entity {
                         }
                     }
                     else {
-                        if (node.owner === -1) {
-                            if (!this.dying) {
-                                node.receiveAttack(this.owner, 1, game);
-                                this.die('attack', node, game);
-                            }
-                            return;
-                        }
-                        else {
-                            this.x += nx * overlap;
-                            this.y += ny * overlap;
+                        // Not targeting this node: only physical collision and evasion
+                        this.x += nx * overlap;
+                        this.y += ny * overlap;
 
-                            if (this.currentTarget) {
-                                const perpX = -ny;
-                                const perpY = nx;
-                                const targetDx = this.currentTarget.x - this.x;
-                                const targetDy = this.currentTarget.y - this.y;
-                                const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
+                        if (this.currentTarget) {
+                            const perpX = -ny;
+                            const perpY = nx;
+                            const targetDx = this.currentTarget.x - this.x;
+                            const targetDy = this.currentTarget.y - this.y;
+                            const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
 
-                                // Enhanced evasion from GameWorker.js
-                                const evasionForce = (1 - (dist / (node.radius + 60))) * 2500;
-                                this.vx += perpX * side * evasionForce * 0.016;
-                                this.vy += perpY * side * evasionForce * 0.016;
-                            }
+                            // Dynamic evasion force
+                            const evasionForce = (1 - (dist / (node.radius + 60))) * 4500;
+                            this.vx += perpX * side * evasionForce * 0.016;
+                            this.vy += perpY * side * evasionForce * 0.016;
                         }
                     }
                 }
@@ -424,13 +437,13 @@ export class Entity {
 
             if (dist < node.radius + 60 && dist > 10) {
                 const dot = (dx / dist) * targetNx + (dy / dist) * targetNy;
-                if (dot > 0.3) { // Wider detection angle (30% similarity instead of 50%)
+                if (dot > 0.1) { // Wider detection angle
                     const perpX = -targetNy;
                     const perpY = targetNx;
                     const side = (dx * targetNy - dy * targetNx) > 0 ? 1 : -1;
 
                     // Improved avoidance force proportional to proximity
-                    const forceMult = (1 - (dist / (node.radius + 60))) * 2500;
+                    const forceMult = (1 - (dist / (node.radius + 60))) * 4500;
                     this.vx += perpX * side * forceMult * 0.016;
                     this.vy += perpY * side * forceMult * 0.016;
                 }

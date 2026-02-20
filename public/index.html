@@ -7,6 +7,12 @@
     <title>Nanowar - Guerra de Nodos</title>
     <link rel="stylesheet" href="styles.css">
     <style>
+        :root {
+            --primary-color: #4CAF50;
+            --primary-color-alpha: rgba(76, 175, 80, 0.5);
+            --primary-color-transparent: rgba(76, 175, 80, 0.15);
+        }
+
         body {
             background: #0a0a0a;
             font-family: 'Courier New', monospace;
@@ -42,10 +48,10 @@
             font-size: 64px;
             font-weight: bold;
             margin: 0 0 10px;
-            color: #4CAF50;
+            color: var(--primary-color);
             letter-spacing: 10px;
             text-transform: uppercase;
-            text-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+            text-shadow: 0 0 20px var(--primary-color-alpha);
         }
 
         .game-subtitle {
@@ -88,7 +94,7 @@
 
         .input-group input[type="text"]:focus,
         .input-group select:focus {
-            border-color: #4CAF50;
+            border-color: var(--primary-color);
         }
 
         /* Color Picker */
@@ -125,8 +131,8 @@
             padding: 16px;
             margin-top: 15px;
             background: transparent;
-            color: #4CAF50;
-            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color-alpha);
             border-radius: 4px;
             font-family: 'Courier New', monospace;
             font-size: 13px;
@@ -139,9 +145,9 @@
         }
 
         .btn:hover:not(:disabled) {
-            background: rgba(76, 175, 80, 0.15);
-            border-color: #4CAF50;
-            box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
+            background: var(--primary-color-transparent);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 20px var(--primary-color-alpha);
         }
 
         .btn.secondary {
@@ -183,7 +189,7 @@
 
         .btn-mode:hover:not(.disabled) {
             background: rgba(255, 255, 255, 0.05);
-            border-color: #4CAF50;
+            border-color: var(--primary-color);
             transform: translateY(-2px);
         }
 
@@ -238,7 +244,7 @@
         }
 
         .room-item .id {
-            color: #4CAF50;
+            color: var(--primary-color);
             font-weight: bold;
             font-size: 13px;
         }
@@ -306,11 +312,11 @@
 
         .slider-container input[type="range"] {
             flex: 1;
-            accent-color: #4CAF50;
+            accent-color: var(--primary-color);
         }
 
         .slider-value {
-            color: #4CAF50;
+            color: var(--primary-color);
             font-weight: bold;
             min-width: 40px;
             text-align: right;
@@ -362,9 +368,10 @@
     <!-- SCREEN 2: MODE SELECTION -->
     <div id="screen-modes" class="screen active">
         <div class="menu-container">
-            <h1 class="game-title" style="font-size: 48px; margin-top: -20px;">NANOWAR</h1>
-            <p class="game-subtitle">Stable 1.1</p>
-            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">
+            <h1 class="game-title" style="font-size: 48px; margin-top: -20px; color: #4CAF50 !important;">NANOWAR</h1>
+            <p class="game-subtitle">Rendimiento Update</p>
+            <h2
+                style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: var(--primary-color);">
                 SELECCIÓN DE OPERACIÓN</h2>
 
             <div class="mode-buttons">
@@ -387,7 +394,8 @@
     <!-- SCREEN 3: SINGLEPLAYER SETUP -->
     <div id="screen-single" class="screen">
         <div class="menu-container">
-            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">
+            <h2
+                style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: var(--primary-color);">
                 CONFIGURACIÓN SINGLEPLAYER</h2>
 
             <div class="input-group">
@@ -449,7 +457,9 @@
     <!-- SCREEN 5: MULTIPLAYER LOBBY -->
     <div id="lobby-screen" class="screen">
         <div class="menu-container">
-            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 20px; letter-spacing: 4px; color: #4CAF50;">SALA
+            <h2
+                style="font-size: 14px; margin-top: 0; margin-bottom: 20px; letter-spacing: 4px; color: var(--primary-color);">
+                SALA
                 DE ESPERA: <span id="lobby-id-text" style="color:white;">---</span></h2>
 
             <div class="input-group" style="text-align: center; margin-bottom: 15px;">
@@ -482,6 +492,10 @@
             style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;">
             <!-- El UIManager inyectará contenido aquí -->
         </div>
+
+        <button id="surrender-btn" class="btn"
+            style="display:none; position: fixed; bottom: 20px; left: 20px; width: auto; padding: 10px 20px; font-size: 11px; z-index: 100; pointer-events: auto;">RENDIRSE</button>
+
         <canvas id="game-canvas"></canvas>
     </div>
 
@@ -538,6 +552,13 @@
                         colorPicker.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
                         circle.classList.add('selected');
                         selectedColorIndex = idx;
+
+                        // Update CSS variables for theme
+                        const root = document.documentElement;
+                        root.style.setProperty('--primary-color', color);
+                        root.style.setProperty('--primary-color-alpha', color + '80');
+                        root.style.setProperty('--primary-color-transparent', color + '26');
+
                         if (onSelectCallback) onSelectCallback(idx);
                     });
                     colorPicker.appendChild(circle);

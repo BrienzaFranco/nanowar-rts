@@ -127,8 +127,10 @@ window.initGame = (mode) => {
         const surrenderBtn = document.getElementById('surrender-btn');
         if (surrenderBtn) {
             surrenderBtn.addEventListener('click', () => {
-                if (game.controller && game.controller.surrender) {
-                    game.controller.surrender();
+                if (confirm('¿Estás seguro de que quieres rendirte? Los nodos pasarán a ser neutrales y tus unidades morirán.')) {
+                    if (game.controller && game.controller.surrender) {
+                        game.controller.surrender();
+                    }
                 }
             });
         }

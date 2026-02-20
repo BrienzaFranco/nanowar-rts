@@ -1,3 +1,5 @@
+import { PLAYER_COLORS } from '../../shared/GameConfig.js';
+
 export class UIManager {
     constructor(game) {
         this.game = game;
@@ -95,7 +97,7 @@ export class UIManager {
         const ch = this.game.canvas.height;
         const playerIndex = this.game.controller?.playerIndex ?? 0;
         const playerCount = this.game.state.playerCount || 2;
-        const COLORS = ['#4CAF50', '#e53935', '#1E88E5', '#FB8C00', '#9C27B0', '#00ACC1', '#F9A825', '#E91E63'];
+        const COLORS = PLAYER_COLORS;
 
         // ── SELECTED COUNT (top right) ────────────────────────────────
         const selCount = this.game.systems.selection?.selectedEntities?.size || 0;

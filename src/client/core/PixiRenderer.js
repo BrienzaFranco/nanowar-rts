@@ -330,6 +330,25 @@ export class PixiRenderer {
                 attack.drawCircle(0, 0, sr * (1 + progress * 2));
                 attack.endFill();
                 entityContainer.addChild(attack);
+            } else if (entity.deathType === 'absorbed' || entity.deathType === 'sacrifice') {
+                const alpha = 1 - progress;
+                const absorb = new PIXI.Graphics();
+                // Violent vibration effect
+                const vibX = (Math.random() - 0.5) * 4 * progress;
+                const vibY = (Math.random() - 0.5) * 4 * progress;
+                absorb.x = vibX;
+                absorb.y = vibY;
+
+                absorb.beginFill(color, alpha);
+                absorb.drawCircle(0, 0, sr * (1 - progress * 0.5));
+                absorb.endFill();
+
+                // Add a bright core
+                absorb.beginFill(0xFFFFFF, alpha * 0.8);
+                absorb.drawCircle(0, 0, sr * (0.3 * (1 - progress)));
+                absorb.endFill();
+
+                entityContainer.addChild(absorb);
             }
 
             this.entityContainer.addChild(entityContainer);

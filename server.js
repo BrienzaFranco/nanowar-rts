@@ -36,7 +36,8 @@ const broadcastLobbyUpdate = (roomId) => {
         const players = game.playerSockets.map(s => ({
             id: s.id,
             nickname: s.nickname || 'Anónimo',
-            ready: s.ready || false
+            ready: s.ready || false,
+            colorIndex: s.colorIndex !== undefined ? s.colorIndex : -1
         }));
         io.to(roomId).emit('lobbyUpdate', { players });
     }
@@ -57,6 +58,11 @@ io.on('connection', (socket) => {
 
     socket.on('listRooms', () => {
         socket.emit('roomList', roomManager.listRooms());
+    });
+
+    socket.on('setColor', (colorIndex) => {
+        socket.colorIndex = colorIndex;
+        if (socket.roomId) broadcastLobbyUpdate(socket.roomId);
     });
 
     socket.on('createRoom', (data, callback) => {
@@ -104,12 +110,12 @@ io.on('connection', (socket) => {
     socket.on('toggleReady', (settings) => {
         if (!socket.roomId) return;
         socket.ready = !socket.ready;
-        
+
         // Store settings from first player to set game settings
         if (socket.ready && settings) {
             socket.gameSettings = settings;
         }
-        
+
         broadcastLobbyUpdate(socket.roomId);
 
         // Check if all are ready
@@ -122,8 +128,15 @@ io.on('connection', (socket) => {
                 if (firstReady && firstReady.gameSettings) {
                     game.applySettings(firstReady.gameSettings);
                 }
+
+                // Map of player indices to their chosen colors
+                const playerColors = game.playerSockets.map(s => s.colorIndex);
+
                 game.start();
-                io.to(socket.roomId).emit('gameStart', game.state.getState());
+                io.to(socket.roomId).emit('gameStart', {
+                    ...game.state.getState(),
+                    playerColors
+                });
             }
         }
     });
@@ -151,19 +164,12 @@ io.on('connection', (socket) => {
             const game = roomManager.getRoom(socket.roomId);
             if (game) {
                 game.removePlayer(socket.id);
-                if (game.playerSockets.length === 0) {
-                    roomManager.removeRoom(socket.roomId);
-                } else {
-                    broadcastLobbyUpdate(socket.roomId);
-                }
+                broadcastLobbyUpdate(socket.roomId);
+                broadcastRoomList();
             }
-            broadcastRoomList();
         }
     });
 });
-
-// Periodic broadcast (every 5s) to catch up status
-setInterval(broadcastRoomList, 5000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

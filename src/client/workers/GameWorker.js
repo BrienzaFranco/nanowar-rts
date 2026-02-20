@@ -230,10 +230,10 @@ function handleCollisionsAndCohesion() {
     buildSpatialGrid();
 
     const count = entityData.getCount();
-    const cohesionRadius = 45;
-    const cohesionForce = 30;
-    const separationRadius = 18;
-    const separationForce = 65;
+    const cohesionRadius = 80;
+    const cohesionForce = 35;
+    const separationRadius = 32;
+    const separationForce = 150;
 
     for (let i = 0; i < count; i++) {
         if (entityData.isDead(i) || entityData.isDying(i)) continue;
@@ -494,11 +494,17 @@ function handleEntityNodeCollisions() {
                     }
                     else {
                         let defenderIdx = -1;
+                        let minDistDefender = Infinity;
                         for (let d = 0; d < defendersCount[n]; d++) {
                             const idx = defendersPool[n][d];
                             if (!entityData.isDead(idx) && !entityData.isDying(idx)) {
-                                defenderIdx = idx;
-                                break;
+                                const dx2 = entityData.getX(idx) - nodeX;
+                                const dy2 = entityData.getY(idx) - nodeY;
+                                const d2 = dx2 * dx2 + dy2 * dy2;
+                                if (d2 < minDistDefender) {
+                                    minDistDefender = d2;
+                                    defenderIdx = idx;
+                                }
                             }
                         }
 
@@ -506,6 +512,11 @@ function handleEntityNodeCollisions() {
                             entityData.setDying(defenderIdx, true);
                             entityData.setDeathType(defenderIdx, DEATH_TYPES.SACRIFICE);
                             entityData.setDeathTime(defenderIdx, 0);
+
+                            // Store node center as target for pull animation
+                            entityData.setTargetX(defenderIdx, nodeX);
+                            entityData.setTargetY(defenderIdx, nodeY);
+
                             const defX = entityData.getX(defenderIdx);
                             const defY = entityData.getY(defenderIdx);
                             const defOwner = entityData.getOwner(defenderIdx);
@@ -535,38 +546,23 @@ function handleEntityNodeCollisions() {
                     }
                 }
                 else {
-                    if (nodeOwner === -1) {
-                        // Neutral node - cell dies and damages node
-                        nodeData.setBaseHp(n, nodeData.getBaseHp(n) - 1);
-                        nodeData.setHitFlash(n, 0.3);
+                    // Not targeting this node: only physical collision and evasion
+                    ex = ex + nx * overlap;
+                    ey = ey + ny * overlap;
+                    entityData.setX(i, ex);
+                    entityData.setY(i, ey);
 
-                        if (nodeData.getBaseHp(n) <= 0) {
-                            nodeData.setOwner(n, eOwner);
-                            nodeData.setBaseHp(n, nodeData.getMaxHp(n) * 0.1);
-                        }
-
-                        entityData.setDying(i, true);
-                        entityData.setDeathType(i, DEATH_TYPES.ATTACK);
-                        entityData.setDeathTime(i, 0);
-                        sharedMemory.addDeathEvent(ex, ey, eOwner, DEATH_TYPES.ATTACK, i, nodeX, nodeY);
-                        break;
-                    }
-                    else {
-                        ex = ex + nx * overlap;
-                        ey = ey + ny * overlap;
-                        entityData.setX(i, ex);
-                        entityData.setY(i, ey);
-
-                        const perpX = -ny;
-                        const perpY = nx;
-                        const targetDx = entityData.getTargetX(i) - ex;
-                        const targetDy = entityData.getTargetY(i) - ey;
-                        const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
-                        if (targetDist > 0.001) {
-                            const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
-                            entityData.setVx(i, entityData.getVx(i) + perpX * side * 100);
-                            entityData.setVy(i, entityData.getVy(i) + perpY * side * 100);
-                        }
+                    const perpX = -ny;
+                    const perpY = nx;
+                    const targetDx = entityData.getTargetX(i) - ex;
+                    const targetDy = entityData.getTargetY(i) - ey;
+                    const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+                    if (targetDist > 0.01) {
+                        const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
+                        // Increased evasion force (was 100/2500)
+                        const evasionForce = (1 - (dist / (nodeRadius + 60))) * 4500;
+                        entityData.setVx(i, entityData.getVx(i) + perpX * side * evasionForce * 0.016);
+                        entityData.setVy(i, entityData.getVy(i) + perpY * side * evasionForce * 0.016);
                     }
                 }
             }
@@ -584,6 +580,21 @@ function updateEntities(dt) {
         if (entityData.isDying(i)) {
             let deathTime = entityData.getDeathTime(i) + dt;
             entityData.setDeathTime(i, deathTime);
+
+            const deathType = entityData.getDeathType(i);
+            if (deathType === DEATH_TYPES.ABSORBED || deathType === DEATH_TYPES.SACRIFICE) {
+                const tx = entityData.getTargetX(i);
+                const ty = entityData.getTargetY(i);
+                if (tx !== 0 || ty !== 0) {
+                    const pullFactor = Math.pow(deathTime / 0.4, 2);
+                    let ex = entityData.getX(i);
+                    let ey = entityData.getY(i);
+                    ex += (tx - ex) * pullFactor * 0.5;
+                    ey += (ty - ey) * pullFactor * 0.5;
+                    entityData.setX(i, ex);
+                    entityData.setY(i, ey);
+                }
+            }
 
             if (deathTime > 0.4) {
                 entityData.setDead(i, true);

@@ -68,11 +68,11 @@ export class GameServer {
 
         if (action.type === 'move') {
             const { targetNodeId, targetX, targetY, unitIds } = action;
-            
+
             // Convertir targetNodeId a número si es string
             const targetNodeIdNum = targetNodeId ? Number(targetNodeId) : null;
-            const target = targetNodeIdNum ? this.state.nodes.find(n => n.id === targetNodeIdNum) : null;
-            
+            const target = (targetNodeIdNum !== null && targetNodeIdNum !== undefined) ? this.state.nodes.find(n => n.id === targetNodeIdNum) : null;
+
             if (unitIds && unitIds.length > 0) {
                 unitIds.forEach(id => {
                     const idNum = Number(id);
@@ -140,14 +140,19 @@ export class GameServer {
         this.state.nodes.forEach(n => {
             if (n.owner === playerIndex) {
                 n.owner = -1; // Neutral
-                // Keep current HP, don't reset
+                n.baseHp = n.maxHp * 0.1; // Reset to 10% health as requested by user in prev session (or grises)
             }
         });
 
-        // Remove all player entities
-        this.state.entities = this.state.entities.filter(e => e.owner !== playerIndex);
+        // "Kill" all player entities - set them to dying so client shows death animation
+        const entitiesToKill = this.state.entities.filter(e => e.owner === playerIndex);
+        entitiesToKill.forEach(e => {
+            e.dying = true;
+            e.deathType = 2; // EXPLOSION
+            e.deathTime = 0;
+        });
 
-        console.log(`Player ${playerIndex} surrendered - nodes neutralized, units removed`);
+        console.log(`Player ${playerIndex} surrendered - nodes neutralized, units killed`);
 
         // Notify other players
         this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: true });

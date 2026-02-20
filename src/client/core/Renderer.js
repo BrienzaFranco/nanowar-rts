@@ -386,25 +386,25 @@ export class Renderer {
                 this.ctx.arc(screen.x, screen.y, sr * (1 + progress * 2), 0, Math.PI * 2);
                 this.ctx.fillStyle = `rgba(255, 100, 100, ${flash * 0.4 * (1 - progress)})`;
                 this.ctx.fill();
-            } else if (deathTypeStr === 'sacrifice' && entity.absorbTarget) {
-                const node = entity.absorbTarget;
-                const easeProgress = progress * progress;
-                const currentX = entity.x + (node.x - entity.x) * easeProgress;
-                const currentY = entity.y + (node.y - entity.y) * easeProgress;
-                const absorbScreen = camera.worldToScreen(currentX, currentY);
-                const currentRadius = sr * (1 - progress * 0.7);
+            } else if (deathTypeStr === 'sacrifice' || deathTypeStr === 'absorbed') {
                 const alpha = 1 - progress;
+                const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length] || '#FFFFFF';
 
-                const playerColor = PLAYER_COLORS[entity.owner % PLAYER_COLORS.length];
-                const r = parseInt(playerColor.slice(1, 3), 16);
-                const g = parseInt(playerColor.slice(3, 5), 16);
-                const b = parseInt(playerColor.slice(5, 7), 16);
+                // Violent vibration
+                const vibX = (Math.random() - 0.5) * 4 * progress;
+                const vibY = (Math.random() - 0.5) * 4 * progress;
 
                 this.ctx.save();
-                this.ctx.globalCompositeOperation = 'lighter';
+                this.ctx.globalAlpha = alpha;
                 this.ctx.beginPath();
-                this.ctx.arc(absorbScreen.x, absorbScreen.y, currentRadius, 0, Math.PI * 2);
-                this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                this.ctx.arc(screen.x + vibX, screen.y + vibY, sr * (1 - progress * 0.5), 0, Math.PI * 2);
+                this.ctx.fillStyle = playerColor;
+                this.ctx.fill();
+
+                // Bright core
+                this.ctx.beginPath();
+                this.ctx.arc(screen.x + vibX, screen.y + vibY, sr * (0.3 * (1 - progress)), 0, Math.PI * 2);
+                this.ctx.fillStyle = 'white';
                 this.ctx.fill();
                 this.ctx.restore();
             }
@@ -539,9 +539,13 @@ export class Renderer {
     drawSelectionBox(x1, y1, x2, y2) {
         const x = Math.min(x1, x2), y = Math.min(y1, y2);
         const w = Math.abs(x1 - x2), h = Math.abs(y1 - y2);
-        this.ctx.fillStyle = 'rgba(76, 175, 80, 0.1)';
+
+        // Use player color for selection box
+        const playerColor = PLAYER_COLORS[this.playerIndex % PLAYER_COLORS.length];
+
+        this.ctx.fillStyle = playerColor + '1A'; // 0.1 alpha
         this.ctx.fillRect(x, y, w, h);
-        this.ctx.strokeStyle = 'rgba(76, 175, 80, 0.5)';
+        this.ctx.strokeStyle = playerColor + '80'; // 0.5 alpha
         this.ctx.lineWidth = 1.5;
         this.ctx.strokeRect(x, y, w, h);
     }

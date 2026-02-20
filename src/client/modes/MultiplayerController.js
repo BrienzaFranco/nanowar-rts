@@ -60,9 +60,21 @@ export class MultiplayerController {
             console.log('Game starting!');
 
             if (initialState.playerColors) {
-                const defaultColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
                 initialState.playerColors.forEach((colorIdx, i) => {
-                    PLAYER_COLORS[i] = defaultColors[colorIdx] || defaultColors[i];
+                    if (colorIdx !== -1 && colorIdx !== undefined) {
+                        const actualColor = PLAYER_COLORS[colorIdx % PLAYER_COLORS.length];
+                        // We need to store this mapping or update PLAYER_COLORS
+                        // BUT PLAYER_COLORS is usually a static array.
+                        // We should probably tell the Renderer which color to use per index.
+                    }
+                });
+                // In Nanowar, PLAYER_COLORS is often accessed as PLAYER_COLORS[entity.owner % PLAYER_COLORS.length]
+                // To support custom colors, we should update the global PLAYER_COLORS array for THIS game session
+                const defaultColors = [...PLAYER_COLORS];
+                initialState.playerColors.forEach((colorIdx, i) => {
+                    if (colorIdx !== -1 && colorIdx !== undefined) {
+                        PLAYER_COLORS[i] = defaultColors[colorIdx % defaultColors.length];
+                    }
                 });
             }
 
