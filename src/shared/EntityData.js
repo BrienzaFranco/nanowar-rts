@@ -13,7 +13,8 @@ export class EntityData {
     constructor(sharedMemory) {
         this.memory = sharedMemory;
         this.entities = sharedMemory.entities;
-        this.count = 0;
+        // Sync count from shared header so reconstucting is safe when buffer arrives from server
+        this.count = sharedMemory.getEntityCount();
     }
 
     allocate(x, y, owner, id) {
@@ -48,6 +49,11 @@ export class EntityData {
         this.memory.setEntityCount(this.count);
 
         return idx;
+    }
+
+    // Sync count from header (e.g. after server wrote a new entity count via allocateEntity)
+    syncCount() {
+        this.count = this.memory.getEntityCount();
     }
 
     getCount() {
@@ -211,6 +217,17 @@ export class EntityData {
             (this.entities.targetX[index] !== 0 || this.entities.targetY[index] !== 0);
     }
 
+    // Used by GameServer to set whether entity has an active target
+    // For now this mirrors the hasTarget logic: clear targetX/Y and targetNodeId to unset
+    setHasTarget(index, value) {
+        if (!value) {
+            this.entities.targetX[index] = 0;
+            this.entities.targetY[index] = 0;
+            this.entities.targetNodeId[index] = -1;
+        }
+        // If value=true, caller must also set targetX/Y/nodeId separately
+    }
+
     getFlockId(index) {
         return this.entities.flockId[index];
     }
@@ -247,5 +264,11 @@ export class EntityData {
             centerX: 1200,
             centerY: 900,
         };
+    }
+
+    // No-op: world bounds are currently hardcoded in getWorldBounds()
+    // This is here so GameServer can call setWorldBounds without crashing
+    setWorldBounds(centerX, centerY, worldRadius) {
+        this._worldBoundsOverride = { centerX, centerY, worldRadius };
     }
 }

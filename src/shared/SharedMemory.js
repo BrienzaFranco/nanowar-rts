@@ -1,8 +1,15 @@
+// These are filled in after the offset calculations below
 export const MEMORY_LAYOUT = {
     MAX_ENTITIES: 15000,
     MAX_NODES: 64,
     MAX_DEATH_EVENTS: 256,
     MAX_SPAWN_EVENTS: 64,
+    // Filled in at bottom of this file after layout is computed:
+    TOTAL_SIZE: 0,
+    ENTITY_DATA_START: 0,
+    NODE_DATA_START: 0,
+    ENTITY_STRIDE: 0,
+    NODE_STRIDE: 0,
 };
 
 const HEADER_SIZE = 256;
@@ -97,9 +104,17 @@ const NODES_OFFSET = HEADER_SIZE + TOTAL_ENTITY_BYTES;
 const DEATH_EVENTS_OFFSET = NODES_OFFSET + TOTAL_NODE_BYTES;
 const SPAWN_EVENTS_OFFSET = DEATH_EVENTS_OFFSET + TOTAL_DEATH_EVENT_BYTES;
 
+// Fill in derived layout constants now that offsets are known
+MEMORY_LAYOUT.ENTITY_DATA_START = HEADER_SIZE;
+MEMORY_LAYOUT.NODE_DATA_START = NODES_OFFSET;
+MEMORY_LAYOUT.ENTITY_STRIDE = Object.values(ENTITY_FIELD_SIZES).reduce((a, b) => a + b, 0) / 4; // in float32 words
+MEMORY_LAYOUT.NODE_STRIDE = Object.values(NODE_FIELD_SIZES).reduce((a, b) => a + b, 0) / 4;
+
 export function calculateBufferSize() {
     return SPAWN_EVENTS_OFFSET + TOTAL_SPAWN_EVENT_BYTES;
 }
+// Also store total size on MEMORY_LAYOUT for external use
+MEMORY_LAYOUT.TOTAL_SIZE = calculateBufferSize();
 
 export class SharedMemory {
     constructor(buffer) {
@@ -190,6 +205,12 @@ export class SharedMemory {
         return new SharedMemory(buffer);
     }
 
+    // Convenience alias: clear both event queues
+    clearEvents() {
+        this.header.deathEventsCount[0] = 0;
+        this.header.spawnEventsCount[0] = 0;
+    }
+
     clearDeathEvents() {
         this.header.deathEventsCount[0] = 0;
     }
@@ -211,6 +232,54 @@ export class SharedMemory {
 
     clearSpawnEvents() {
         this.header.spawnEventsCount[0] = 0;
+    }
+
+    // Allocate entity: returns index or -1
+    allocateEntity() {
+        const idx = this.header.entityCount[0];
+        if (idx >= MEMORY_LAYOUT.MAX_ENTITIES) return -1;
+        this.header.entityCount[0] = idx + 1;
+        // Zero the flags for this slot
+        this.entities.flags[idx] = 0;
+        this.entities.deathTime[idx] = 0;
+        this.entities.deathType[idx] = 0;
+        return idx;
+    }
+
+    // Read back all death events as array of objects
+    getDeathEvents() {
+        const count = this.header.deathEventsCount[0];
+        const events = [];
+        for (let i = 0; i < count; i++) {
+            events.push({
+                x: this.deathEvents.x[i],
+                y: this.deathEvents.y[i],
+                owner: this.deathEvents.owner[i],
+                type: this.deathEvents.type[i],
+                entityIndex: this.deathEvents.entityIndex[i],
+                targetX: this.deathEvents.targetX[i],
+                targetY: this.deathEvents.targetY[i],
+            });
+        }
+        return events;
+    }
+
+    // Read back all spawn events as array of objects
+    getSpawnEvents() {
+        const count = this.header.spawnEventsCount[0];
+        const events = [];
+        for (let i = 0; i < count; i++) {
+            events.push({
+                x: this.spawnEvents.x[i],
+                y: this.spawnEvents.y[i],
+                owner: this.spawnEvents.owner[i],
+                targetX: this.spawnEvents.targetX[i],
+                targetY: this.spawnEvents.targetY[i],
+                targetNodeId: this.spawnEvents.targetNodeId[i],
+                id: this.spawnEvents.id[i],
+            });
+        }
+        return events;
     }
 
     addSpawnEvent(x, y, owner, targetX, targetY, targetNodeId, id) {

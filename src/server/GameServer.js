@@ -1,13 +1,21 @@
-import { GameState } from '../shared/GameState.js';
 import { MapGenerator } from '../shared/MapGenerator.js';
-import { Entity } from '../shared/Entity.js';
+import { SharedMemory, MEMORY_LAYOUT } from '../shared/SharedMemory.js';
+import { EntityData, DEATH_TYPES } from '../shared/EntityData.js';
+import { NodeData } from '../shared/NodeData.js';
+import { GameEngine } from '../shared/GameEngine.js';
 
 export class GameServer {
     constructor(roomId, io, maxPlayers = 4) {
         this.roomId = roomId;
         this.io = io;
         this.maxPlayers = maxPlayers;
-        this.state = new GameState();
+
+        // DO setup
+        this.buffer = new ArrayBuffer(MEMORY_LAYOUT.TOTAL_SIZE);
+        this.sharedMemory = new SharedMemory(this.buffer);
+        this.entityData = new EntityData(this.sharedMemory);
+        this.nodeData = new NodeData(this.sharedMemory);
+
         this.playerSockets = [];
         this.gameStarted = false;
         this.gameEnded = false;
@@ -17,14 +25,22 @@ export class GameServer {
             acceleration: true,
             showProduction: true
         };
+        this.gameEngine = new GameEngine(this.sharedMemory, this.entityData, this.nodeData, this.gameSettings);
+
+        this.elapsedTime = 0;
+
+        // Simple stats tracking
+        this.stats = {
+            startTime: Date.now(),
+            produced: {},
+            lost: {},
+            captured: {}
+        };
     }
 
     applySettings(settings) {
         this.gameSettings = { ...this.gameSettings, ...settings };
-        // Apply to game state
-        this.state.speedMultiplier = this.gameSettings.speedMultiplier;
-        this.state.accelerationEnabled = this.gameSettings.acceleration;
-        this.state.showProduction = this.gameSettings.showProduction;
+        this.gameEngine.setGameSettings(this.gameSettings);
     }
 
     addPlayer(socket) {
@@ -46,15 +62,21 @@ export class GameServer {
             this.playerSockets.forEach((s, i) => s.playerIndex = i);
 
             // Make disconnected player's nodes neutral
-            this.state.nodes.forEach(n => {
-                if (n.owner === removedPlayerIndex) {
-                    n.owner = -1;
-                    n.baseHp = n.maxHp;
+            for (let i = 0; i < this.nodeData.getCount(); i++) {
+                if (this.nodeData.getOwner(i) === removedPlayerIndex) {
+                    this.nodeData.setOwner(i, -1);
+                    this.nodeData.setBaseHp(i, this.nodeData.getMaxHp(i) * 0.1);
                 }
-            });
+            }
 
-            // Remove all entities from disconnected player
-            this.state.entities = this.state.entities.filter(e => e.owner !== removedPlayerIndex);
+            // Kill all entities from disconnected player
+            for (let i = 0; i < this.entityData.getCount(); i++) {
+                if (!this.entityData.isDead(i) && this.entityData.getOwner(i) === removedPlayerIndex) {
+                    this.entityData.setDying(i, true);
+                    this.entityData.setDeathType(i, DEATH_TYPES.EXPLOSION);
+                    this.entityData.setDeathTime(i, 0);
+                }
+            }
         }
         if (this.playerSockets.length === 0) {
             this.gameStarted = false;
@@ -66,63 +88,71 @@ export class GameServer {
         const playerIndex = this.playerSockets.findIndex(s => s.id === socketId);
         if (playerIndex === -1) return;
 
+        if (this.playerSockets[playerIndex]?.defeated) {
+            if (action.type === 'path' || action.type === 'rally') return;
+        }
+
         if (action.type === 'move') {
             const { targetNodeId, targetX, targetY, unitIds } = action;
-
-            // Use explicit null/undefined check to allow node ID 0
-            const target = (targetNodeId !== null && targetNodeId !== undefined) ? this.state.nodes.find(n => n.id === Number(targetNodeId)) : null;
+            const targetId = (targetNodeId !== null && targetNodeId !== undefined) ? Number(targetNodeId) : -1;
 
             if (unitIds && unitIds.length > 0) {
                 unitIds.forEach(id => {
                     const idNum = Number(id);
-                    const entity = this.state.entities.find(e => Number(e.id) === idNum);
-                    if (entity && entity.owner === playerIndex) {
-                        entity.setTarget(targetX, targetY, target);
+                    if (idNum >= 0 && idNum < this.entityData.getCount() && !this.entityData.isDead(idNum)) {
+                        if (this.entityData.getOwner(idNum) === playerIndex) {
+                            this.entityData.setTargetNodeId(idNum, targetId);
+                            this.entityData.setTargetX(idNum, targetX);
+                            this.entityData.setTargetY(idNum, targetY);
+                            this.entityData.setHasTarget(idNum, true);
+                            this.entityData.setFlockId(idNum, -1);
+                        }
                     }
                 });
             }
         }
         else if (action.type === 'path') {
             const { unitIds, path } = action;
-            unitIds.forEach(id => {
-                const entity = this.state.entities.find(e => e.id === id);
-                if (entity && entity.owner === playerIndex) {
-                    entity.waypoints = [...path];
-                    entity.currentTarget = null;
-                }
-            });
+            if (path && path.length > 0) {
+                const targetPoint = path[path.length - 1]; // Just send to last point
+                unitIds.forEach(id => {
+                    const idNum = Number(id);
+                    if (idNum >= 0 && idNum < this.entityData.getCount() && !this.entityData.isDead(idNum)) {
+                        if (this.entityData.getOwner(idNum) === playerIndex) {
+                            this.entityData.setTargetNodeId(idNum, -1);
+                            this.entityData.setTargetX(idNum, targetPoint.x);
+                            this.entityData.setTargetY(idNum, targetPoint.y);
+                            this.entityData.setHasTarget(idNum, true);
+                            this.entityData.setFlockId(idNum, -1);
+                        }
+                    }
+                });
+            }
         }
         else if (action.type === 'rally') {
             const { nodeIds, targetX, targetY, targetNodeId } = action;
-            const targetNode = (targetNodeId !== null && targetNodeId !== undefined) ? this.state.nodes.find(n => n.id === Number(targetNodeId)) : null;
+            const targetId = (targetNodeId !== null && targetNodeId !== undefined) ? Number(targetNodeId) : -1;
             nodeIds.forEach(id => {
-                const node = this.state.nodes.find(n => n.id === id);
-                if (node && node.owner === playerIndex) {
-                    node.setRallyPoint(targetX, targetY, targetNode);
+                const idNum = Number(id);
+                if (idNum >= 0 && idNum < this.nodeData.getCount()) {
+                    if (this.nodeData.getOwner(idNum) === playerIndex) {
+                        this.nodeData.setRallyTargetNodeId(idNum, targetId);
+                        this.nodeData.setRallyX(idNum, targetX);
+                        this.nodeData.setRallyY(idNum, targetY);
+                    }
                 }
             });
         }
         else if (action.type === 'stop') {
             const { unitIds } = action;
             unitIds.forEach(id => {
-                const entity = this.state.entities.find(e => e.id === id);
-                if (entity && entity.owner === playerIndex) {
-                    entity.stop();
+                const idNum = Number(id);
+                if (idNum >= 0 && idNum < this.entityData.getCount() && !this.entityData.isDead(idNum)) {
+                    if (this.entityData.getOwner(idNum) === playerIndex) {
+                        this.entityData.setHasTarget(idNum, false);
+                    }
                 }
             });
-        }
-
-        // Check if player is defeated - restrict actions
-        if (this.playerSockets[playerIndex]?.defeated) {
-            // Defeated players can only move/attack, not capture nodes
-            // Allow stop and move, but NOT path to neutral/enemy nodes
-            if (action.type === 'path') {
-                return; // Block waypoint paths
-            }
-            if (action.type === 'rally') {
-                return; // Block rally points
-            }
-            // Allow move but target node capture is blocked in Node logic
         }
     }
 
@@ -130,30 +160,26 @@ export class GameServer {
         const playerIndex = this.playerSockets.findIndex(s => s.id === socketId);
         if (playerIndex === -1) return;
 
-        // Mark player as defeated
         const player = this.playerSockets[playerIndex];
         player.defeated = true;
         player.surrendered = true;
 
-        // Convert all player nodes to neutral (gray)
-        this.state.nodes.forEach(n => {
-            if (n.owner === playerIndex) {
-                n.owner = -1; // Neutral
-                n.baseHp = n.maxHp * 0.1; // Reset to 10% health as requested by user in prev session (or grises)
+        for (let i = 0; i < this.nodeData.getCount(); i++) {
+            if (this.nodeData.getOwner(i) === playerIndex) {
+                this.nodeData.setOwner(i, -1);
+                this.nodeData.setBaseHp(i, this.nodeData.getMaxHp(i) * 0.1);
             }
-        });
+        }
 
-        // "Kill" all player entities - set them to dying so client shows death animation
-        const entitiesToKill = this.state.entities.filter(e => e.owner === playerIndex);
-        entitiesToKill.forEach(e => {
-            e.dying = true;
-            e.deathType = 2; // EXPLOSION
-            e.deathTime = 0;
-        });
+        for (let i = 0; i < this.entityData.getCount(); i++) {
+            if (!this.entityData.isDead(i) && this.entityData.getOwner(i) === playerIndex) {
+                this.entityData.setDying(i, true);
+                this.entityData.setDeathType(i, DEATH_TYPES.EXPLOSION);
+                this.entityData.setDeathTime(i, 0);
+            }
+        }
 
         console.log(`Player ${playerIndex} surrendered - nodes neutralized, units killed`);
-
-        // Notify other players
         this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: true });
     }
 
@@ -161,26 +187,60 @@ export class GameServer {
         const player = this.playerSockets[playerIndex];
         if (!player || player.defeated) return;
 
-        const playerNodes = this.state.nodes.filter(n => n.owner === playerIndex);
+        let hasNodes = false;
+        for (let i = 0; i < this.nodeData.getCount(); i++) {
+            if (this.nodeData.getOwner(i) === playerIndex) {
+                hasNodes = true;
+                break;
+            }
+        }
 
-        // Player is defeated if no nodes (units don't matter)
-        if (playerNodes.length === 0) {
+        if (!hasNodes) {
             player.defeated = true;
             console.log(`Player ${playerIndex} defeated - no nodes`);
             this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: false });
         }
     }
 
+    getStats() {
+        // Minimal stats needed by clients to avoid crashing
+        let current = {};
+        for (let i = 0; i < this.playerSockets.length; i++) current[i] = 0;
+
+        for (let i = 0; i < this.entityData.getCount(); i++) {
+            if (!this.entityData.isDead(i) && !this.entityData.isDying(i)) {
+                let owner = this.entityData.getOwner(i);
+                if (owner !== -1) {
+                    current[owner] = (current[owner] || 0) + 1;
+                }
+            }
+        }
+
+        const producedMapped = {};
+        for (let pid in this.stats.produced) {
+            producedMapped[pid] = { total: this.stats.produced[pid] };
+        }
+
+        return {
+            elapsed: this.elapsedTime / 60,
+            produced: producedMapped,
+            current: current,
+            lost: {},
+            captured: this.stats.captured,
+            history: [],
+            nodeHistory: [],
+            productionHistory: [],
+            events: []
+        };
+    }
+
     checkWinCondition() {
         if (this.gameEnded) return;
 
-        // Check time limit - winner by production
-        const elapsed = this.state.elapsedTime || 0;
-        if (elapsed >= this.GAME_TIME_LIMIT) {
+        if (this.elapsedTime >= this.GAME_TIME_LIMIT) {
             this.gameEnded = true;
-            const stats = this.state.getStats();
+            const stats = this.getStats();
 
-            // Find player with most produced units
             let maxProduction = -1;
             let winnerIndex = -1;
             for (let pid in stats.produced) {
@@ -201,40 +261,36 @@ export class GameServer {
         }
 
         const activePlayers = [];
-        const playerCounts = {};
-
         for (let i = 0; i < this.playerSockets.length; i++) {
-            // Skip surrendered players
             if (this.playerSockets[i].surrendered) continue;
-
-            const playerNodes = this.state.nodes.filter(n => n.owner === i);
-
-            playerCounts[i] = playerNodes.length;
-
-            // Player is active if they have nodes (units don't matter)
-            if (playerNodes.length > 0) {
+            let hasNodes = false;
+            for (let n = 0; n < this.nodeData.getCount(); n++) {
+                if (this.nodeData.getOwner(n) === i) {
+                    hasNodes = true;
+                    break;
+                }
+            }
+            if (hasNodes) {
                 activePlayers.push(i);
             }
         }
 
-        // If only one non-surrendered player has nodes/units, they win
         if (activePlayers.length === 1 && this.playerSockets.length > 1) {
             this.gameEnded = true;
             const winnerIndex = activePlayers[0];
             console.log(`Game Over! Winner: Player ${winnerIndex}`);
             this.io.to(this.roomId).emit('gameOver', {
                 winner: winnerIndex,
-                stats: this.state.getStats()
+                stats: this.getStats()
             });
             return;
         }
 
-        // If no active players left
         if (activePlayers.length === 0) {
             this.gameEnded = true;
             this.io.to(this.roomId).emit('gameOver', {
                 winner: -1,
-                stats: this.state.getStats()
+                stats: this.getStats()
             });
         }
     }
@@ -251,9 +307,18 @@ export class GameServer {
             const now = Date.now();
             const dt = Math.min((now - lastTime) / 1000, 0.05);
             lastTime = now;
+            this.elapsedTime += dt;
 
-            this.state.update(dt, this);
-            this.io.to(this.roomId).emit('gameState', this.state.getState());
+            // Step physics
+            this.gameEngine.step(dt);
+
+            // Process events (spawns, deaths) from SharedMemory
+            this.processEvents();
+
+            this.sharedMemory.incrementFrameCounter();
+
+            // Send partial specific data instead of the full buffer to save bandwidth
+            this.sendSyncState();
 
             // Check if any player is defeated
             for (let i = 0; i < this.playerSockets.length; i++) {
@@ -270,35 +335,140 @@ export class GameServer {
         loop();
     }
 
-    initLevel() {
-        const actualPlayers = this.playerSockets.length;
-        this.state.playerCount = actualPlayers;
-
-        // Generate map with actual player count
-        this.state.nodes = MapGenerator.generate(
-            actualPlayers,
-            this.state.worldWidth,
-            this.state.worldHeight
-        );
-
-        // Spawn initial entities - MORE units for multiplayer
-        this.state.nodes.forEach(node => {
-            if (node.owner !== -1) {
-                // Spawn 20 units per node (was 15)
-                for (let i = 0; i < 20; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = node.radius + 30;
-                    const ent = new Entity(
-                        node.x + Math.cos(angle) * dist,
-                        node.y + Math.sin(angle) * dist,
-                        node.owner
-                    );
-                    this.state.entities.push(ent);
-                }
+    processEvents() {
+        // Collect deaths for stats
+        const deathEvents = this.sharedMemory.getDeathEvents();
+        for (const ev of deathEvents) {
+            if (ev.owner !== -1) {
+                this.stats.lost[ev.owner] = (this.stats.lost[ev.owner] || 0) + 1;
             }
+        }
+
+        // Process spawns - add to EntityData (which keeps entityData.count in sync)
+        const spawnEvents = this.sharedMemory.getSpawnEvents();
+        for (const ev of spawnEvents) {
+            const index = this.entityData.allocate(ev.x, ev.y, ev.owner, 0);
+            if (index !== -1) {
+                // Set entity ID = its buffer index so client can resolve selections
+                this.entityData.setId(index, index);
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 50 + Math.random() * 50;
+
+                this.entityData.setVx(index, Math.cos(angle) * speed);
+                this.entityData.setVy(index, Math.sin(angle) * speed);
+                this.entityData.setRadius(index, 3.5);
+                this.entityData.setMaxSpeed(index, 90 + Math.random() * 20);
+                this.entityData.setFriction(index, 0.98);
+
+                if (ev.targetX !== 0 || ev.targetY !== 0 || ev.targetNodeId !== -1) {
+                    this.entityData.setTargetNodeId(index, ev.targetNodeId);
+                    this.entityData.setTargetX(index, ev.targetX);
+                    this.entityData.setTargetY(index, ev.targetY);
+                } else {
+                    this.entityData.setHasTarget(index, false);
+                }
+
+                this.stats.produced[ev.owner] = (this.stats.produced[ev.owner] || 0) + 1;
+            }
+        }
+
+        this.sharedMemory.clearEvents();
+    }
+
+    sendSyncState() {
+        const entityCount = this.entityData.getCount();
+        const nodeCount = this.nodeData.getCount();
+
+        // Send one contiguous buffer: header + entity SOA block + node SOA block.
+        // CLIENT reconstructs SharedMemory views at the same layout offsets.
+        const NODE_SECTION_BYTES = 19 * 4 * MEMORY_LAYOUT.MAX_NODES;
+        const syncBuffer = this.buffer.slice(0, MEMORY_LAYOUT.NODE_DATA_START + NODE_SECTION_BYTES);
+
+        this.io.to(this.roomId).volatile.emit('syncStateDO', {
+            entityCount,
+            nodeCount,
+            syncBuffer,
+            playerCount: this.playerSockets.length,
+            elapsedTime: this.elapsedTime,
+            stats: this.getStats(),
+            gameSettings: this.gameSettings
         });
     }
 
-    spawnParticles(x, y, color, count, type) {
+    initLevel() {
+        const actualPlayers = this.playerSockets.length;
+
+        // Reset counts both in SharedMemory header AND EntityData/NodeData instance counts
+        this.sharedMemory.setEntityCount(0);
+        this.entityData.count = 0;
+        this.sharedMemory.setNodeCount(0);
+        this.nodeData.count = 0;
+        this.sharedMemory.clearEvents();
+
+        // Generate map with actual player count
+        const mapNodes = MapGenerator.generate(
+            actualPlayers,
+            2560, // worldWidth
+            1440  // worldHeight
+        );
+
+        // NodeData.setNodeCount syncs the count from header, set it here too
+        this.sharedMemory.setNodeCount(mapNodes.length);
+        this.nodeData.count = mapNodes.length;
+        // Map OOP Node string types to NodeData numeric enum
+        const typeMap = { 'small': 0, 'medium': 1, 'large': 2 };
+        mapNodes.forEach((n, i) => {
+            const typeEnum = typeMap[n.type] !== undefined ? typeMap[n.type] : 1; // default medium
+            this.nodeData.setId(i, n.id);
+            this.nodeData.setType(i, typeEnum);
+            this.nodeData.setOwner(i, n.owner);
+            this.nodeData.setX(i, n.x);
+            this.nodeData.setY(i, n.y);
+            this.nodeData.setRadius(i, n.radius);
+            // Use the influenceRadius from the OOP Node object (it varies by type+randomness)
+            this.nodeData.setInfluenceRadius(i, n.influenceRadius);
+            this.nodeData.setBaseHp(i, n.baseHp);
+            this.nodeData.setMaxHp(i, n.maxHp);
+
+            this.nodeData.setSpawnInterval(i, n.spawnInterval);
+            this.nodeData.setSpawnTimer(i, 0);
+            this.nodeData.setHitFlash(i, 0);
+            this.nodeData.setSpawnEffect(i, 0);
+            this.nodeData.setRallyTargetNodeId(i, -1);
+            this.nodeData.setRallyX(i, 0);
+            this.nodeData.setRallyY(i, 0);
+        });
+
+        // Spawn initial entities - 20 units per owned node
+        for (let i = 0; i < this.nodeData.getCount(); i++) {
+            const owner = this.nodeData.getOwner(i);
+            if (owner !== -1) {
+                const nodeX = this.nodeData.getX(i);
+                const nodeY = this.nodeData.getY(i);
+                const nodeRadius = this.nodeData.getRadius(i);
+
+                for (let j = 0; j < 20; j++) {
+                    const index = this.entityData.allocate(
+                        nodeX + Math.cos(Math.random() * Math.PI * 2) * (nodeRadius + 30),
+                        nodeY + Math.sin(Math.random() * Math.PI * 2) * (nodeRadius + 30),
+                        owner,
+                        0
+                    );
+                    if (index === -1) break;
+
+                    // Set entity ID = its buffer index so client can resolve selections
+                    this.entityData.setId(index, index);
+                    this.entityData.setVx(index, 0);
+                    this.entityData.setVy(index, 0);
+                    this.entityData.setRadius(index, 3.5);
+                    this.entityData.setMaxSpeed(index, 90 + Math.random() * 20);
+                    this.entityData.setFriction(index, 0.98);
+                    this.entityData.setHasTarget(index, false);
+                }
+            }
+        }
+
+        // Setup bounds properly
+        this.entityData.setWorldBounds(2560 / 2, 1440 / 2, Math.max(2560, 1440) / 2 + 300);
     }
 }

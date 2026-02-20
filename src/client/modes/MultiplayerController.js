@@ -1,9 +1,10 @@
 import { io } from 'socket.io-client';
-import { Entity } from '../../shared/Entity.js';
-import { Node } from '../../shared/Node.js';
 import { GameState } from '../../shared/GameState.js';
 import { sounds } from '../systems/SoundManager.js';
 import { PLAYER_COLORS } from '../../shared/GameConfig.js';
+import { SharedMemory, MEMORY_LAYOUT } from '../../shared/SharedMemory.js';
+import { SharedView } from '../../shared/SharedView.js';
+
 
 export class MultiplayerController {
     constructor(game) {
@@ -57,19 +58,9 @@ export class MultiplayerController {
         });
 
         this.socket.on('gameStart', (initialState) => {
-            console.log('Game starting!');
+            console.log('Game starting!', initialState);
 
             if (initialState.playerColors) {
-                initialState.playerColors.forEach((colorIdx, i) => {
-                    if (colorIdx !== -1 && colorIdx !== undefined) {
-                        const actualColor = PLAYER_COLORS[colorIdx % PLAYER_COLORS.length];
-                        // We need to store this mapping or update PLAYER_COLORS
-                        // BUT PLAYER_COLORS is usually a static array.
-                        // We should probably tell the Renderer which color to use per index.
-                    }
-                });
-                // In Nanowar, PLAYER_COLORS is often accessed as PLAYER_COLORS[entity.owner % PLAYER_COLORS.length]
-                // To support custom colors, we should update the global PLAYER_COLORS array for THIS game session
                 const defaultColors = [...PLAYER_COLORS];
                 initialState.playerColors.forEach((colorIdx, i) => {
                     if (colorIdx !== -1 && colorIdx !== undefined) {
@@ -78,30 +69,23 @@ export class MultiplayerController {
                 });
             }
 
-            // Clear existing state and initialize from server
+            // Initialize a fresh GameState (needed for elapsedTime, stats, etc.)
             this.game.state = new GameState();
             this.game.state.nodes = [];
             this.game.state.entities = [];
-            this.game.state.playerCount = initialState.playerCount || this.game.state.playerCount;
+            this.game.state.playerCount = initialState.playerCount || 2;
             this.game.state.isClient = true;
 
-            // Apply initial state
-            if (initialState.nodes) {
-                initialState.nodes.forEach(sn => {
-                    const node = new Node(sn.id, sn.x, sn.y, sn.owner, sn.type);
-                    node.baseHp = sn.baseHp;
-                    node.maxHp = sn.maxHp;
-                    node.radius = sn.radius;
-                    node.influenceRadius = sn.influenceRadius;
-                    node.stock = sn.stock;
-                    node.maxStock = sn.maxStock;
-                    node.spawnProgress = sn.spawnProgress;
-                    if (sn.rallyPoint) node.rallyPoint = sn.rallyPoint;
-                    this.game.state.nodes.push(node);
-                });
+            // PRE-ALLOCATE SharedMemory and SharedView immediately.
+            // drawFromWorker will be called from game.start() and needs sharedView to exist.
+            // The actual data will arrive via syncStateDO shortly after.
+            if (!this.game.sharedMemory) {
+                const buffer = new ArrayBuffer(MEMORY_LAYOUT.TOTAL_SIZE);
+                this.game.sharedMemory = new SharedMemory(buffer);
+                this.game.sharedView = new SharedView(buffer);
             }
-
-            // NOTE: Don't spawn entities here - they come from server via gameState
+            this.game.isMultiplayerDO = true;
+            this.cameraCentered = false;
 
             const lobby = document.getElementById('lobby-screen');
             const gameScreen = document.getElementById('game-screen');
@@ -130,16 +114,12 @@ export class MultiplayerController {
             }
         });
 
-        this.socket.on('gameState', (serverState) => {
-            // Stop syncing after game over
+        this.socket.on('syncStateDO', (serverState) => {
             if (this.game.gameOverShown) return;
 
-            // Keep syncing always for defeated players who can still play
             if (this.game.running || this.playerDefeated) {
-                this.syncState(serverState);
+                this.syncStateDO(serverState);
 
-                // If tab is inactive, requestAnimationFrame pauses.
-                // We manually tick the time forward so local extrapolation doesn't break when we return.
                 if (document.hidden && this.game.running) {
                     this.game.lastTime = performance.now();
                 }
@@ -457,116 +437,76 @@ export class MultiplayerController {
         }
     }
 
-    syncState(serverState) {
-        // Sync nodes
-        serverState.nodes.forEach(sn => {
-            let clientNode = this.game.state.nodes.find(cn => cn.id === sn.id);
-            if (!clientNode) {
-                clientNode = new Node(sn.id, sn.x, sn.y, sn.owner, sn.type);
-                this.game.state.nodes.push(clientNode);
-            }
+    syncStateDO(serverState) {
+        if (!this.game.sharedMemory) {
+            const buffer = new ArrayBuffer(MEMORY_LAYOUT.TOTAL_SIZE);
+            this.game.sharedMemory = new SharedMemory(buffer);
+            this.game.sharedView = new SharedView(buffer);
+            this.game.isMultiplayerDO = true;
+        }
 
-            // Check if node was captured
-            const oldOwner = clientNode.owner;
+        const view = this.game.sharedView;
 
-            // Update properties from server (ensure maxHp is synced to fix visual fill issues)
-            clientNode.owner = sn.owner;
-            clientNode.baseHp = sn.baseHp;
-            clientNode.maxHp = sn.maxHp;
-            clientNode.radius = sn.radius;
-            clientNode.influenceRadius = sn.influenceRadius;
-            clientNode.stock = sn.stock;
-            clientNode.spawnProgress = sn.spawnProgress;
-            clientNode.hitFlash = sn.hitFlash;
-            clientNode.spawnEffect = sn.spawnEffect;
-            clientNode.enemyPressure = sn.enemyPressure;
-            if (sn.rallyPoint) {
-                clientNode.rallyPoint = sn.rallyPoint;
-            }
+        // Remember node owners before overwriting memory to play capture sounds
+        const prevOwners = [];
+        const nodeCount = view.getNodeCount();
+        for (let i = 0; i < nodeCount; i++) {
+            prevOwners[i] = view.getNodeOwner(i);
+        }
 
-            // Play capture sound ONLY if WE captured it
-            if (oldOwner !== sn.owner && sn.owner === this.playerIndex) {
+        // Copy the full server buffer (header + entity SOA + node SOA) into client memory.
+        // Both server and client use the same SharedMemory layout constants, so offsets match.
+        if (serverState.syncBuffer) {
+            const dest = new Uint8Array(this.game.sharedMemory.buffer);
+            const src = new Uint8Array(serverState.syncBuffer);
+            dest.set(src);
+            // The header in syncBuffer already has correct counts, but update them
+            // explicitly to keep EntityData.count / NodeData.count instance vars in sync.
+            this.game.sharedMemory.setEntityCount(serverState.entityCount);
+            this.game.sharedMemory.setNodeCount(serverState.nodeCount);
+        }
+
+        // Check for node captures to play sound
+        const newNodeCount = view.getNodeCount();
+        for (let i = 0; i < newNodeCount; i++) {
+            const newOwner = view.getNodeOwner(i);
+            const prevOwner = prevOwners[i] !== undefined ? prevOwners[i] : -1;
+            if (prevOwner !== newOwner && newOwner === this.playerIndex) {
                 sounds.playCapture();
-            }
-        });
-
-        // Center camera on player's starting node
-        if (!this.cameraCentered && this.playerIndex !== -1 && this.game.state.nodes.length > 0) {
-            const startNode = this.game.state.nodes.find(n => n.owner === this.playerIndex);
-            if (startNode) {
-                this.game.camera.centerOn(startNode.x, startNode.y, this.game.canvas.width, this.game.canvas.height);
-                this.cameraCentered = true;
             }
         }
 
-        // Sync entities - update existing ones
-        const entityMap = new Map();
-        this.game.state.entities.forEach(e => entityMap.set(e.id, e));
-
-        serverState.entities.forEach(se => {
-            let ent = entityMap.get(se.id);
-            if (!ent) {
-                ent = new Entity(se.x, se.y, se.owner, se.id);
-                this.game.state.entities.push(ent);
+        // Center camera on player's starting node once
+        if (!this.cameraCentered && this.playerIndex !== -1 && newNodeCount > 0) {
+            for (let i = 0; i < newNodeCount; i++) {
+                if (view.getNodeOwner(i) === this.playerIndex) {
+                    this.game.camera.centerOn(view.getNodeX(i), view.getNodeY(i), this.game.canvas.width, this.game.canvas.height);
+                    this.cameraCentered = true;
+                    break;
+                }
             }
+        }
 
-            // Update from server (authoritative)
-            ent.x = se.x;
-            ent.y = se.y;
-            ent.vx = se.vx;
-            ent.vy = se.vy;
-            ent.owner = se.owner;
-            ent.dying = se.dying;
-            ent.deathType = se.deathType;
-            ent.deathTime = se.deathTime;
-
-            entityMap.set(se.id, ent);
-        });
-
-        // Remove entities that no longer exist on server
-        const serverEntityIds = new Set(serverState.entities.map(e => e.id));
-        this.game.state.entities = this.game.state.entities.filter(e => serverEntityIds.has(e.id));
-
-        // Sync elapsed time
+        // Restore game settings / state globals
         if (serverState.elapsedTime !== undefined) {
             this.game.state.elapsedTime = serverState.elapsedTime;
         }
 
-        // Sync game settings
-        if (serverState.speedMultiplier !== undefined) {
-            this.game.state.speedMultiplier = serverState.speedMultiplier;
-        }
-        if (serverState.accelerationEnabled !== undefined) {
-            this.game.state.accelerationEnabled = serverState.accelerationEnabled;
-        }
-        if (serverState.showProduction !== undefined) {
-            this.game.state.showProduction = serverState.showProduction;
+        if (serverState.gameSettings) {
+            this.game.state.speedMultiplier = serverState.gameSettings.speedMultiplier;
+            this.game.state.accelerationEnabled = serverState.gameSettings.accelerationEnabled;
+            this.game.state.showProduction = serverState.gameSettings.showProduction;
         }
 
-        // Sync live stats for in-game panel
-        if (serverState.productionRates) {
-            this.game.state.productionRates = serverState.productionRates;
-        }
-
-        // Build unitCounts from entities (entities are already synced above)
-        // This lets UIManager show current active unit counts per player
-        const counts = {};
-        this.game.state.entities.forEach(e => {
-            if (!e.dying && !e.dead) {
-                counts[e.owner] = (counts[e.owner] || 0) + 1;
-            }
-        });
-        this.game.state.unitCounts = counts;
-
-        // Sync cumulative stats from server (unitsProduced, unitsLost, etc.)
         if (serverState.stats) {
-            if (!this.game.state.stats) this.game.state.stats = {};
-            if (serverState.stats.unitsProduced) {
-                this.game.state.stats.unitsProduced = serverState.stats.unitsProduced;
-            }
-            if (serverState.stats.unitsLost) {
-                this.game.state.stats.unitsLost = serverState.stats.unitsLost;
-            }
+            this.game.state.stats = serverState.stats;
+            // Hack to provide legacy unitCounts map to UI
+            this.game.state.unitCounts = serverState.stats.current || {};
         }
+
+        // Map events from Server (explosions etc) directly since Server processEvents clears them
+        // Wait, for visuals we can just rely on the GameClient doing simple prediction or nothing
+        // Server DO Engine currently drops events into the server's sharedMemory, then processEvents clears them.
+        // So client won't see them. We can ignore particles for now or fix later.
     }
 }

@@ -10,7 +10,9 @@ export class NodeData {
     constructor(sharedMemory) {
         this.memory = sharedMemory;
         this.nodes = sharedMemory.nodes;
-        this.count = 0;
+        // Initialize count from the shared header so we can reconstruct NodeData
+        // after the memory is written externally (e.g. server sending to client)
+        this.count = sharedMemory.getNodeCount();
 
         this.typeConfig = {
             [NODE_TYPES.SMALL]: {
@@ -189,6 +191,20 @@ export class NodeData {
         return this.nodes.type[index];
     }
 
+    setType(index, value) {
+        this.nodes.type[index] = value;
+    }
+
+    setSpawnInterval(index, value) {
+        // spawnInterval is stored in the SharedMemory spawnTimer field (no dedicated field).
+        // We store it separately using a per-node override encoded in a spare field.
+        // Actually spawnTimer stores the current timer, so we need another approach:
+        // NodeData.getSpawnInterval reads from typeConfig; to override per-node, store in stock temporarily.
+        // Better: use a dedicated backing array.
+        if (!this._spawnIntervalOverride) this._spawnIntervalOverride = new Float32Array(MEMORY_LAYOUT.MAX_NODES);
+        this._spawnIntervalOverride[index] = value;
+    }
+
     getSpawnEffect(index) {
         return this.nodes.spawnEffect[index];
     }
@@ -210,6 +226,9 @@ export class NodeData {
     }
 
     getSpawnInterval(index) {
+        if (this._spawnIntervalOverride && this._spawnIntervalOverride[index] > 0) {
+            return this._spawnIntervalOverride[index];
+        }
         const type = this.nodes.type[index];
         return this.typeConfig[type]?.spawnInterval || 3.5;
     }

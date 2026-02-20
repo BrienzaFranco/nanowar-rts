@@ -134,8 +134,9 @@ io.on('connection', (socket) => {
 
                 game.start();
                 io.to(socket.roomId).emit('gameStart', {
-                    ...game.state.getState(),
-                    playerColors
+                    playerCount: game.playerSockets.length,
+                    playerColors,
+                    gameSettings: game.gameSettings
                 });
             }
         }

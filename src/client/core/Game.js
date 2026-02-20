@@ -284,6 +284,9 @@ export class Game {
         if (this.useWorker && this.sharedView) {
             this.updateWorkerLoop();
             this.updateFromWorker(dt, playerIdx);
+        } else if (this.isMultiplayerDO && this.sharedView) {
+            // No local physics simulation, just visuals and sounds for DO payload
+            this.updateFromMultiplayerDO(dt, playerIdx);
         } else {
             this.updateLegacy(dt, playerIdx);
         }
@@ -386,6 +389,27 @@ export class Game {
         view.memory.clearSpawnEvents();
     } // Fin de updateFromWorker
 
+    updateFromMultiplayerDO(dt, playerIdx) {
+        // Just sounds and basic node owner mappings since physics runs on Server
+        const view = this.sharedView;
+        const isValidPlayer = playerIdx >= 0;
+        if (isValidPlayer) {
+            view.iterateNodes((nodeIndex) => {
+                const owner = view.getNodeOwner(nodeIndex);
+                const prevOwner = this.workerNodeOwners?.[nodeIndex];
+                // Sound logic is handled in MultiplayerController.js syncStateDO explicitly,
+                // so we don't necessarily need to repeat it here, but we can track owners.
+            });
+        }
+
+        if (!this.workerNodeOwners) {
+            this.workerNodeOwners = new Array(view.getNodeCount()).fill(-1);
+        }
+        view.iterateNodes((nodeIndex) => {
+            this.workerNodeOwners[nodeIndex] = view.getNodeOwner(nodeIndex);
+        });
+    }
+
     updateLegacy(dt, playerIdx) {
         const nodeOwnersBefore = new Map();
         const nodeHpBefore = new Map();
@@ -423,6 +447,8 @@ export class Game {
         this.renderer.drawGrid(this.canvas.width, this.canvas.height, this.camera);
 
         if (this.useWorker && this.sharedView) {
+            this.drawFromWorker();
+        } else if (this.isMultiplayerDO && this.sharedView) {
             this.drawFromWorker();
         } else {
             this.drawLegacy(dt);
