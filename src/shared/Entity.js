@@ -263,15 +263,21 @@ export class Entity {
                 const distSq = dx * dx + dy * dy;
                 const minDist = node.radius + this.radius;
 
-                if (distSq < minDist * minDist && distSq > 0) {
+                if (distSq < minDist * minDist) {
                     const dist = Math.sqrt(distSq);
-                    const overlap = minDist - dist;
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-                    this.x += nx * overlap;
-                    this.y += ny * overlap;
-                    this.vx += nx * 50 * 0.016;
-                    this.vy += ny * 50 * 0.016;
+                    const safeDist = Math.max(0.1, dist);
+                    const overlap = minDist - safeDist;
+                    const nx = dx / safeDist;
+                    const ny = dy / safeDist;
+
+                    const safeOverlap = Math.min(overlap, minDist);
+                    this.x += nx * safeOverlap;
+                    this.y += ny * safeOverlap;
+
+                    // Limit push force
+                    const force = 50 * 0.016;
+                    this.vx += nx * force;
+                    this.vy += ny * force;
                 }
             }
         }
@@ -300,19 +306,21 @@ export class Entity {
             if (otherOwner === this.owner) {
                 if (dist < this.separationRadius) {
                     // SEPARATION: Push away if too close
-                    const force = (1 - dist / this.separationRadius);
-                    separationX -= (dx / dist) * force;
-                    separationY -= (dy / dist) * force;
+                    const safeDist = Math.max(0.1, dist);
+                    const force = (1 - safeDist / this.separationRadius);
+                    separationX -= (dx / safeDist) * force;
+                    separationY -= (dy / safeDist) * force;
                     separationCount++;
                 } else if (dist > this.radius * 2.5) {
                     // COHESION: Pull towards if far enough
+                    const safeDist = Math.max(0.1, dist);
                     if (inFlock && other.flockId === this.flockId) {
-                        cohesionX += (dx / dist) * 1.5;
-                        cohesionY += (dy / dist) * 1.5;
+                        cohesionX += (dx / safeDist) * 1.5;
+                        cohesionY += (dy / safeDist) * 1.5;
                         cohesionCount++;
                     } else {
-                        cohesionX += dx / dist;
-                        cohesionY += dy / dist;
+                        cohesionX += dx / safeDist;
+                        cohesionY += dy / safeDist;
                         cohesionCount++;
                     }
                 }
@@ -320,14 +328,19 @@ export class Entity {
 
             // COLLISION logic - intensified to prevent overlapping
             const minDist = this.radius + other.radius;
-            if (dist < minDist && dist > 0) {
-                const overlap = minDist - dist;
-                const nx = dx / dist;
-                const ny = dy / dist;
+            if (dist < minDist) {
+                // Prevent division by zero or near zero
+                const safeDist = Math.max(0.01, dist);
+                const overlap = minDist - safeDist;
+                const nx = dx / safeDist;
+                const ny = dy / safeDist;
 
                 // Push apart more aggressively (0.6 instead of 0.3)
-                this.x -= nx * overlap * 0.6;
-                this.y -= ny * overlap * 0.6;
+                // Cap the overlap to prevent teleporting cross-map
+                const safeOverlap = Math.min(overlap, minDist);
+
+                this.x -= nx * safeOverlap * 0.6;
+                this.y -= ny * safeOverlap * 0.6;
 
                 if (this.owner !== other.owner) {
                     this.die('explosion', null, game);
@@ -341,10 +354,14 @@ export class Entity {
 
                 if (velAlongNormal > 0) {
                     const j = -(1.3) * velAlongNormal * 0.5;
-                    this.vx -= j * nx;
-                    this.vy -= j * ny;
-                    other.vx += j * nx;
-                    other.vy += j * ny;
+                    // Cap the physics impulse to prevent erratic zooming
+                    const maxJ = 200;
+                    const safeJ = Math.max(-maxJ, Math.min(maxJ, j));
+
+                    this.vx -= safeJ * nx;
+                    this.vy -= safeJ * ny;
+                    other.vx += safeJ * nx;
+                    other.vy += safeJ * ny;
                 }
             }
         }
