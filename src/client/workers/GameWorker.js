@@ -123,7 +123,7 @@ function handleSetEntityTargetById(data) {
     if (idx !== undefined && entityData.isValidIndex(idx)) {
         entityData.setTargetX(idx, targetX);
         entityData.setTargetY(idx, targetY);
-        entityData.setTargetNodeId(idx, targetNodeId || -1);
+        entityData.setTargetNodeId(idx, targetNodeId != null ? targetNodeId : -1);
     }
 }
 
@@ -135,7 +135,7 @@ function handleSetMultipleEntityTargets(data) {
         if (idx !== undefined && entityData.isValidIndex(idx)) {
             entityData.setTargetX(idx, targetX);
             entityData.setTargetY(idx, targetY);
-            entityData.setTargetNodeId(idx, targetNodeId || -1);
+            entityData.setTargetNodeId(idx, targetNodeId != null ? targetNodeId : -1);
         }
     }
 }
