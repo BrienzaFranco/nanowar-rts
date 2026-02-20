@@ -7,6 +7,7 @@ import { MultiplayerController } from './modes/MultiplayerController.js';
 import { GameState } from '../shared/GameState.js';
 import { sounds } from './systems/SoundManager.js';
 import { setPlayerColor } from '../shared/GameConfig.js';
+import { Entity } from '../shared/Entity.js';
 
 window.initGame = (mode) => {
     const game = new Game('game-canvas');

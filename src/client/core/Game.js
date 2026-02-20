@@ -209,7 +209,7 @@ export class Game {
             if (ent) {
                 ent.currentTarget = { x: targetX, y: targetY };
                 ent.waypoints = [];
-                ent.targetNode = targetNodeId ? this.state.nodes.find(n => n.id === targetNodeId) : null;
+                ent.targetNode = (targetNodeId !== null && targetNodeId !== undefined) ? this.state.nodes.find(n => n.id === targetNodeId) : null;
             }
         });
 

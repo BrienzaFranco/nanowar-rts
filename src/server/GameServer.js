@@ -69,9 +69,8 @@ export class GameServer {
         if (action.type === 'move') {
             const { targetNodeId, targetX, targetY, unitIds } = action;
 
-            // Convertir targetNodeId a número si es string
-            const targetNodeIdNum = targetNodeId ? Number(targetNodeId) : null;
-            const target = (targetNodeIdNum !== null && targetNodeIdNum !== undefined) ? this.state.nodes.find(n => n.id === targetNodeIdNum) : null;
+            // Use explicit null/undefined check to allow node ID 0
+            const target = (targetNodeId !== null && targetNodeId !== undefined) ? this.state.nodes.find(n => n.id === Number(targetNodeId)) : null;
 
             if (unitIds && unitIds.length > 0) {
                 unitIds.forEach(id => {
@@ -95,7 +94,7 @@ export class GameServer {
         }
         else if (action.type === 'rally') {
             const { nodeIds, targetX, targetY, targetNodeId } = action;
-            const targetNode = targetNodeId ? this.state.nodes.find(n => n.id === targetNodeId) : null;
+            const targetNode = (targetNodeId !== null && targetNodeId !== undefined) ? this.state.nodes.find(n => n.id === Number(targetNodeId)) : null;
             nodeIds.forEach(id => {
                 const node = this.state.nodes.find(n => n.id === id);
                 if (node && node.owner === playerIndex) {
