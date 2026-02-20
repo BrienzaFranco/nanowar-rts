@@ -287,7 +287,14 @@ export class MultiplayerController {
                     const val = p.rate !== undefined ? p.rate : p.count;
                     if (val > maxVal) maxVal = val;
                 });
-                maxVal = Math.ceil(Math.max(maxVal, 5) * 1.1); // Min 5, 10% padding
+
+                // Round nicely for massive numbers (e.g. 800 unit cap -> 1000 graph ceiling)
+                if (maxVal > 100) {
+                    const magnitude = Math.pow(10, Math.floor(Math.log10(maxVal)));
+                    maxVal = Math.ceil((maxVal * 1.1) / magnitude) * magnitude;
+                } else {
+                    maxVal = Math.ceil(Math.max(maxVal, 5) * 1.1); // Min 5, 10% padding
+                }
 
                 // Draw Grid
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';

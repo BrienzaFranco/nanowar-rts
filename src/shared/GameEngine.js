@@ -663,6 +663,16 @@ export class GameEngine {
     }
 
     updateNodes(dt) {
+        // Precalculate unit counts per player to enforce global cap efficiently
+        const playerUnitCounts = {};
+        for (let i = 0; i < this.entityData.getCount(); i++) {
+            if (this.entityData.getDead(i) || this.entityData.getDying(i)) continue;
+            const owner = this.entityData.getOwner(i);
+            if (owner !== -1) {
+                playerUnitCounts[owner] = (playerUnitCounts[owner] || 0) + 1;
+            }
+        }
+
         for (let i = 0; i < this.nodeData.getCount(); i++) {
             const owner = this.nodeData.getOwner(i);
 
@@ -693,7 +703,9 @@ export class GameEngine {
                 const spawnInterval = this.nodeData.getSpawnInterval(i);
                 const spawnThreshold = spawnInterval / healthScaling;
 
-                const canSpawn = this.entityData.getCount() < MEMORY_LAYOUT.MAX_ENTITIES;
+                const currentCount = playerUnitCounts[owner] || 0;
+                const hitGlobalCap = currentCount >= GAME_SETTINGS.MAX_UNITS_PER_PLAYER;
+                const canSpawn = this.entityData.getCount() < MEMORY_LAYOUT.MAX_ENTITIES && !hitGlobalCap;
 
                 if (canSpawn && spawnTimer >= spawnThreshold && baseHp > maxHp * 0.1) {
                     spawnTimer = 0;
