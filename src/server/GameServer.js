@@ -356,7 +356,7 @@ export class GameServer {
 
                 this.entityData.setVx(index, Math.cos(angle) * speed);
                 this.entityData.setVy(index, Math.sin(angle) * speed);
-                this.entityData.setRadius(index, 3.5);
+                this.entityData.setRadius(index, 5);
                 this.entityData.setMaxSpeed(index, 90 + Math.random() * 20);
                 this.entityData.setFriction(index, 0.98);
 

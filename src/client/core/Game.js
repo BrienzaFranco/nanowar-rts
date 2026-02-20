@@ -7,8 +7,9 @@ import { sounds } from '../systems/SoundManager.js';
 import { SharedMemory, MEMORY_LAYOUT, calculateBufferSize } from '../../shared/SharedMemory.js';
 import { SharedView } from '../../shared/SharedView.js';
 import { Entity } from '../../shared/Entity.js';
+import { EntityData } from '../../shared/EntityData.js';
 import { NodeData } from '../../shared/NodeData.js';
-
+import { GameEngine } from '../../shared/GameEngine.js';
 export class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -392,6 +393,18 @@ export class Game {
     updateFromMultiplayerDO(dt, playerIdx) {
         const view = this.sharedView;
         if (!view) return;
+
+        // Run local physics interpolation so movement is smooth 60fps
+        // instead of snapping to 30fps server ticks
+        if (!this.sharedEngine) {
+            this.sharedEngine = new GameEngine(
+                view.memory,
+                new EntityData(view.memory),
+                new NodeData(view.memory),
+                { speedMultiplier: 1 }
+            );
+        }
+        this.sharedEngine.step(dt);
 
         // Process death events for particles/sounds
         const deathCount = view.getDeathEventsCount();
