@@ -24,7 +24,7 @@ export const GAME_SETTINGS = {
     WORLD_HEIGHT: 1800,
     WORLD_RADIUS: 1800, // Larger than map - units won't reach it often
     OUTSIDE_DEATH_TIME: 5, // Seconds before unit dies outside boundary
-    MAX_UNITS_PER_PLAYER: 800, // Global unit cap
+    MAX_UNITS_PER_PLAYER: 500, // Global unit cap
 };
 
 export const NODE_TYPES = {

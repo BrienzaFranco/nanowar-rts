@@ -49,7 +49,7 @@ export class SingleplayerController {
     }
 
     createInitialEntities(testMode = false) {
-        const initialCount = testMode ? 1000 : 15;
+        const initialCount = testMode ? 500 : 15;
 
         this.game.state.nodes.forEach(node => {
             if (node.owner !== -1) {
