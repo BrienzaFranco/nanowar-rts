@@ -34,7 +34,12 @@ export class GameServer {
             startTime: Date.now(),
             produced: {},
             lost: {},
-            captured: {}
+            captured: {},
+            history: [], // { time, playerId, count }
+            nodeHistory: [], // { time, playerId, count }
+            productionHistory: [], // { time, playerId, rate, total }
+            lastHistorySnapshot: 0,
+            lastProductionSnapshot: 0
         };
     }
 
@@ -227,9 +232,9 @@ export class GameServer {
             current: current,
             lost: {},
             captured: this.stats.captured,
-            history: [],
-            nodeHistory: [],
-            productionHistory: [],
+            history: this.stats.history,
+            nodeHistory: this.stats.nodeHistory,
+            productionHistory: this.stats.productionHistory,
             events: []
         };
     }
@@ -328,6 +333,13 @@ export class GameServer {
             // Check win condition every second (every 30 frames)
             this.checkWinCondition();
 
+            // Periodically take history snapshots for graphs
+            const nowMs = Date.now();
+            if (nowMs - this.stats.lastHistorySnapshot > 2000) { // Every 2s
+                this.takeHistorySnapshot();
+                this.stats.lastHistorySnapshot = nowMs;
+            }
+
             if (!this.gameEnded) {
                 setTimeout(loop, 1000 / 30);
             }
@@ -367,6 +379,89 @@ export class GameServer {
         }
 
         this.sharedMemory.clearEvents();
+    }
+
+    takeHistorySnapshot() {
+        const now = Date.now();
+        const elapsed = (now - this.stats.startTime) / 1000;
+        const elapsedMin = elapsed / 60;
+
+        // 1. Snapshot Unit counts
+        const currentUnits = {};
+        for (let i = 0; i < this.entityData.getCount(); i++) {
+            if (!this.entityData.isDead(i) && !this.entityData.isDying(i)) {
+                const owner = this.entityData.getOwner(i);
+                if (owner !== -1) {
+                    currentUnits[owner] = (currentUnits[owner] || 0) + 1;
+                }
+            }
+        }
+
+        for (let pid in currentUnits) {
+            this.stats.history.push({
+                time: elapsed,
+                playerId: parseInt(pid),
+                count: currentUnits[pid]
+            });
+        }
+
+        // 2. Snapshot Node territory
+        const nodesOwned = {};
+        for (let i = 0; i < this.nodeData.getCount(); i++) {
+            const owner = this.nodeData.getOwner(i);
+            if (owner !== -1) {
+                nodesOwned[owner] = (nodesOwned[owner] || 0) + 1;
+            }
+        }
+
+        for (let pid in nodesOwned) {
+            this.stats.nodeHistory.push({
+                time: elapsed,
+                playerId: parseInt(pid),
+                count: nodesOwned[pid]
+            });
+        }
+
+        // 3. Snapshot Production Rate (Every 6s approx for better graph resolution)
+        if (now - this.stats.lastProductionSnapshot > 6000) {
+            this.stats.lastProductionSnapshot = now;
+
+            // Calculate current production rates per player
+            const playerProductionRates = {};
+            for (let i = 0; i < this.nodeData.getCount(); i++) {
+                const owner = this.nodeData.getOwner(i);
+                if (owner === -1) continue;
+
+                // Simple estimate matching Node.js logic:
+                // healthScaling = 0.3 + (hp/maxHp)*1.2 + fullBonus + largeBonus
+                const hp = this.nodeData.getBaseHp(i);
+                const max = this.nodeData.getMaxHp(i);
+                const percent = Math.min(hp / max, 1.0);
+                let scaling = 0.3 + percent * 1.2;
+                if (percent >= 0.9) scaling += (percent - 0.9) * 5; // full bonus up to 0.5
+
+                const type = this.nodeData.getType(i);
+                if (type === 2) scaling += 0.5; // Large bonus
+
+                const interval = this.nodeData.getSpawnInterval(i);
+                const unitsPerSec = 1 / (interval / scaling);
+                playerProductionRates[owner] = (playerProductionRates[owner] || 0) + (unitsPerSec * 60);
+            }
+
+            for (let pid in playerProductionRates) {
+                this.stats.productionHistory.push({
+                    time: elapsedMin,
+                    playerId: parseInt(pid),
+                    rate: Math.round(playerProductionRates[pid]),
+                    total: this.stats.produced[pid] || 0
+                });
+            }
+        }
+
+        // Limit history size to prevent memory leaks in very long matches
+        if (this.stats.history.length > 5000) this.stats.history.shift();
+        if (this.stats.nodeHistory.length > 5000) this.stats.nodeHistory.shift();
+        if (this.stats.productionHistory.length > 1000) this.stats.productionHistory.shift();
     }
 
     sendSyncState() {
