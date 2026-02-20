@@ -538,10 +538,11 @@ export class Game {
             let rallyPoint = null;
             let rallyTargetNode = null;
 
+            if (rX !== 0 || rY !== 0) {
+                rallyPoint = { x: rX, y: rY };
+            }
             if (rallyTargetNodeId !== -1) {
                 rallyTargetNode = this.state.nodes.find(n => n.id === rallyTargetNodeId) || null;
-            } else if (rX !== 0 || rY !== 0) {
-                rallyPoint = { x: rX, y: rY };
             }
 
             const node = {
