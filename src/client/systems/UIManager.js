@@ -1,19 +1,14 @@
 export class UIManager {
     constructor(game) {
         this.game = game;
-
-        // Stats tracking
         this._lastCounts = {};
         this._ratesCache = {};
         this._totalProduced = {};
         this._currentCounts = {};
         this._lastSampleTime = 0;
         this.game.state.spawnCounts = {};
-
-        // Animated row sorting
-        // _rowY[playerId] = current animated Y offset within panel (lerped)
+        // Animated row positions (lerp by playerId)
         this._rowY = {};
-        this._targetOrder = []; // sorted player indices by rate descending
     }
 
     _countEntitiesPerPlayer() {
@@ -52,15 +47,12 @@ export class UIManager {
                 const maxHp = view.getNodeMaxHp(n);
                 const hpPct = Math.min(baseHp / maxHp, 1.0);
                 const healthScaling = 0.3 + hpPct * 1.2 + (type === 2 ? 0.5 : 0);
-                const effectiveInterval = baseInterval / healthScaling;
-                rates[owner] = (rates[owner] || 0) + (60 / effectiveInterval);
+                rates[owner] = (rates[owner] || 0) + (60 / (baseInterval / healthScaling));
             }
         } else {
             const serverRates = this.game.state?.productionRates;
             if (serverRates) {
-                for (const pid in serverRates) {
-                    rates[parseInt(pid)] = serverRates[pid] * 60;
-                }
+                for (const pid in serverRates) rates[parseInt(pid)] = serverRates[pid] * 60;
             }
         }
         return rates;
@@ -76,17 +68,13 @@ export class UIManager {
 
         const spawnCounts = this.game.state?.spawnCounts || {};
         for (let i = 0; i < playerCount; i++) {
-            const spawned = spawnCounts[i] || 0;
-            this._totalProduced[i] = (this._totalProduced[i] || 0) + spawned;
-            this._lastCounts[i] = currentCounts[i] || 0;
+            this._totalProduced[i] = (this._totalProduced[i] || 0) + (spawnCounts[i] || 0);
         }
         if (this.game.state?.spawnCounts) this.game.state.spawnCounts = {};
 
         const serverProduced = this.game.state?.stats?.unitsProduced;
         if (serverProduced) {
-            for (const pid in serverProduced) {
-                this._totalProduced[parseInt(pid)] = serverProduced[pid];
-            }
+            for (const pid in serverProduced) this._totalProduced[parseInt(pid)] = serverProduced[pid];
         }
 
         this._currentCounts = currentCounts;
@@ -97,211 +85,152 @@ export class UIManager {
     draw(renderer) {
         if (this._lastSampleTime === 0) {
             this._currentCounts = this._countEntitiesPerPlayer();
-            this._lastCounts = { ...this._currentCounts };
             this._ratesCache = this._computeProdRates();
             this._lastSampleTime = performance.now();
         }
         this._updateStatsCache();
 
         const ctx = renderer.ctx;
-        const h = this.game.canvas.height;
-        const w = this.game.canvas.width;
-        const playerIndex = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
+        const cw = this.game.canvas.width;
+        const ch = this.game.canvas.height;
+        const playerIndex = this.game.controller?.playerIndex ?? 0;
         const playerCount = this.game.state.playerCount || 2;
+        const COLORS = ['#4CAF50', '#e53935', '#1E88E5', '#FB8C00', '#9C27B0', '#00ACC1', '#F9A825', '#E91E63'];
 
-        const COLORS = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
-        const myColor = COLORS[playerIndex % COLORS.length];
-
-        // --- PLAYER INFO (Bottom Left) ---
-        ctx.save();
-        ctx.fillStyle = myColor;
-        ctx.font = 'bold 15px monospace';
-        ctx.textAlign = 'left';
-        ctx.shadowColor = myColor;
-        ctx.shadowBlur = 8;
-        ctx.fillText(`JUGADOR ${playerIndex + 1}`, 20, h - 40);
-        ctx.shadowBlur = 0;
-
-        const elapsed = this.game.state.elapsedTime || 0;
-        const minutes = Math.floor(elapsed / 60);
-        const seconds = Math.floor(elapsed % 60);
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.font = '13px monospace';
-        ctx.fillText(`${minutes}:${seconds.toString().padStart(2, '0')}`, 20, h - 22);
-        ctx.restore();
-
-        // --- SELECTION INFO (Top Right) ---
-        const selectionCount = this.game.systems.selection.selectedEntities.size;
-        if (selectionCount > 0) {
+        // ── SELECTED COUNT (top right) ────────────────────────────────
+        const selCount = this.game.systems.selection?.selectedEntities?.size || 0;
+        if (selCount > 0) {
             ctx.save();
-            const selBoxY = 70;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-            this._roundRect(ctx, w - 210, selBoxY, 200, 36, 8);
-            ctx.fill();
-            ctx.strokeStyle = myColor + 'aa';
-            ctx.lineWidth = 1.5;
-            this._roundRect(ctx, w - 210, selBoxY, 200, 36, 8);
-            ctx.stroke();
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 13px monospace';
+            ctx.font = 'bold 15px "Courier New", monospace';
             ctx.textAlign = 'right';
-            ctx.fillText(`SELEC: ${selectionCount}`, w - 18, selBoxY + 23);
+            ctx.fillStyle = 'rgba(255,255,255,0.45)';
+            ctx.fillText(`SEL: ${selCount}`, cw - 20, 28);
             ctx.restore();
         }
 
-        // --- STATS PANEL (Bottom Right) ---
-        const ROW_H = 28;
-        const panelPad = 14;
-        const panelWidth = 270;
-        const headerH = 40;
-        const panelHeight = headerH + playerCount * ROW_H + panelPad;
-        const panelX = w - panelWidth - 16;
-        const panelY = h - panelHeight - 16;
+        // ── STATS PANEL (bottom right) ────────────────────────────────
+        const COL_NAME = 0;   // relative to panelX + padding
+        const COL_RATE = 120;
+        const COL_TOT = 200;
+        const COL_CUR = 270;
+        const PAD = 18;
+        const ROW_H = 30;
+        const HEADER_H = 40;
+        const panelW = 320;
+        const panelH = HEADER_H + playerCount * ROW_H + 16;
+        const panelX = cw - panelW - 16;
+        const panelY = ch - panelH - 16;
 
-        // Compute sorted order by rate descending
+        // Sort players by rate descending
         const sorted = Array.from({ length: playerCount }, (_, i) => i)
             .sort((a, b) => (this._ratesCache[b] || 0) - (this._ratesCache[a] || 0));
 
-        // Update animated Y positions (lerp toward target)
+        // Lerp animated row Y positions
         sorted.forEach((pid, rank) => {
-            const targetY = headerH + rank * ROW_H;
-            if (this._rowY[pid] === undefined) this._rowY[pid] = targetY;
-            this._rowY[pid] += (targetY - this._rowY[pid]) * 0.08; // smooth
+            const target = HEADER_H + rank * ROW_H;
+            if (this._rowY[pid] === undefined) this._rowY[pid] = target;
+            this._rowY[pid] += (target - this._rowY[pid]) * 0.1;
         });
 
-        // Panel background — glassmorphism style
+        // Panel background
         ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.6)';
-        ctx.shadowBlur = 20;
-        const grad = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelHeight);
-        grad.addColorStop(0, 'rgba(15,15,25,0.92)');
-        grad.addColorStop(1, 'rgba(5,5,12,0.96)');
-        ctx.fillStyle = grad;
-        this._roundRect(ctx, panelX, panelY, panelWidth, panelHeight, 10);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(8, 8, 10, 0.96)';
+        ctx.fillRect(panelX, panelY, panelW, panelH);
 
-        // Panel border
-        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        // Panel border (1px, all sides)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.lineWidth = 1;
-        this._roundRect(ctx, panelX, panelY, panelWidth, panelHeight, 10);
-        ctx.stroke();
+        ctx.strokeRect(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1);
 
-        // Header
+        // Header row
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.fillRect(panelX + 1, panelY + 1, panelWidth - 2, headerH - 6);
+        ctx.fillRect(panelX, panelY, panelW, HEADER_H);
 
-        ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        ctx.font = 'bold 11px monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText('PROD/MIN', panelX + 16, panelY + 16);
-        ctx.textAlign = 'center';
-        ctx.fillText('TOTAL', panelX + panelWidth - 75, panelY + 16);
-        ctx.textAlign = 'right';
-        ctx.fillText('EN CAMPO', panelX + panelWidth - 12, panelY + 16);
-
-        // Divider
-        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 1;
+        // Header divider
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
         ctx.beginPath();
-        ctx.moveTo(panelX + 10, panelY + headerH - 8);
-        ctx.lineTo(panelX + panelWidth - 10, panelY + headerH - 8);
+        ctx.moveTo(panelX, panelY + HEADER_H);
+        ctx.lineTo(panelX + panelW, panelY + HEADER_H);
         ctx.stroke();
 
-        // Clip rows to panel
+        // Header labels
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.font = '13px "Courier New", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('JUGADOR', panelX + PAD, panelY + 25);
+        ctx.textAlign = 'right';
+        ctx.fillText('PROD/M', panelX + PAD + COL_RATE + 32, panelY + 25);
+        ctx.fillText('TOT', panelX + PAD + COL_TOT + 32, panelY + 25);
+        ctx.fillText('CAMPO', panelX + panelW - PAD, panelY + 25);
+
+        // Clip to panel for animated rows
         ctx.beginPath();
-        this._roundRect(ctx, panelX, panelY + headerH - 8, panelWidth, panelHeight - headerH + 8, 10);
+        ctx.rect(panelX, panelY + HEADER_H, panelW, panelH - HEADER_H);
         ctx.clip();
 
-        // Draw each player row at its animated Y
+        // Draw each player row
         for (let i = 0; i < playerCount; i++) {
-            const pColor = COLORS[i % COLORS.length];
+            const color = COLORS[i % COLORS.length];
             const isMe = i === playerIndex;
             const rate = this._ratesCache[i] || 0;
-            const ratePerMin = Math.round(rate);
             const produced = this._totalProduced[i] || 0;
             const current = this._currentCounts?.[i] || 0;
             const label = isMe ? 'TÚ' : `P${i + 1}`;
 
-            const rowY = panelY + (this._rowY[i] ?? (headerH + i * ROW_H));
-            const rowMid = rowY + ROW_H / 2 + 5;
+            const ry = panelY + (this._rowY[i] ?? (HEADER_H + i * ROW_H));
+            const mid = ry + ROW_H / 2 + 4;
 
-            // Row hover highlight for me
+            // Row highlight for current player
             if (isMe) {
-                const hlGrad = ctx.createLinearGradient(panelX, rowY, panelX + panelWidth, rowY);
-                hlGrad.addColorStop(0, pColor + '30');
-                hlGrad.addColorStop(0.5, pColor + '18');
-                hlGrad.addColorStop(1, 'transparent');
-                ctx.fillStyle = hlGrad;
-                ctx.fillRect(panelX, rowY, panelWidth, ROW_H);
-
-                // Left accent bar
-                ctx.fillStyle = pColor;
-                ctx.fillRect(panelX, rowY + 4, 3, ROW_H - 8);
+                ctx.fillStyle = color + '14';
+                ctx.fillRect(panelX, ry, panelW, ROW_H);
+                // Left accent line
+                ctx.fillStyle = color;
+                ctx.fillRect(panelX, ry + 3, 2, ROW_H - 6);
             }
 
-            // Color dot
+            // Row divider (subtle)
+            ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(panelX + 14, rowMid - 3, 4, 0, Math.PI * 2);
-            ctx.fillStyle = pColor;
-            if (isMe) {
-                ctx.shadowColor = pColor;
-                ctx.shadowBlur = 8;
-            }
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            ctx.moveTo(panelX, ry + ROW_H - 0.5);
+            ctx.lineTo(panelX + panelW, ry + ROW_H - 0.5);
+            ctx.stroke();
 
-            // Label + rate
+            // Color dot (square)
+            ctx.fillStyle = color;
+            ctx.fillRect(panelX + PAD, mid - 7, 8, 8);
+
+            // Label
             ctx.textAlign = 'left';
-            ctx.fillStyle = isMe ? '#fff' : pColor + 'cc';
-            ctx.font = isMe ? 'bold 13px monospace' : '12px monospace';
-            ctx.fillText(label, panelX + 26, rowMid);
+            ctx.fillStyle = isMe ? '#fff' : color + 'bb';
+            ctx.font = isMe ? 'bold 15px "Courier New", monospace' : '14px "Courier New", monospace';
+            ctx.fillText(label, panelX + PAD + 16, mid);
 
-            // PROD/MIN value with color intensity
-            const maxRate = Math.max(...Object.values(this._ratesCache), 1);
-            const rateFrac = rate / maxRate;
-            const rateColor = isMe ? '#fff' : `hsl(${120 * rateFrac}, 70%, ${50 + rateFrac * 20}%)`;
-            ctx.fillStyle = rateColor;
-            ctx.font = isMe ? 'bold 13px monospace' : '12px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${ratePerMin}/m`, panelX + 100, rowMid);
-
-            // Totals
-            ctx.fillStyle = isMe ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)';
-            ctx.font = '11px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${produced}`, panelX + panelWidth - 75, rowMid);
-
+            // Rate
             ctx.textAlign = 'right';
-            ctx.fillText(`(${current})`, panelX + panelWidth - 10, rowMid);
+            ctx.fillStyle = isMe ? '#fff' : 'rgba(255,255,255,0.7)';
+            ctx.font = '14px "Courier New", monospace';
+            ctx.fillText(`${Math.round(rate)}/m`, panelX + PAD + COL_RATE + 32, mid);
+
+            // Total produced
+            ctx.fillStyle = isMe ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)';
+            ctx.fillText(`${produced}`, panelX + PAD + COL_TOT + 32, mid);
+
+            // Current on field
+            ctx.fillText(`${current}`, panelX + panelW - PAD, mid);
         }
 
         ctx.restore();
 
-        // --- RALLY MODE hint ---
-        if (this.game.systems.selection.selectedNodes.size > 0) {
+        // ── RALLY MODE hint ───────────────────────────────────────────
+        if (this.game.systems.selection?.selectedNodes?.size > 0) {
             ctx.save();
-            ctx.fillStyle = 'rgba(255,220,0,0.85)';
-            ctx.font = 'bold 13px monospace';
+            ctx.fillStyle = 'rgba(255,220,50,0.9)';
+            ctx.font = '15px "Courier New", monospace';
             ctx.textAlign = 'center';
-            ctx.shadowColor = '#ff0';
-            ctx.shadowBlur = 6;
-            ctx.fillText('MODO RALLY: T para punto de spawn', w / 2, h - 50);
+            ctx.fillText('MODO RALLY — T: PUNTO DE SPAWN', cw / 2, ch - 24);
             ctx.restore();
         }
-    }
-
-    _roundRect(ctx, x, y, w, h, r) {
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + w - r, y);
-        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-        ctx.lineTo(x + w, y + h - r);
-        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-        ctx.lineTo(x + r, y + h);
-        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
     }
 }

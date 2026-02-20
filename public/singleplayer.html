@@ -9,22 +9,24 @@
     <style>
         body {
             background: #0a0a0a;
+            font-family: 'Courier New', monospace;
         }
 
         #game-container {
             background: #0a0a0a;
         }
 
+        /* ── TOP-LEFT HUD PANEL ────────────────── */
         #ui {
             position: absolute;
-            top: 15px;
-            left: 15px;
+            top: 0;
+            left: 0;
             z-index: 10;
-            background: rgba(20, 20, 25, 0.95);
-            padding: 12px 16px;
-            border-radius: 6px;
-            min-width: 180px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(8, 8, 10, 0.97);
+            border-right: 1px solid rgba(255, 255, 255, 0.09);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+            padding: 16px 20px 14px;
+            min-width: 240px;
             font-family: 'Courier New', monospace;
         }
 
@@ -32,86 +34,105 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 11px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
         #ui-top h1 {
             margin: 0;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             color: #4CAF50;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 5px;
         }
 
         #ui-buttons {
             display: flex;
-            gap: 6px;
+            gap: 3px;
         }
 
         .ui-btn {
-            width: 26px;
-            height: 26px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            background: rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.7);
+            height: 28px;
+            padding: 0 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: transparent;
+            color: rgba(255, 255, 255, 0.4);
             font-size: 12px;
+            font-family: 'Courier New', monospace;
             cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            transition: color 0.12s, border-color 0.12s;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
         }
 
         .ui-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.3);
-            color: white;
+            color: rgba(255, 255, 255, 0.85);
         }
 
+        /* ── NODE COUNTER ────────────────────────── */
         #score {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            margin-bottom: 12px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            gap: 4px;
+            margin-bottom: 9px;
+            padding-bottom: 9px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         #score span {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.35);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
             display: flex;
             justify-content: space-between;
         }
 
         #score span strong {
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: bold;
         }
 
+        /* ── PLAYER LIST ─────────────────────────── */
         #players-info {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
+            margin-bottom: 9px;
         }
 
         .player-score {
             display: flex;
             align-items: center;
             font-size: 10px;
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(255, 255, 255, 0.45);
+            letter-spacing: 0.5px;
+            padding: 2px 0;
         }
 
         .player-score-color {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
+            width: 5px;
+            height: 5px;
             margin-right: 8px;
+            flex-shrink: 0;
         }
 
-        .player-score span {
+        /* ── BOTTOM ACTION BUTTONS ───────────────── */
+        .action-buttons {
+            display: flex;
+            gap: 4px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .action-buttons .ui-btn {
             flex: 1;
+            height: 30px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
         }
 
         #game-canvas {
@@ -120,13 +141,14 @@
             height: 100%;
         }
 
+        /* ── TUTORIAL OVERLAY ────────────────────── */
         #tutorial-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.88);
             z-index: 100;
             display: none;
             justify-content: center;
@@ -138,71 +160,75 @@
         }
 
         #tutorial-content {
-            background: rgba(20, 20, 25, 0.98);
+            background: #0b0b0e;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 30px 40px;
-            max-width: 600px;
+            padding: 26px 34px;
+            max-width: 540px;
             max-height: 80vh;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
-            color: rgba(255, 255, 255, 0.85);
+            color: rgba(255, 255, 255, 0.65);
+            position: relative;
         }
 
         #tutorial-content h2 {
             color: #4CAF50;
-            font-size: 18px;
+            font-size: 14px;
             margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        #tutorial-content h3 {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            margin: 18px 0 8px;
             text-transform: uppercase;
             letter-spacing: 2px;
         }
 
-        #tutorial-content h3 {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 13px;
-            margin: 16px 0 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
         #tutorial-content p,
         #tutorial-content li {
-            font-size: 11px;
-            line-height: 1.7;
-            color: rgba(255, 255, 255, 0.65);
-            margin-bottom: 6px;
+            font-size: 13px;
+            line-height: 2;
+            color: rgba(255, 255, 255, 0.45);
+            margin-bottom: 5px;
         }
 
         #tutorial-content ul {
-            padding-left: 20px;
+            padding-left: 14px;
         }
 
         #tutorial-content .close-btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 14px;
+            right: 14px;
             background: none;
             border: none;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 24px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 16px;
             cursor: pointer;
+            font-family: monospace;
         }
 
         #tutorial-content .close-btn:hover {
-            color: white;
+            color: rgba(255, 255, 255, 0.8);
         }
 
+        /* ── INFO / STATS OVERLAY ────────────────── */
         #info-overlay {
             position: fixed;
             top: 0;
             right: 0;
             width: 320px;
             height: 100%;
-            background: rgba(15, 15, 20, 0.98);
+            background: rgba(8, 8, 10, 0.98);
             z-index: 100;
             display: none;
             flex-direction: column;
-            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 1px solid rgba(255, 255, 255, 0.09);
         }
 
         #info-overlay.visible {
@@ -210,23 +236,20 @@
         }
 
         #info-content {
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            padding: 25px 20px;
-            width: 100%;
+            padding: 24px 20px;
             font-family: 'Courier New', monospace;
-            color: rgba(255, 255, 255, 0.85);
+            color: rgba(255, 255, 255, 0.7);
+            position: relative;
         }
 
         #info-content h2 {
             color: #4CAF50;
-            font-size: 14px;
-            margin-bottom: 20px;
+            font-size: 13px;
+            letter-spacing: 5px;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
         #info-stats {
@@ -236,48 +259,35 @@
 
         #info-content .close-info {
             position: absolute;
-            top: 15px;
-            right: 15px;
+            top: 14px;
+            right: 14px;
             background: none;
             border: none;
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 18px;
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 14px;
             cursor: pointer;
         }
 
         #info-content .close-info:hover {
-            color: white;
-        }
-
-        #info-content h2 {
-            color: #4CAF50;
-            font-size: 14px;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        #info-stats {
-            overflow-y: auto;
-            flex: 1;
+            color: rgba(255, 255, 255, 0.7);
         }
 
         #info-content .stat-row {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 12px;
             padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            letter-spacing: 0.5px;
         }
 
         #info-content .stat-label {
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.35);
+            text-transform: uppercase;
         }
 
         #info-content .stat-value {
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
@@ -293,14 +303,14 @@
                 </div>
             </div>
             <div id="score">
-                <span>TUS NODOS: <strong id="player-nodes">0</strong></span>
-                <span>ENEMIGOS: <strong id="enemy-nodes">0</strong></span>
+                <span>MIS NODOS <strong id="player-nodes">0</strong></span>
+                <span>ENEMIGOS <strong id="enemy-nodes">0</strong></span>
             </div>
             <div id="players-info"></div>
-            <div style="display: flex; gap: 10px;">
-                <button id="mute-btn" class="ui-btn" style="flex: 1; padding: 8px; font-size: 16px;">🔊</button>
-                <button id="reset-btn" class="ui-btn" style="flex: 1; padding: 8px;">REINICIAR</button>
-                <button id="menu-btn" class="ui-btn" style="flex: 1; padding: 8px;">MENU</button>
+            <div class="action-buttons">
+                <button id="mute-btn" class="ui-btn">🔊</button>
+                <button id="reset-btn" class="ui-btn">↺ RESET</button>
+                <button id="menu-btn" class="ui-btn">← MENU</button>
             </div>
         </div>
         <canvas id="game-canvas"></canvas>
@@ -308,66 +318,49 @@
 
     <div id="tutorial-overlay">
         <div id="tutorial-content">
-            <button class="close-btn" onclick="closeTutorial()">&times;</button>
+            <button class="close-btn" onclick="closeTutorial()">×</button>
             <h2>COMO JUGAR</h2>
 
             <h3>Objetivo</h3>
             <p>Captura todos los nodos del mapa. Gana quien controle más nodos.</p>
 
-            <h3>Controls</h3>
+            <h3>Controles</h3>
             <ul>
-                <li><strong>Click izquierdo:</strong> Seleccionar nodo/tropa</li>
+                <li><strong>Click izquierdo:</strong> Seleccionar nodo / tropa</li>
                 <li><strong>Click derecho:</strong> Mover tropas al destino</li>
-                <li><strong>Doble click:</strong> Seleccionar todos los nodos/tropas del jugador</li>
+                <li><strong>Doble click:</strong> Seleccionar todas las tropas</li>
                 <li><strong>T + Click:</strong> Configurar Rally Point</li>
                 <li><strong>S:</strong> Detener tropas seleccionadas</li>
-                <li><strong>Click derecho sostenido:</strong> Crear línea de waypoints</li>
                 <li><strong>Rueda mouse:</strong> Zoom</li>
                 <li><strong>Space + arrastrar:</strong> Mover cámara</li>
             </ul>
 
             <h3>Nodos</h3>
             <ul>
-                <li><strong>Pequeños:</strong> Rápidos, poca vida, spawnean rápido</li>
-                <li><strong>Grandes:</strong> Lentos, mucha vida, spawnean lento</li>
-                <li><strong>Stock:</strong> Envía troupes a tus nodos para boost de producción</li>
-                <li><strong>Defensa:</strong> Tropas en el área protegen el nodo</li>
+                <li><strong>Pequeños:</strong> Poca vida, spawnean rápido</li>
+                <li><strong>Grandes:</strong> Mucha vida, spawnean lento pero más</li>
+                <li><strong>Bufar:</strong> Envía tropas a tu nodo para subirle HP</li>
             </ul>
-
-            <h3>Estrategia</h3>
-            <p>Expande rápido capturando nodos neutros. Defiende tus nodos con troupes. Invierte troupes en stock para
-                mayor producción (cuidado: se pierden al ser capturado).</p>
         </div>
     </div>
 
     <div id="info-overlay">
         <div id="info-content">
-            <h2>ESTADISTICAS</h2>
+            <button class="close-info" onclick="closeInfo()">×</button>
+            <h2>ESTADÍSTICAS</h2>
             <div id="info-stats"></div>
         </div>
     </div>
 
     <script>
-        function showTutorial() {
-            document.getElementById('tutorial-overlay').classList.add('visible');
-        }
-        function closeTutorial() {
-            document.getElementById('tutorial-overlay').classList.remove('visible');
-        }
-        function showInfo() {
-            document.getElementById('info-overlay').classList.add('visible');
-        }
-        function closeInfo() {
-            document.getElementById('info-overlay').classList.remove('visible');
-        }
+        function showTutorial() { document.getElementById('tutorial-overlay').classList.add('visible'); }
+        function closeTutorial() { document.getElementById('tutorial-overlay').classList.remove('visible'); }
+        function showInfo() { document.getElementById('info-overlay').classList.add('visible'); }
+        function closeInfo() { document.getElementById('info-overlay').classList.remove('visible'); }
         document.getElementById('help-btn').addEventListener('click', showTutorial);
         document.getElementById('info-btn').addEventListener('click', showInfo);
-        document.getElementById('info-overlay').addEventListener('click', function (e) {
-            if (e.target === this) closeInfo();
-        });
-        document.getElementById('tutorial-overlay').addEventListener('click', function (e) {
-            if (e.target === this) closeTutorial();
-        });
+        document.getElementById('info-overlay').addEventListener('click', function (e) { if (e.target === this) closeInfo(); });
+        document.getElementById('tutorial-overlay').addEventListener('click', function (e) { if (e.target === this) closeTutorial(); });
     </script>
     <script src="dist/bundle.js"></script>
 </body>

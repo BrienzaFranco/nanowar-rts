@@ -489,6 +489,8 @@ export class Game {
                 hitFlash: view.getNodeHitFlash(nodeIndex),
                 spawnEffect: view.getNodeSpawnEffect(nodeIndex),
                 id: view.getNodeId(nodeIndex),
+                rallyPoint: this.state.nodes[nodeIndex]?.rallyPoint,
+                rallyTargetNode: this.state.nodes[nodeIndex]?.rallyTargetNode,
                 getColor: () => owner === -1 ? '#757575' : PLAYER_COLORS[owner % PLAYER_COLORS.length],
                 getTotalHp: () => Math.min(maxHp, baseHp),
             };
