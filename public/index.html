@@ -428,7 +428,7 @@
             <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">RED
                 MULTIPLAYER</h2>
 
-            <button class="btn" id="btn-create-room">NUEVA SALA OPERATIVA</button>
+            <button class="btn" id="btn-create-room">NUEVA SALA</button>
 
             <div class="rooms-section">
                 <div
@@ -447,7 +447,7 @@
     </div>
 
     <!-- SCREEN 5: MULTIPLAYER LOBBY -->
-    <div id="screen-lobby" class="screen">
+    <div id="lobby-screen" class="screen">
         <div class="menu-container">
             <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 20px; letter-spacing: 4px; color: #4CAF50;">SALA
                 DE ESPERA: <span id="lobby-id-text" style="color:white;">---</span></h2>
@@ -476,6 +476,15 @@
         </div>
     </div>
 
+    <!-- SCREEN 6: GAME SCREEN -->
+    <div id="game-screen" class="screen" style="padding: 0; background: #000;">
+        <div id="ui"
+            style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;">
+            <!-- El UIManager inyectará contenido aquí -->
+        </div>
+        <canvas id="game-canvas"></canvas>
+    </div>
+
     <script src="dist/bundle.js"></script>
 
     <script>
@@ -491,17 +500,23 @@
                 modes: document.getElementById('screen-modes'),
                 single: document.getElementById('screen-single'),
                 multi: document.getElementById('screen-multi'),
-                lobby: document.getElementById('screen-lobby')
+                lobby: document.getElementById('lobby-screen'),
+                game: document.getElementById('game-screen')
             };
 
             function showScreen(id) {
-                Object.values(screens).forEach(s => s.classList.remove('active'));
-                if (screens[id]) screens[id].classList.add('active');
+                Object.values(screens).forEach(s => {
+                    if (s) s.classList.remove('active');
+                    if (s && s.id === 'game-screen') s.style.display = 'none';
+                });
+
+                if (screens[id]) {
+                    screens[id].classList.add('active');
+                    if (id === 'game') screens[id].style.display = 'block';
+                }
 
                 const profileBar = document.getElementById('commander-profile');
-                if (id === 'modes') {
-                    profileBar.style.display = 'none';
-                } else if (id === 'lobby') {
+                if (id === 'modes' || id === 'lobby' || id === 'game') {
                     profileBar.style.display = 'none';
                 }
             }
