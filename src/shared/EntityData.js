@@ -257,6 +257,7 @@ export class EntityData {
     }
 
     getWorldBounds() {
+        if (this._worldBoundsOverride) return this._worldBoundsOverride;
         return {
             width: 2400,
             height: 1800,
@@ -266,9 +267,7 @@ export class EntityData {
         };
     }
 
-    // No-op: world bounds are currently hardcoded in getWorldBounds()
-    // This is here so GameServer can call setWorldBounds without crashing
     setWorldBounds(centerX, centerY, worldRadius) {
-        this._worldBoundsOverride = { centerX, centerY, worldRadius };
+        this._worldBoundsOverride = { centerX, centerY, worldRadius, width: worldRadius * 2, height: worldRadius * 2 };
     }
 }

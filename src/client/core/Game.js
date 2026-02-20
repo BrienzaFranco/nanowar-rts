@@ -390,24 +390,44 @@ export class Game {
     } // Fin de updateFromWorker
 
     updateFromMultiplayerDO(dt, playerIdx) {
-        // Just sounds and basic node owner mappings since physics runs on Server
         const view = this.sharedView;
-        const isValidPlayer = playerIdx >= 0;
-        if (isValidPlayer) {
-            view.iterateNodes((nodeIndex) => {
-                const owner = view.getNodeOwner(nodeIndex);
-                const prevOwner = this.workerNodeOwners?.[nodeIndex];
-                // Sound logic is handled in MultiplayerController.js syncStateDO explicitly,
-                // so we don't necessarily need to repeat it here, but we can track owners.
-            });
+        if (!view) return;
+
+        // Process death events for particles/sounds
+        const deathCount = view.getDeathEventsCount();
+        for (let i = 0; i < deathCount; i++) {
+            const event = view.getDeathEvent(i);
+            if (event) {
+                const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
+                if (event.type === 2) {
+                    this.spawnParticles(event.x, event.y, color, 8, 'explosion');
+                    sounds.playCollision();
+                } else if (event.type === 1) {
+                    this.spawnParticles(event.x, event.y, color, 4, 'hit');
+                    sounds.playCollision();
+                } else if (event.type === 3) {
+                    for (let j = 0; j < 3; j++) {
+                        this.particles.push(new Particle(event.x, event.y, color, 2, 'absorb', event.targetX, event.targetY));
+                    }
+                } else if (event.type === 4) {
+                    for (let j = 0; j < 3; j++) {
+                        this.particles.push(new Particle(event.x, event.y, color, 1.5, 'sacrifice', event.targetX, event.targetY));
+                    }
+                }
+            }
         }
 
+        // Track node owners for capture sound (handled by MultiplayerController.syncStateDO)
         if (!this.workerNodeOwners) {
-            this.workerNodeOwners = new Array(view.getNodeCount()).fill(-1);
+            this.workerNodeOwners = new Array(Math.max(view.getNodeCount(), 64)).fill(-1);
         }
         view.iterateNodes((nodeIndex) => {
             this.workerNodeOwners[nodeIndex] = view.getNodeOwner(nodeIndex);
         });
+
+        // IMPORTANT: clear events after reading — else they fire every frame
+        view.memory.clearDeathEvents();
+        view.memory.clearSpawnEvents();
     }
 
     updateLegacy(dt, playerIdx) {
@@ -533,14 +553,8 @@ export class Game {
             this.renderer.drawEntity(entity, camera, isSelected);
         });
 
-        const deathCount = view.getDeathEventsCount();
-        for (let i = 0; i < deathCount; i++) {
-            const event = view.getDeathEvent(i);
-            if (event && (event.type === 2 || event.type === 3)) {
-                const color = PLAYER_COLORS[event.owner % PLAYER_COLORS.length];
-                this.spawnParticles(event.x, event.y, color, event.type === 2 ? 8 : 5, event.type === 2 ? 'explosion' : 'hit');
-            }
-        }
+        // Death events are handled in updateFromWorker and cleared there.
+        // Do NOT read them here — they would double-fire particles/sounds.
     }
 
     drawLegacy(dt) {
