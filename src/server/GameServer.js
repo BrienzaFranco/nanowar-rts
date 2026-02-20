@@ -351,14 +351,8 @@ export class GameServer {
             if (index !== -1) {
                 // Set entity ID = its buffer index so client can resolve selections
                 this.entityData.setId(index, index);
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 50 + Math.random() * 50;
-
-                this.entityData.setVx(index, Math.cos(angle) * speed);
-                this.entityData.setVy(index, Math.sin(angle) * speed);
-                this.entityData.setRadius(index, 5);
-                this.entityData.setMaxSpeed(index, 90 + Math.random() * 20);
-                this.entityData.setFriction(index, 0.98);
+                // Radius, maxSpeed, friction, and initial velocities (0) are handled
+                // by EntityData.allocate(), keeping singleplayer and multiplayer identical.
 
                 if (ev.targetX !== 0 || ev.targetY !== 0 || ev.targetNodeId !== -1) {
                     this.entityData.setTargetNodeId(index, ev.targetNodeId);
@@ -460,7 +454,7 @@ export class GameServer {
                     this.entityData.setId(index, index);
                     this.entityData.setVx(index, 0);
                     this.entityData.setVy(index, 0);
-                    this.entityData.setRadius(index, 3.5);
+                    this.entityData.setRadius(index, 5);
                     this.entityData.setMaxSpeed(index, 90 + Math.random() * 20);
                     this.entityData.setFriction(index, 0.98);
                     this.entityData.setHasTarget(index, false);
