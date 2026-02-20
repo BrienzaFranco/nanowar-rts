@@ -284,6 +284,7 @@ export class Entity {
 
         let cohesionX = 0, cohesionY = 0, cohesionCount = 0;
         let separationX = 0, separationY = 0, separationCount = 0;
+        let pushX = 0, pushY = 0;
         // Optimized spatial query
         const searchRadius = this.cohesionRadius;
         const neighbors = spatialGrid.retrieve(this.x, this.y, searchRadius);
@@ -339,8 +340,8 @@ export class Entity {
                 // Cap the overlap to prevent teleporting cross-map
                 const safeOverlap = Math.min(overlap, minDist);
 
-                this.x -= nx * safeOverlap * 0.6;
-                this.y -= ny * safeOverlap * 0.6;
+                pushX -= nx * safeOverlap * 0.6;
+                pushY -= ny * safeOverlap * 0.6;
 
                 if (this.owner !== other.owner) {
                     this.die('explosion', null, game);
@@ -364,6 +365,18 @@ export class Entity {
                     other.vy += safeJ * ny;
                 }
             }
+        }
+
+        // Apply accumulated collision pushes with a strict cap per frame
+        if (pushX !== 0 || pushY !== 0) {
+            const maxPushPerFrame = this.radius * 1.5; // Prevent explosive teleporting (e.g., max 7.5px per frame)
+            const pushDist = Math.sqrt(pushX * pushX + pushY * pushY);
+            if (pushDist > maxPushPerFrame) {
+                pushX = (pushX / pushDist) * maxPushPerFrame;
+                pushY = (pushY / pushDist) * maxPushPerFrame;
+            }
+            this.x += pushX;
+            this.y += pushY;
         }
 
         if (cohesionCount > 0 || separationCount > 0) {
