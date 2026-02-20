@@ -91,13 +91,17 @@ window.initGame = (mode) => {
                 game.gameOverShown = false;
 
                 // Reset Entity IDs to prevent ghost units
-                import('../shared/Entity.js').then(m => m.Entity.resetIdCounter());
+                Entity.resetIdCounter();
 
                 // Clear state - create fresh GameState
                 game.state = new GameState();
-                game.state.playerCount = game.controller.ais.length + 1;
-                game.ais = []; // Clear old AIs
-                if (game.controller.ais) game.controller.ais = [];
+                game.state.playerCount = playerCount;
+
+                // Clear AI lists to prevent duplicates
+                game.ais = [];
+                if (game.controller && game.controller.ais) {
+                    game.controller.ais = [];
+                }
 
                 game.particles = [];
                 game.commandIndicators = [];
