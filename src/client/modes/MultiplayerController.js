@@ -418,14 +418,12 @@ export class MultiplayerController {
 
     toggleReady() {
         // Get settings from lobby UI
-        const speedSetting = document.getElementById('speed-setting');
-
-        const productionSetting = document.getElementById('production-setting');
+        const speedSetting = document.getElementById('lobby-speed');
 
         const settings = {
             speedMultiplier: speedSetting ? parseFloat(speedSetting.value) : 1,
             acceleration: false,
-            showProduction: productionSetting ? productionSetting.checked : true
+            showProduction: true
         };
 
         if (this.socket) this.socket.emit('toggleReady', settings);
