@@ -1,6 +1,7 @@
 import { MEMORY_LAYOUT } from './SharedMemory.js';
 import { DEATH_TYPES } from './EntityData.js';
 import { NODE_TYPES } from './NodeData.js';
+import { GAME_SETTINGS } from './GameConfig.js';
 
 export class GameEngine {
     constructor(sharedMemory, entityData, nodeData, gameSettings) {
