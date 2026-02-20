@@ -374,6 +374,12 @@
                 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: var(--primary-color);">
                 SELECCIÓN DE OPERACIÓN</h2>
 
+            <div class="input-group" style="text-align: center; margin-bottom: 30px;">
+                <label>NOMBRE DEL COMANDANTE</label>
+                <input type="text" id="player-nickname" maxlength="15" placeholder="INSERTE NOMBRE..."
+                    autocomplete="off">
+            </div>
+
             <div class="mode-buttons">
                 <div class="btn-mode disabled">
                     <h3>CAMPAÑA</h3>
@@ -539,6 +545,15 @@
 
             if (!playerName) {
                 playerName = 'CMD-' + Math.floor(Math.random() * 9000 + 1000);
+            }
+
+            const nicknameInput = document.getElementById('player-nickname');
+            if (nicknameInput) {
+                nicknameInput.value = playerName;
+                nicknameInput.addEventListener('input', (e) => {
+                    playerName = e.target.value.trim() || 'CMD-' + Math.floor(Math.random() * 9000 + 1000);
+                    localStorage.setItem('nanowar_nickname', playerName);
+                });
             }
 
             // Function to generate color pickers
