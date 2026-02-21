@@ -267,20 +267,6 @@
         function closeTutorial() { document.getElementById('tutorial-overlay').classList.remove('visible'); }
         function showInfo() { document.getElementById('info-overlay').classList.add('visible'); }
         function closeInfo() { document.getElementById('info-overlay').classList.remove('visible'); }
-        document.getElementById('help-btn').addEventListener('click', showTutorial);
-
-        document.getElementById('mute-btn').addEventListener('click', function () {
-            const muted = sounds.toggleMute();
-            this.textContent = muted ? '🔇' : '🔊';
-        });
-
-        document.getElementById('reset-btn').addEventListener('click', () => location.reload());
-        document.getElementById('menu-btn').addEventListener('click', () => location.href = 'index.html');
-        document.getElementById('surrender-btn').addEventListener('click', () => {
-            if (window.game && window.game.controller && window.game.controller.surrender) {
-                window.game.controller.surrender();
-            }
-        });
 
         document.getElementById('info-overlay').addEventListener('click', function (e) { if (e.target === this) closeInfo(); });
         document.getElementById('tutorial-overlay').addEventListener('click', function (e) { if (e.target === this) closeTutorial(); });

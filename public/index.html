@@ -704,29 +704,6 @@
                 location.reload();
             });
 
-            // -- HUD BUTTONS (In-Game) --
-            document.getElementById('help-btn').addEventListener('click', () => {
-                // For simplicity, just alert controls or find a better way. 
-                // Multiplayer doesn't have a tutorial overlay in index.html, so let's use alert for now.
-                alert('CONTROLES:\n- Click Izq: Seleccionar\n- Click Der: Mover\n- T + Click: Rally Point\n- S: Detener');
-            });
-
-            document.getElementById('mute-btn').addEventListener('click', function () {
-                // Assuming soundManager is available globally via bundle
-                if (window.game && window.game.systems && window.game.systems.sounds) {
-                    const muted = window.game.systems.sounds.toggleMute();
-                    this.textContent = muted ? '🔇' : '🔊';
-                }
-            });
-
-            document.getElementById('menu-btn').addEventListener('click', () => location.reload());
-
-            document.getElementById('surrender-btn').addEventListener('click', () => {
-                if (window.multiplayer && window.multiplayer.surrender) {
-                    window.multiplayer.surrender();
-                }
-            });
-
         });
     </script>
 </body>

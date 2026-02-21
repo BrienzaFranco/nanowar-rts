@@ -55,29 +55,50 @@ window.initGame = (mode) => {
         });
     }
 
-    // Setup mute button
+    // -- HUD BUTTONS SETUP --
+    
+    // 0. Help
+    const helpBtn = document.getElementById('help-btn');
+    if (helpBtn) {
+        helpBtn.addEventListener('click', () => {
+            const tutorial = document.getElementById('tutorial-overlay');
+            if (tutorial) {
+                tutorial.classList.add('visible');
+            } else {
+                alert('CONTROLES:\n- Click Izq: Seleccionar\n- Click Der: Mover\n- T + Click: Rally Point\n- S: Detener');
+            }
+        });
+    }
+
+    // 1. Mute
     const muteBtn = document.getElementById('mute-btn');
     if (muteBtn) {
         muteBtn.addEventListener('click', () => {
             const enabled = sounds.toggle();
             muteBtn.textContent = enabled ? '🔊' : '🔇';
-            muteBtn.style.background = enabled ? 'rgba(76,175,80,0.8)' : 'rgba(244,67,54,0.8)';
-            muteBtn.style.borderColor = enabled ? '#4CAF50' : '#f44336';
         });
     }
 
-    // Show surrender button only in multiplayer
-    if (mode === 'multiplayer') {
-        const surrenderBtn = document.getElementById('surrender-btn');
-        const resetBtn = document.getElementById('reset-btn');
-        if (surrenderBtn) surrenderBtn.style.display = 'block';
-        if (resetBtn) resetBtn.style.display = 'none';
+    // 2. Surrender
+    const surrenderBtn = document.getElementById('surrender-btn');
+    if (surrenderBtn) {
+        surrenderBtn.style.display = 'flex';
+        surrenderBtn.addEventListener('click', () => {
+            if (mode === 'multiplayer') {
+                if (confirm('¿Estás seguro de que quieres rendirte?')) {
+                    if (game.controller && game.controller.surrender) game.controller.surrender();
+                }
+            } else {
+                if (game.controller && game.controller.surrender) game.controller.surrender();
+            }
+        });
     }
 
-    // Setup reset button for singleplayer
-    if (mode === 'singleplayer') {
-        const resetBtn = document.getElementById('reset-btn');
-        if (resetBtn) {
+    // 3. Reset (Singleplayer only)
+    const resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+        resetBtn.style.display = (mode === 'singleplayer') ? 'flex' : 'none';
+        if (mode === 'singleplayer') {
             resetBtn.addEventListener('click', () => {
                 const urlParams = new URLSearchParams(window.location.search);
                 const playerCount = parseInt(urlParams.get('players')) || 2;
@@ -86,18 +107,12 @@ window.initGame = (mode) => {
                 const colorIndex = parseInt(urlParams.get('color')) || 0;
                 setPlayerColor(colorIndex);
 
-                // Stop current game properly
                 game.stop();
                 game.gameOverShown = false;
-
-                // Reset Entity IDs to prevent ghost units
                 Entity.resetIdCounter();
-
-                // Clear state - create fresh GameState
                 game.state = new GameState();
                 game.state.playerCount = playerCount;
 
-                // Clear AI lists to prevent duplicates
                 game.ais = [];
                 if (game.controller && game.controller.ais) {
                     game.controller.ais = [];
@@ -108,7 +123,6 @@ window.initGame = (mode) => {
                 game.waypointLines = [];
                 game.systems.selection.clear();
 
-                // Reset UIManager stat caches
                 const ui = game.systems.ui;
                 ui._lastCounts = {};
                 ui._ratesCache = {};
@@ -116,12 +130,10 @@ window.initGame = (mode) => {
                 ui._currentCounts = {};
                 ui._lastSampleTime = 0;
 
-                // Re-setup with new map (creates new nodes + entities)
                 game.skipCameraReset = true;
                 game.controller.setup(playerCount, difficulty, testMode);
                 game.skipCameraReset = false;
 
-                // Re-sync worker: terminate old
                 if (game.worker) {
                     game.worker.terminate();
                     game.worker = null;
@@ -130,20 +142,6 @@ window.initGame = (mode) => {
                 }
 
                 game.start();
-            });
-        }
-    }
-
-    // Setup surrender button for multiplayer
-    if (mode === 'multiplayer') {
-        const surrenderBtn = document.getElementById('surrender-btn');
-        if (surrenderBtn) {
-            surrenderBtn.addEventListener('click', () => {
-                if (confirm('¿Estás seguro de que quieres rendirte? Los nodos pasarán a ser neutrales y tus unidades morirán.')) {
-                    if (game.controller && game.controller.surrender) {
-                        game.controller.surrender();
-                    }
-                }
             });
         }
     }
