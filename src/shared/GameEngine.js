@@ -361,13 +361,6 @@ export class GameEngine {
                 const touchRange = nodeRadius + eRadius + 8;
                 const dist = Math.sqrt(distSq);
 
-                const dx = ex - nodeX;
-                const dy = ey - nodeY;
-                const distSq = dx * dx + dy * dy;
-                // ROBUST CONTACT: Trigger at edge (+8px margin for high speed safety)
-                const touchRange = nodeRadius + eRadius + 8;
-                const dist = Math.sqrt(distSq);
-
                 const targetX = this.entityData.getTargetX(i);
                 const targetY = this.entityData.getTargetY(i);
                 const hasTarget = this.entityData.hasTarget(i);
