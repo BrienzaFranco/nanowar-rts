@@ -1,29 +1,31 @@
 import { Node } from './Node.js';
 
-const MAP_TYPES = ['SPIRAL_GALAXY', 'CONSTELLATIONS', 'SOLAR_CLUSTERS', 'RING_GALAXY', 'CROSSROADS', 'VOID_ISLANDS', 'GRID_NETWORK'];
+const MAP_TYPES = ['GALAXY_SPIRAL', 'CONSTELLATION_NET', 'SOLAR_SYSTEMS', 'ORBITAL_RINGS', 'DEEP_SPACE_CLUSTERS'];
 
 export class MapGenerator {
     static generate(playerCount, worldWidth, worldHeight) {
         let finalNodes = [];
-        const minRequiredNodes = playerCount * 4;
+        const minNodes = playerCount * 4;
+        const maxNodes = playerCount * 7;
         let attempts = 0;
 
-        while (finalNodes.length < minRequiredNodes && attempts < 10) {
+        // Bucle de reintento para garantizar la densidad solicitada
+        while ((finalNodes.length < minNodes || finalNodes.length > maxNodes) && attempts < 15) {
             attempts++;
-            finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight);
+            finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight, maxNodes);
         }
 
-        console.log(`Generated massive symmetric map with ${finalNodes.length} nodes.`);
+        console.log(`Generated cosmic map with ${finalNodes.length} nodes (Target: ${minNodes}-${maxNodes}).`);
         return finalNodes;
     }
 
-    static _doGenerate(playerCount, worldWidth, worldHeight) {
+    static _doGenerate(playerCount, worldWidth, worldHeight, maxAllowed) {
         const nodes = [];
         let idCounter = 0;
 
         const centerX = worldWidth / 2;
         const centerY = worldHeight / 2;
-        const mapRadius = Math.min(worldWidth, worldHeight) * 0.42;
+        const mapRadius = Math.min(worldWidth, worldHeight) * 0.44;
 
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
 
@@ -31,33 +33,34 @@ export class MapGenerator {
         // 1. Helpers de Colocación y Simetría
         // ─────────────────────────────────────────────────────────────────
         
-        const MIN_NODE_DIST = 280; 
+        const MIN_NODE_DIST = 260; 
 
-        const isValid = (x, y, r, extraMargin = 150) => {
-            const margin = 100; 
+        const isValid = (x, y, r, extraMargin = 120) => {
+            const margin = 80; 
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
             
             for (let n of nodes) {
                 const dist = Math.hypot(x - n.x, y - n.y);
-                const physicalLimit = r + n.radius + 30;
+                const physicalLimit = r + n.radius + 35;
                 if (dist < physicalLimit) return false;
                 
-                // Exclusión de bases: ligeramente reducida para permitir el inicio de caminos estratégicos
-                const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, 550) : extraMargin;
+                const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, 600) : extraMargin;
                 if (dist < r + n.radius + effectiveMargin) return false;
             }
             return true;
         };
 
         const addSymmetricNode = (baseX, baseY, owner, type) => {
+            if (nodes.length >= maxAllowed) return false;
+
             const dx = baseX - centerX;
             const dy = baseY - centerY;
             const baseDist = Math.sqrt(dx * dx + dy * dy);
             
-            if (baseDist < 5) {
+            if (baseDist < 10) {
                 nodes.push(new Node(idCounter++, centerX, centerY, -1, type));
-                return;
+                return true;
             }
 
             const angleStep = (Math.PI * 2) / playerCount;
@@ -70,181 +73,157 @@ export class MapGenerator {
                 const finalOwner = (owner === -1) ? -1 : (owner + i) % playerCount;
                 nodes.push(new Node(idCounter++, px, py, finalOwner, type));
             }
+            return true;
         };
 
-        const createFormGroup = (cx, cy, owner, mainType, formType = 'CLUSTER') => {
-            addSymmetricNode(cx, cy, owner, mainType);
-            let points = [];
-            const orbitRadius = mainType === 'large' ? 220 : 160;
-
-            if (formType === 'TRIANGLE') {
-                points = [
-                    { a: 0, d: orbitRadius },
-                    { a: Math.PI * 2/3, d: orbitRadius },
-                    { a: Math.PI * 4/3, d: orbitRadius }
-                ];
-            } else if (formType === 'LINE') {
-                const angle = Math.random() * Math.PI;
-                points = [
-                    { a: angle, d: orbitRadius },
-                    { a: angle + Math.PI, d: orbitRadius }
-                ];
-            } else {
-                const count = Math.floor(Math.random() * 2 + 1);
-                for (let i = 0; i < count; i++) {
-                    points.push({ a: (Math.PI * 2 / (count+1)) * i + Math.random(), d: orbitRadius });
+        // Crea formaciones temáticas (Sistema Solar, Constelación, Galaxia)
+        const createCosmicFormation = (cx, cy, owner, theme = 'SOLAR') => {
+            if (theme === 'SOLAR') {
+                // Una estrella central con 1-2 planetas orbitando
+                addSymmetricNode(cx, cy, owner, 'large');
+                const orbitR = 240;
+                const planets = Math.random() > 0.5 ? 2 : 1;
+                for(let i=0; i<planets; i++) {
+                    const a = (Math.PI * 2 / planets) * i + Math.random();
+                    const px = cx + orbitR * Math.cos(a);
+                    const py = cy + orbitR * Math.sin(a);
+                    addSymmetricNode(px, py, -1, 'medium');
                 }
-            }
-
-            for (let pt of points) {
-                const px = cx + pt.d * Math.cos(pt.a);
-                const py = cy + pt.d * Math.sin(pt.a);
-                const subType = mainType === 'large' ? (Math.random() > 0.4 ? 'medium' : 'small') : 'small';
-                addSymmetricNode(px, py, owner, subType);
+            } else if (theme === 'CONSTELLATION') {
+                // 3 nodos formando un triángulo o línea estirada
+                addSymmetricNode(cx, cy, owner, 'medium');
+                const dist = 300;
+                const angle = Math.random() * Math.PI;
+                addSymmetricNode(cx + dist * Math.cos(angle), cy + dist * Math.sin(angle), -1, 'small');
+                addSymmetricNode(cx - dist * Math.cos(angle), cy - dist * Math.sin(angle), -1, 'medium');
+            } else if (theme === 'CLUSTER') {
+                // Grupo denso de 2-3 nodos de varios tamaños
+                addSymmetricNode(cx, cy, owner, 'large');
+                const angle = Math.random() * Math.PI * 2;
+                addSymmetricNode(cx + 180 * Math.cos(angle), cy + 180 * Math.sin(angle), -1, 'medium');
             }
         };
 
         // ─────────────────────────────────────────────────────────────────
-        // 2. Base y Centro
+        // 2. Base y Centro (Estructura Fija)
         // ─────────────────────────────────────────────────────────────────
         
-        const baseDist = mapRadius * 0.96; 
+        const baseDist = mapRadius * 0.95; 
         const baseStartAngle = -Math.PI / 2;
         const p0x = centerX + baseDist * Math.cos(baseStartAngle);
         const p0y = centerY + baseDist * Math.sin(baseStartAngle);
 
+        // Bases: Nodo único Large (Simetría Absoluta)
         addSymmetricNode(p0x, p0y, 0, 'large');
 
-        // Centro: Super nodo siempre presente
+        // Centro: Super Nodo (Objetivo Galáctico)
         nodes.push(new Node(idCounter++, centerX, centerY, -1, 'super'));
-        // Pequeño anillo simétrico alrededor
-        for(let i=0; i<3; i++) {
-            const a = (Math.PI * 2 / 3) * i;
-            nodes.push(new Node(idCounter++, centerX + 400*Math.cos(a), centerY + 400*Math.sin(a), -1, 'medium'));
-        }
 
         // ─────────────────────────────────────────────────────────────────
-        // 3. Caminos Estratégicos Base -> Centro
+        // 3. Caminos y Conexiones Estratégicas
         // ─────────────────────────────────────────────────────────────────
         
-        const hasPath = Math.random() > 0.15; // 85% de probabilidad de camino claro
-        if (hasPath) {
-            const pathStyle = Math.random();
-            const steps = 3;
-            for (let i = 1; i <= steps; i++) {
-                const t = i / (steps + 1);
-                const px = p0x + (centerX - p0x) * t;
-                const py = p0y + (centerY - p0y) * t;
-                
-                let jx = px, jy = py;
-                if (pathStyle > 0.6) {
-                    // Estilo A: Cadena zig-zag (Sinuosa)
-                    const offAngle = baseStartAngle + Math.PI / 2;
-                    const offset = (i % 2 === 0 ? 300 : -300);
-                    jx += offset * Math.cos(offAngle);
-                    jy += offset * Math.sin(offAngle);
-                } else if (pathStyle > 0.3) {
-                    // Estilo B: Escalonada (Nodos intermedios claros)
-                    // (Sin offset, solo t puro)
-                } else {
-                    // Estilo C: Cúmulos conectores (Nodos que sirven de hubs)
-                    if (i === 2) { // Solo en el medio
-                        createFormGroup(jx, jy, -1, 'large', 'TRIANGLE');
-                        continue;
-                    }
-                }
-                
-                if (isValid(jx, jy, 55, 200)) {
-                    addSymmetricNode(jx, jy, -1, 'medium');
-                }
+        // Creamos un "puente" o camino claro hacia el centro para guiar el flujo
+        const pathSteps = 2;
+        for (let i = 1; i <= pathSteps; i++) {
+            const t = i / (pathSteps + 1);
+            const px = p0x + (centerX - p0x) * t;
+            const py = p0y + (centerY - p0y) * t;
+            
+            // Jitter para no ser una línea perfecta aburrida
+            const offset = (i === 1 ? 350 : -350);
+            const a = baseStartAngle + Math.PI/2;
+            const jx = px + offset * Math.cos(a);
+            const jy = py + offset * Math.sin(a);
+            
+            if (isValid(jx, jy, 55, 200)) {
+                addSymmetricNode(jx, jy, -1, i === 1 ? 'large' : 'medium');
             }
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 4. Lógica de Tipos de Mapa (Capa extra de complejidad)
+        // 4. Lógica por Tipo de Mapa (Relleno del espacio vacío)
         // ─────────────────────────────────────────────────────────────────
 
-        if (mapType === 'SPIRAL_GALAXY') {
-            const armPoints = 3; 
-            for (let i = 1; i <= armPoints; i++) {
-                const t = i / (armPoints + 1);
-                const angle = baseStartAngle + (t * 1.8 * Math.PI);
-                const dist = 800 + (t * (baseDist - 1200)); 
+        if (mapType === 'GALAXY_SPIRAL') {
+            const points = 3;
+            for (let i = 1; i <= points; i++) {
+                const t = i / (points + 1);
+                const angle = baseStartAngle + (t * 2.0 * Math.PI);
+                const dist = 500 + (t * (baseDist - 800));
                 const px = centerX + dist * Math.cos(angle);
                 const py = centerY + dist * Math.sin(angle);
                 if (isValid(px, py, 60, MIN_NODE_DIST)) {
-                    createFormGroup(px, py, -1, 'medium', 'LINE');
+                    createCosmicFormation(px, py, -1, 'SOLAR');
                 }
             }
-        } else if (mapType === 'VOID_ISLANDS') {
-            const islandCount = 4;
-            for (let i = 0; i < islandCount; i++) {
-                const angle = baseStartAngle + (Math.PI / playerCount) + (i * Math.PI / 2);
-                const dist = mapRadius * 0.75;
-                const px = centerX + dist * Math.cos(angle);
-                const py = centerY + dist * Math.sin(angle);
-                if (isValid(px, py, 70, 400)) {
-                    createFormGroup(px, py, -1, 'large', 'TRIANGLE');
+        } else if (mapType === 'ORBITAL_RINGS') {
+            const ringCount = 3;
+            for (let i = 0; i < ringCount; i++) {
+                const a = baseStartAngle + (Math.PI / playerCount) + (i * Math.PI / 1.5);
+                const d = mapRadius * 0.55;
+                const px = centerX + d * Math.cos(a);
+                const py = centerY + d * Math.sin(a);
+                if (isValid(px, py, 60, MIN_NODE_DIST)) {
+                    createCosmicFormation(px, py, -1, 'CLUSTER');
                 }
             }
-        } else if (mapType === 'GRID_NETWORK') {
-            // Reforzamos la red geométrica pero manteniendo los pasillos
-            for(let x = -1; x <= 1; x++) {
-                for(let y = -1; y <= 1; y++) {
-                    if (x === 0 && y === 0) continue;
-                    const px = centerX + x * 1200;
-                    const py = centerY + y * 1000;
-                    const dx = px - centerX;
-                    const dy = py - centerY;
-                    const angle = Math.atan2(dy, dx);
-                    const sectorAngle = (Math.PI * 2) / playerCount;
-                    const relAngle = (angle - baseStartAngle + Math.PI * 4) % (Math.PI * 2);
-                    
-                    if (relAngle < sectorAngle && isValid(px, py, 50, 250)) {
-                        addSymmetricNode(px, py, -1, 'medium');
-                    }
+        } else if (mapType === 'SOLAR_SYSTEMS') {
+            for (let k = 0; k < 2; k++) {
+                const a = baseStartAngle + (Math.random() * (Math.PI * 2 / playerCount));
+                const d = 600 + Math.random() * (baseDist - 1200);
+                const px = centerX + d * Math.cos(a);
+                const py = centerY + d * Math.sin(a);
+                if (isValid(px, py, 60, MIN_NODE_DIST + 100)) {
+                    createCosmicFormation(px, py, -1, 'SOLAR');
+                }
+            }
+        } else {
+            // CONSTELLATION_NET / DEFAULT
+            for (let k = 0; k < 2; k++) {
+                const a = baseStartAngle + (Math.PI / (playerCount * 2)) + (Math.random() * 0.5);
+                const d = mapRadius * 0.4;
+                const px = centerX + d * Math.cos(a);
+                const py = centerY + d * Math.sin(a);
+                if (isValid(px, py, 55, MIN_NODE_DIST)) {
+                    createCosmicFormation(px, py, -1, 'CONSTELLATION');
                 }
             }
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 5. Nodos Perdidos (Periferia profunda)
+        // 5. Nodos Perdidos (Periferia asimétrica)
         // ─────────────────────────────────────────────────────────────────
         
         const lostCount = Math.floor(Math.random() * 4) + 2; 
         for (let i = 0; i < lostCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const dist = mapRadius * (1.25 + Math.random() * 0.3);
+            const dist = mapRadius * (1.3 + Math.random() * 0.2);
             const px = centerX + dist * Math.cos(angle);
             const py = centerY + dist * Math.sin(angle);
             
-            let farFromPlayers = true;
+            let far = true;
             for (let p = 0; p < playerCount; p++) {
-                const pAngle = baseStartAngle + (p * Math.PI * 2 / playerCount);
-                const bx = centerX + baseDist * Math.cos(pAngle);
-                const by = centerY + baseDist * Math.sin(pAngle);
-                if (Math.hypot(px - bx, py - by) < 1000) {
-                    farFromPlayers = false;
-                    break;
+                const pA = baseStartAngle + (p * Math.PI * 2 / playerCount);
+                if (Math.hypot(px - (centerX + baseDist * Math.cos(pA)), py - (centerY + baseDist * Math.sin(pA))) < 800) {
+                    far = false; break;
                 }
             }
-
-            if (farFromPlayers && isValid(px, py, 25, 150)) {
+            if (far && isValid(px, py, 25, 120)) {
                 nodes.push(new Node(idCounter++, px, py, -1, Math.random() > 0.8 ? 'medium' : 'small'));
             }
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 6. Limpieza
+        // 6. Cleanup & Count Final
         // ─────────────────────────────────────────────────────────────────
         
         const finalNodes = [];
         for (let n of nodes) {
             let tooClose = false;
             for (let f of finalNodes) {
-                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 60) {
-                    tooClose = true;
-                    break;
+                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 50) {
+                    tooClose = true; break;
                 }
             }
             if (!tooClose) finalNodes.push(n);
