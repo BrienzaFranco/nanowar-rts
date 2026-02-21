@@ -496,13 +496,9 @@ export class GameServer {
         const entityCount = this.entityData.getCount();
         const nodeCount = this.nodeData.getCount();
 
-        // Optimización masiva: solo enviar memoria de entidades ACTIVAS
-        const ENTITY_SECTION_BYTES = MEMORY_LAYOUT.ENTITY_STRIDE * 4 * entityCount;
-        const NODE_SECTION_BYTES = MEMORY_LAYOUT.NODE_STRIDE * 4 * MEMORY_LAYOUT.MAX_NODES;
-        
-        // El buffer concatenado que el cliente espera es: Header + EntityBlock + NodeBlock
-        // Pero para ahorrar ancho de banda, solo enviamos hasta el final de las entidades actuales.
-        const syncBuffer = this.buffer.slice(0, MEMORY_LAYOUT.ENTITY_DATA_START + ENTITY_SECTION_BYTES + NODE_SECTION_BYTES);
+        // Enviar el buffer completo para evitar errores de RangeError en el cliente
+        // debido al layout SOA (Structure of Arrays) donde los nodos están al final.
+        const syncBuffer = this.buffer;
 
         this.io.to(this.roomId).volatile.emit('syncStateDO', {
             entityCount,
