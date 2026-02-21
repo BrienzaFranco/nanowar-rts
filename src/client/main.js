@@ -117,7 +117,9 @@ window.initGame = (mode) => {
                 ui._lastSampleTime = 0;
 
                 // Re-setup with new map (creates new nodes + entities)
+                game.skipCameraReset = true;
                 game.controller.setup(playerCount, difficulty, testMode);
+                game.skipCameraReset = false;
 
                 // Re-sync worker: terminate old
                 if (game.worker) {
