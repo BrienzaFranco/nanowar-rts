@@ -365,7 +365,7 @@ export class GameEngine {
                 const targetY = this.entityData.getTargetY(i);
                 const hasTarget = this.entityData.hasTarget(i);
                 const isTargetingThisNode = hasTarget && ((eTargetNodeId === nodeId) || 
-                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 5));
+                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 20));
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
@@ -605,10 +605,15 @@ export class GameEngine {
                     const dirY = vy / (speed2 || 1);
 
                     for (let n = 0; n < this.nodeData.getCount(); n++) {
-                        if (this.nodeData.getId(n) === targetNodeId) continue;
                         const nnx = this.nodeData.getX(n);
                         const nny = this.nodeData.getY(n);
                         const nRadius = this.nodeData.getRadius(n);
+
+                        // Skip avoidance if this is our target node OR if our target point is inside it
+                        if (this.nodeData.getId(n) === targetNodeId) continue;
+                        const tdx = targetX - nnx;
+                        const tdy = targetY - nny;
+                        if (tdx * tdx + tdy * tdy < (nRadius + 20) * (nRadius + 20)) continue;
 
                         const ndx = nnx - x;
                         const ndy = nny - y;

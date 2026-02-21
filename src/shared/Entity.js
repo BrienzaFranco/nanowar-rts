@@ -106,7 +106,7 @@ export class Entity {
                 const hasTarget = !!this.currentTarget || this.targetNode !== null;
                 const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
                 const distToTargetSq = tdx * tdx + tdy * tdy;
-                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (distToTargetSq < (node.radius + 10) * (node.radius + 10)));
+                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (distToTargetSq < (node.radius + 20) * (node.radius + 20)));
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
@@ -451,7 +451,11 @@ export class Entity {
         const targetNy = targetDy / targetDist;
 
         for (let node of nodes) {
+            // Skip avoidance if this is our target node OR if our target point is inside it
             if (this.targetNode === node) continue;
+            const tdx = this.currentTarget.x - node.x, tdy = this.currentTarget.y - node.y;
+            if (tdx * tdx + tdy * tdy < (node.radius + 20) * (node.radius + 20)) continue;
+
             const dx = node.x - this.x;
             const dy = node.y - this.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
