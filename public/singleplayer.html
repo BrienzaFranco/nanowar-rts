@@ -34,27 +34,29 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(8, 8, 10, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 14px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 16px;
             font-family: 'Courier New', monospace;
             cursor: pointer;
-            transition: all 0.15s;
-            border-radius: 4px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 6px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
 
         .ui-btn:hover {
-            border-color: #4CAF50;
+            border-color: rgba(76, 175, 80, 0.5);
             color: #4CAF50;
-            background: rgba(76, 175, 80, 0.1);
+            background: rgba(76, 175, 80, 0.08);
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
         .ui-btn.danger:hover {
-            border-color: #f44336;
+            border-color: rgba(244, 67, 54, 0.5);
             color: #f44336;
-            background: rgba(244, 67, 54, 0.1);
+            background: rgba(244, 67, 54, 0.08);
         }
 
         #game-canvas {

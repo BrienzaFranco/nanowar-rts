@@ -44,29 +44,37 @@ export class GameState {
         this.stats.unitsLost[playerId]++;
 
         const now = Date.now();
-        this.deathBuffer.push({ time: now, x, y });
+        this.deathBuffer.push({ time: now, x, y, owner: playerId });
 
-        // Clean old deaths from buffer (last 2 seconds)
-        this.deathBuffer = this.deathBuffer.filter(d => now - d.time < 2000);
+        // Clean old deaths from buffer (last 3 seconds for better detection)
+        this.deathBuffer = this.deathBuffer.filter(d => now - d.time < 3000);
 
-        // Detect Big Battle: 30+ deaths in 2 seconds in a small area
-        if (this.deathBuffer.length >= 30) {
+        // Detect Big Battle: 40+ deaths in 3 seconds in a small area
+        if (this.deathBuffer.length >= 40) {
             // Simple spatial check: average position
             let avgX = 0, avgY = 0;
             this.deathBuffer.forEach(d => { avgX += d.x; avgY += d.y; });
             avgX /= this.deathBuffer.length;
             avgY /= this.deathBuffer.length;
 
-            // If all are within 150px of center
-            const areClose = this.deathBuffer.every(d => {
+            // If majority are within 200px of center
+            const closeOnes = this.deathBuffer.filter(d => {
                 const dx = d.x - avgX;
                 const dy = d.y - avgY;
-                return dx * dx + dy * dy < 150 * 150;
+                return dx * dx + dy * dy < 200 * 200;
             });
 
-            if (areClose && now - (this.lastBigBattle || 0) > 5000) {
+            if (closeOnes.length >= 30 && now - (this.lastBigBattle || 0) > 8000) {
                 this.lastBigBattle = now;
-                this.recordEvent('big_battle', playerId, { x: avgX, y: avgY, count: this.deathBuffer.length });
+                // Count deaths per player in this battle
+                const participants = {};
+                closeOnes.forEach(d => participants[d.owner] = (participants[d.owner] || 0) + 1);
+                
+                this.recordEvent('big_battle', playerId, { 
+                    x: avgX, y: avgY, 
+                    count: closeOnes.length,
+                    participants
+                });
             }
         }
     }

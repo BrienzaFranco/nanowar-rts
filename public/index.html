@@ -131,6 +131,39 @@
             background: rgba(244, 67, 54, 0.1) !important;
         }
 
+        /* Game HUD Buttons */
+        .ui-btn-game {
+            pointer-events: auto;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 6px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .ui-btn-game:hover {
+            border-color: rgba(76, 175, 80, 0.5);
+            color: #4CAF50;
+            background: rgba(76, 175, 80, 0.08);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .ui-btn-game.danger:hover {
+            border-color: rgba(244, 67, 54, 0.5);
+            color: #f44336;
+            background: rgba(244, 67, 54, 0.08);
+        }
+
         .btn {
             display: inline-block;
             width: 100%;
@@ -497,11 +530,11 @@
 
     <!-- SCREEN 6: GAME SCREEN -->
     <div id="game-screen" class="screen" style="padding: 0; background: #000;">
-        <div id="ui" style="display:none; position: fixed; top: 10px; left: 10px; z-index: 100; display: flex; gap: 6px; pointer-events: none;">
-            <button id="help-btn" class="ui-btn" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Controles">?</button>
-            <button id="mute-btn" class="ui-btn" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Silenciar">🔊</button>
-            <button id="menu-btn" class="ui-btn" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Menú">←</button>
-            <button id="surrender-btn" class="ui-btn danger" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Rendirse">🏳️</button>
+        <div id="ui" style="display:none; position: fixed; top: 15px; left: 15px; z-index: 100; display: flex; gap: 8px; pointer-events: none;">
+            <button id="help-btn" class="ui-btn-game" title="Controles">?</button>
+            <button id="mute-btn" class="ui-btn-game" title="Silenciar">🔊</button>
+            <button id="menu-btn" class="ui-btn-game" title="Menú">←</button>
+            <button id="surrender-btn" class="ui-btn-game danger" title="Rendirse">🏳️</button>
         </div>
 
         <canvas id="game-canvas"></canvas>

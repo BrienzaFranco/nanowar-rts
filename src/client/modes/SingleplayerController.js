@@ -222,16 +222,16 @@ export class SingleplayerController {
                 const prodPerMin = stats.produced[pid]?.perMinute || 0;
 
                 statsHTML += `
-                    <div style="color: ${pColor}; margin: 8px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 3px solid ${pColor};">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <strong style="font-size: 14px;">${pName}</strong>
-                            <span style="font-size: 10px; opacity: 0.7;">CAPTURAS: ${captured}</span>
+                    <div style="color: ${pColor}; margin: 10px 0; padding: 12px 15px; background: rgba(255,255,255,0.03); border-radius: 6px; border-left: 4px solid ${pColor}; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <strong style="font-size: 15px; letter-spacing: 1px;">${pName}</strong>
+                            <span style="font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 1px;">NODOS: ${captured}</span>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; opacity: 0.8;">
-                            <span>Producidas: ${produced}</span>
-                            <span>Promedio: ${prodPerMin}/m</span>
-                            <span>Perdidas: ${lostUnits}</span>
-                            <span>Actuales: ${current}</span>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 11px; color: rgba(255,255,255,0.6);">
+                            <div style="display: flex; flex-direction: column;"><span style="font-size: 9px; opacity: 0.5;">PROD</span><span>${produced}</span></div>
+                            <div style="display: flex; flex-direction: column;"><span style="font-size: 9px; opacity: 0.5;">RITMO</span><span>${prodPerMin}/m</span></div>
+                            <div style="display: flex; flex-direction: column;"><span style="font-size: 9px; opacity: 0.5;">BAJAS</span><span>${lostUnits}</span></div>
+                            <div style="display: flex; flex-direction: column;"><span style="font-size: 9px; opacity: 0.5;">VIVO</span><span>${current}</span></div>
                         </div>
                     </div>
                 `;
@@ -247,15 +247,15 @@ export class SingleplayerController {
         const graphHeight = 200;
 
         let graphUI = `
-            <div style="margin: 15px 0;">
-                <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 10px;">
-                    <button id="btn-graph-prod" onclick="window.updateGraph('production')" style="background: rgba(255,255,255,0.1); border: 1px solid #444; color: #888; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Producción</button>
-                    <button id="btn-graph-units" onclick="window.updateGraph('units')" style="background: rgba(255,255,255,0.1); border: 1px solid #444; color: #888; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Unidades</button>
-                    <button id="btn-graph-nodes" onclick="window.updateGraph('nodes')" style="background: rgba(255,255,255,0.1); border: 1px solid #444; color: #888; padding: 5px 10px; cursor: pointer; border-radius: 4px;">Territorio</button>
+            <div style="margin: 20px 0;">
+                <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 15px;">
+                    <button id="btn-graph-prod" onclick="window.updateGraph('production')" style="background: transparent; border: 1px solid #333; color: #666; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 11px; transition: all 0.2s;">PRODUCCIÓN</button>
+                    <button id="btn-graph-units" onclick="window.updateGraph('units')" style="background: transparent; border: 1px solid #333; color: #666; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 11px; transition: all 0.2s;">UNIDADES</button>
+                    <button id="btn-graph-nodes" onclick="window.updateGraph('nodes')" style="background: transparent; border: 1px solid #333; color: #666; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 11px; transition: all 0.2s;">TERRITORIO</button>
                 </div>
                 <div style="position: relative;">
-                    <canvas id="stats-graph-sp" width="${graphWidth}" height="${graphHeight}" style="border: 1px solid #333; background: rgba(0,0,0,0.3); border-radius: 4px;"></canvas>
-                    <button onclick="window.downloadGraph()" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.5); color: white; border: none; border-radius: 3px; font-size: 10px; padding: 4px 8px; cursor: pointer;">⬇️ IMG</button>
+                    <canvas id="stats-graph-sp" width="${graphWidth}" height="${graphHeight}" style="border: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); border-radius: 4px; cursor: crosshair;"></canvas>
+                    <button onclick="window.downloadGraph()" style="position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.05); color: #666; border: 1px solid rgba(255,255,255,0.1); border-radius: 3px; font-size: 9px; padding: 4px 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.color='#666';this.style.background='rgba(255,255,255,0.05)'">EXPORTAR PNG</button>
                 </div>
             </div>
         `;
@@ -273,28 +273,37 @@ export class SingleplayerController {
 
         const box = document.createElement('div');
         box.style.cssText = `
-            padding: 30px 40px; background: #141419;
-            border: 2px solid ${color}; border-radius: 12px;
-            text-align: center; position: relative;
-            max-width: 600px; width: 90%;
-            box-shadow: 0 0 50px ${color}40;
+            padding: 40px 50px; background: #0e0e12;
+            border: 1px solid rgba(255,255,255,0.1); border-top: 4px solid ${color};
+            border-radius: 8px; text-align: center; position: relative;
+            max-width: 650px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
         `;
 
         box.innerHTML = `
-            <h1 style="color: ${color}; font-size: 42px; margin: 0 0 10px 0; letter-spacing: 6px; text-shadow: 0 0 20px ${color}60;">${msg}</h1>
-            <p style="color: #888; font-size: 12px; margin-bottom: 20px;">${won ? 'Has dominado el mapa' : 'Tus fuerzas han caído'}</p>
+            <h1 style="color: ${color}; font-size: 48px; margin: 0 0 5px 0; letter-spacing: 8px; font-weight: 900; text-shadow: 0 0 30px ${color}44;">${msg}</h1>
+            <p style="color: rgba(255,255,255,0.4); font-size: 11px; margin-bottom: 30px; letter-spacing: 4px; text-transform: uppercase;">REGISTRO DE OPERACIONES COMPLETADO</p>
             
             ${graphUI}
+            <div style="height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 25px 0;"></div>
             ${statsHTML}
             
-            <button onclick="location.reload()" style="
-                margin-top: 20px; padding: 12px 30px;
-                background: ${color}; border: none; border-radius: 4px;
-                color: white; font-family: 'Courier New', monospace;
-                font-size: 14px; cursor: pointer; letter-spacing: 2px;
-                transition: all 0.2s; box-shadow: 0 0 15px ${color}40;">
-                JUGAR DE NUEVO
-            </button>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
+                <button onclick="location.reload()" style="
+                    padding: 14px 35px; background: ${color}; border: none; border-radius: 4px;
+                    color: white; font-family: 'Courier New', monospace; font-weight: bold;
+                    font-size: 13px; cursor: pointer; letter-spacing: 2px;
+                    transition: all 0.2s; box-shadow: 0 4px 15px ${color}33;">
+                    REINTENTAR
+                </button>
+                <button onclick="location.href='index.html'" style="
+                    padding: 14px 35px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 4px; color: #aaa; font-family: 'Courier New', monospace;
+                    font-size: 13px; cursor: pointer; letter-spacing: 2px;
+                    transition: all 0.2s;">
+                    SALIR
+                </button>
+            </div>
         `;
 
         overlay.appendChild(box);
@@ -315,24 +324,33 @@ export class SingleplayerController {
             const ctx = canvas.getContext('2d');
             const w = canvas.width;
             const h = canvas.height;
+            const padTop = 30;
+            const padBottom = 25;
+            const padLeft = 40;
+            const padRight = 20;
+            const graphW = w - padLeft - padRight;
+            const graphH = h - padTop - padBottom;
 
             ctx.clearRect(0, 0, w, h);
 
             let dataArray = [];
             let title = '';
-            let timeScale = 1; // Divide time by this to get minutes
+            let timeScale = 1; 
 
             // Update active button style
             ['prod', 'units', 'nodes'].forEach(t => {
                 const btn = document.getElementById(`btn-graph-${t}`);
                 const fullType = t === 'prod' ? 'production' : (t === 'units' ? 'units' : 'nodes');
-                if (btn) btn.style.borderColor = fullType === this.graphState.type ? color : '#444';
-                if (btn) btn.style.color = fullType === this.graphState.type ? color : '#888';
+                if (btn) {
+                    btn.style.background = fullType === this.graphState.type ? color + '22' : 'transparent';
+                    btn.style.borderColor = fullType === this.graphState.type ? color : '#333';
+                    btn.style.color = fullType === this.graphState.type ? color : '#666';
+                }
             });
 
             if (this.graphState.type === 'production') {
                 dataArray = stats.productionHistory || [];
-                title = 'PRODUCCIÓN (Unidades/Min)';
+                title = 'PRODUCCIÓN (UNID/MIN)';
                 timeScale = 1;
             } else if (this.graphState.type === 'units') {
                 dataArray = stats.history || [];
@@ -340,76 +358,79 @@ export class SingleplayerController {
                 timeScale = 60;
             } else if (this.graphState.type === 'nodes') {
                 dataArray = stats.nodeHistory || [];
-                title = 'TERRITORIO (Nodos)';
+                title = 'TERRITORIO (NODOS)';
                 timeScale = 60;
             }
 
             if (!dataArray || dataArray.length === 0) {
                 ctx.fillStyle = '#444';
                 ctx.textAlign = 'center';
-                ctx.fillText('No hay datos disponibles', w / 2, h / 2);
+                ctx.fillText('DATOS INSUFICIENTES', w / 2, h / 2);
                 return;
             }
 
-            // Find max value in current view (simplified to global max for stability)
+            // Find max value
             let maxVal = 0;
             dataArray.forEach(p => {
                 const val = p.rate !== undefined ? p.rate : p.count;
                 if (val > maxVal) maxVal = val;
             });
 
-            // Round nicely for massive numbers (e.g. 800 unit cap -> 1000 graph ceiling)
-            if (maxVal > 100) {
+            // Smart scaling
+            if (this.graphState.type === 'nodes') maxVal = Math.ceil(Math.max(maxVal, 5) * 1.2);
+            else if (maxVal > 100) {
                 const magnitude = Math.pow(10, Math.floor(Math.log10(maxVal)));
                 maxVal = Math.ceil((maxVal * 1.1) / magnitude) * magnitude;
             } else {
-                maxVal = Math.ceil(Math.max(maxVal, 5) * 1.1);
+                maxVal = Math.ceil(Math.max(maxVal, 10) * 1.2);
             }
 
             ctx.save();
 
-            // Apply pan/zoom transformation
-            // scale 1.0 means whole game fits in width
-            const totalTime = stats.elapsed || 1;
-            const basePxPerMin = w / totalTime;
-
-            // Draw Grid
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            // Background grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
             ctx.lineWidth = 1;
-            ctx.beginPath();
+            ctx.textAlign = 'right';
+            ctx.font = '10px "Courier New"';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+
             for (let i = 0; i <= 4; i++) {
-                const y = h - (i / 4) * h * 0.9 - 5;
-                ctx.moveTo(0, y);
-                ctx.lineTo(w, y);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.font = '10px monospace';
-                ctx.fillText(Math.round((i / 4) * maxVal), 5, y - 2);
+                const y = padTop + graphH - (i / 4) * graphH;
+                ctx.beginPath();
+                ctx.moveTo(padLeft, y);
+                ctx.lineTo(padLeft + graphW, y);
+                ctx.stroke();
+                ctx.fillText(Math.round((i / 4) * maxVal), padLeft - 8, y + 3);
             }
-            ctx.stroke();
 
-            // Coordinate helper: time to x
-            const timeToX = (t) => (t * basePxPerMin * this.graphState.scale) + this.graphState.offset;
+            const totalTime = stats.elapsed || 1;
+            const timeToX = (t) => padLeft + (t * (graphW / totalTime) * this.graphState.scale) + this.graphState.offset;
 
-            // Draw Events (Captures, Battles)
+            // Clip for scrolling
+            ctx.beginPath();
+            ctx.rect(padLeft, 0, graphW, h);
+            ctx.clip();
+
+            // Draw events markers
             if (stats.events) {
                 stats.events.forEach(ev => {
-                    const x = timeToX(ev.time / (timeScale === 60 ? 60 : 1));
-                    if (x < 0 || x > w) return;
+                    const t = ev.time / (this.graphState.type === 'production' ? 60 : 1);
+                    const x = timeToX(t / (timeScale === 60 ? 60 : 1));
+                    if (x < padLeft || x > padLeft + graphW) return;
 
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeStyle = ev.type === 'big_battle' ? 'rgba(255,50,50,0.3)' : 'rgba(255,255,255,0.1)';
                     ctx.beginPath();
-                    ctx.moveTo(x, 20);
-                    ctx.lineTo(x, h - 5);
-                    ctx.strokeStyle = ev.type === 'big_battle' ? 'rgba(255,0,0,0.2)' : 'rgba(255,255,255,0.1)';
+                    ctx.moveTo(x, padTop);
+                    ctx.lineTo(x, padTop + graphH);
                     ctx.stroke();
+                    ctx.setLineDash([]);
 
-                    if (ev.type === 'big_battle') {
-                        ctx.fillStyle = '#ff4444';
-                        ctx.font = '8px monospace';
-                        ctx.fillText('⚔️', x - 5, 25);
-                    } else if (ev.type === 'capture') {
-                        const pC = playerColors[ev.playerId % playerColors.length];
-                        ctx.fillStyle = pC;
-                        ctx.fillText('🏳️', x - 5, 35);
+                    ctx.font = '12px serif';
+                    if (ev.type === 'big_battle') ctx.fillText('⚔️', x + 10, padTop + 15);
+                    else if (ev.type === 'capture') {
+                        ctx.fillStyle = playerColors[ev.playerId % playerColors.length];
+                        ctx.fillText('🚩', x + 10, padTop + 30);
                     }
                 });
             }
@@ -428,43 +449,44 @@ export class SingleplayerController {
 
                 const pC = playerColors[parseInt(pid) % playerColors.length];
                 ctx.strokeStyle = pC;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.lineJoin = 'round';
+                ctx.lineCap = 'round';
 
-                // Gradient fill
-                const gradient = ctx.createLinearGradient(0, 0, 0, h);
-                gradient.addColorStop(0, pC + '44');
+                const gradient = ctx.createLinearGradient(0, padTop, 0, padTop + graphH);
+                gradient.addColorStop(0, pC + '33');
                 gradient.addColorStop(1, pC + '00');
 
                 ctx.beginPath();
-                let first = true;
-                data.forEach((p) => {
+                data.forEach((p, i) => {
                     const val = p.rate !== undefined ? p.rate : p.count;
-                    const x = timeToX(p.time);
-                    const y = h - (val / maxVal) * h * 0.9 - 5;
-
-                    if (first) { ctx.moveTo(x, y); first = false; }
+                    const x = timeToX(p.time / (timeScale === 60 ? 60 : 1));
+                    const y = padTop + graphH - (val / maxVal) * graphH;
+                    if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
 
-                // Close and fill
-                ctx.lineTo(timeToX(data[data.length - 1].time), h - 5);
-                ctx.lineTo(timeToX(data[0].time), h - 5);
-                ctx.fillStyle = gradient;
-                ctx.fill();
+                // Fill area
+                if (data.length > 0) {
+                    ctx.lineTo(timeToX(data[data.length - 1].time / (timeScale === 60 ? 60 : 1)), padTop + graphH);
+                    ctx.lineTo(timeToX(data[0].time / (timeScale === 60 ? 60 : 1)), padTop + graphH);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
             }
 
             ctx.restore();
 
-            // Title
+            // Title and labels
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 12px monospace';
+            ctx.font = 'bold 13px "Courier New"';
             ctx.textAlign = 'center';
-            ctx.fillText(title, w / 2, 15);
-            ctx.fillStyle = '#888';
-            ctx.font = '10px monospace';
-            ctx.fillText('SCROLL PARA ZOOM • ARRASTRAR PARA MOVER', w / 2, h - 10);
+            ctx.fillText(title, w / 2, 18);
+            
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            ctx.font = '9px "Courier New"';
+            ctx.fillText('SCROLL: ZOOM • DRAG: PAN', w / 2, h - 8);
         };
 
         window.downloadGraph = () => {
