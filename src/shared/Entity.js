@@ -56,9 +56,9 @@ export class Entity {
     stop() {
         this.waypoints = [];
         this.currentTarget = null;
+        this.targetNode = null;
         this.vx *= 0.3;
         this.vy *= 0.3;
-        this.targetNode = null;
     }
 
     update(dt, spatialGrid, spatialGridNodes, nodes, camera, game) {
@@ -252,20 +252,17 @@ export class Entity {
 
     processWaypoints() {
         if (!this.currentTarget && this.waypoints.length > 0) {
-            this.currentTarget = this.waypoints.shift();
+            this.currentTarget = this.waypoints[0];
         }
 
         if (this.currentTarget) {
             const dx = this.currentTarget.x - this.x;
             const dy = this.currentTarget.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const distSq = dx * dx + dy * dy;
 
-            if (dist < 15) {
-                if (this.waypoints.length > 0) {
-                    this.currentTarget = this.waypoints.shift();
-                } else {
-                    this.currentTarget = null;
-                }
+            if (distSq < 400) { // 20px reach distance
+                this.waypoints.shift();
+                this.currentTarget = this.waypoints.length > 0 ? this.waypoints[0] : null;
             }
         }
     }

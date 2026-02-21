@@ -74,8 +74,76 @@ export class SingleplayerController {
         });
     }
 
+    sendAction(action) {
+        const { type, unitIds, nodeIds, targetX, targetY, targetNodeId, path } = action;
+
+        if (type === 'path' && path && unitIds) {
+            unitIds.forEach(id => {
+                const ent = this.game.state.entities.find(e => e.id === id);
+                if (ent) {
+                    ent.waypoints = [...path];
+                    ent.targetNode = targetNodeId ? this.game.state.nodes.find(n => n.id === targetNodeId) : null;
+                    // Start moving to first waypoint immediately
+                    const first = ent.waypoints[0];
+                    this.game.setEntityTarget(id, first.x, first.y, ent.targetNode ? ent.targetNode.id : -1);
+                }
+            });
+        } else if (type === 'move' && unitIds) {
+            unitIds.forEach(id => {
+                const ent = this.game.state.entities.find(e => e.id === id);
+                if (ent) {
+                    ent.waypoints = []; // Clear previous path
+                    ent.targetNode = targetNodeId ? this.game.state.nodes.find(n => n.id === targetNodeId) : null;
+                    this.game.setEntityTarget(id, targetX, targetY, targetNodeId || -1);
+                }
+            });
+        } else if (type === 'rally' && nodeIds) {
+            nodeIds.forEach(id => {
+                const node = this.game.state.nodes.find(n => n.id === id);
+                if (node) {
+                    const targetNode = targetNodeId ? this.game.state.nodes.find(n => n.id === targetNodeId) : null;
+                    node.setRallyPoint(targetX, targetY, targetNode);
+                }
+            });
+        } else if (type === 'stop' && unitIds) {
+            unitIds.forEach(id => {
+                const ent = this.game.state.entities.find(e => e.id === id);
+                if (ent) {
+                    ent.stop();
+                    this.game.setEntityTarget(id, 0, 0, -1);
+                }
+            });
+        }
+    }
+
     update(dt) {
         this.ais.forEach(ai => ai.update(dt));
+
+        // Path-following logic for singleplayer (feeder for worker)
+        if (this.game.useWorker) {
+            this.game.state.entities.forEach(ent => {
+                if (!ent.dead && !ent.dying && ent.waypoints && ent.waypoints.length > 0) {
+                    // If entity has no current target in worker or is very close to current target, feed next waypoint
+                    const dx = ent.x - ent.waypoints[0].x;
+                    const dy = ent.y - ent.waypoints[0].y;
+                    const distSq = dx * dx + dy * dy;
+
+                    // If reached waypoint (within 20px)
+                    if (distSq < 400) {
+                        ent.waypoints.shift();
+                        if (ent.waypoints.length > 0) {
+                            const next = ent.waypoints[0];
+                            this.game.setEntityTarget(ent.id, next.x, next.y, ent.targetNode ? ent.targetNode.id : -1);
+                        } else {
+                            // Path finished, let it settle or continue to target node
+                            if (!ent.targetNode) {
+                                // No node target, stop at last point
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         if (this.gameOverShown) return;
 
