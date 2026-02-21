@@ -409,11 +409,8 @@ export class SelectionManager {
             const idx = this.findNodeById(id);
             if (idx >= 0 && this.getNodeOwner(idx) === playerIndex) {
                 this.selectedNodes.add(id);
-                // Si seleccionamos el nodo en recuadro, también seleccionamos todas sus unidades flotantes
-                const nestedEntityIdxs = this.getEntitiesInNodeArea(idx);
-                for (const nestedIdx of nestedEntityIdxs) {
-                    this.selectedEntities.add(this.getEntityId(nestedIdx));
-                }
+                // We no longer auto-select nested entities for box selections. 
+                // Only units explicitly caught in the getEntitiesInScreenRect bounds are selected.
             }
         }
     }
