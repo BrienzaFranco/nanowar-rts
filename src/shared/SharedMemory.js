@@ -1,6 +1,6 @@
 // These are filled in after the offset calculations below
 export const MEMORY_LAYOUT = {
-    MAX_ENTITIES: 15000,
+    MAX_ENTITIES: 5000,
     MAX_NODES: 128,
     MAX_DEATH_EVENTS: 256,
     MAX_SPAWN_EVENTS: 64,

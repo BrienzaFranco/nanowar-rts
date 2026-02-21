@@ -3,6 +3,7 @@ import { SharedMemory, MEMORY_LAYOUT } from '../shared/SharedMemory.js';
 import { EntityData, DEATH_TYPES } from '../shared/EntityData.js';
 import { NodeData } from '../shared/NodeData.js';
 import { GameEngine } from '../shared/GameEngine.js';
+import { GAME_SETTINGS } from '../shared/GameConfig.js';
 
 export class GameServer {
     constructor(roomId, io, maxPlayers = 4) {
@@ -368,7 +369,7 @@ export class GameServer {
             }
 
             if (!this.gameEnded) {
-                setTimeout(loop, 1000 / 30);
+                setTimeout(loop, 1000 / 20);
             }
         };
         loop();
@@ -495,10 +496,13 @@ export class GameServer {
         const entityCount = this.entityData.getCount();
         const nodeCount = this.nodeData.getCount();
 
-        // Send one contiguous buffer: header + entity SOA block + node SOA block.
-        // CLIENT reconstructs SharedMemory views at the same layout offsets.
-        const NODE_SECTION_BYTES = 19 * 4 * MEMORY_LAYOUT.MAX_NODES;
-        const syncBuffer = this.buffer.slice(0, MEMORY_LAYOUT.NODE_DATA_START + NODE_SECTION_BYTES);
+        // Optimización masiva: solo enviar memoria de entidades ACTIVAS
+        const ENTITY_SECTION_BYTES = MEMORY_LAYOUT.ENTITY_STRIDE * 4 * entityCount;
+        const NODE_SECTION_BYTES = MEMORY_LAYOUT.NODE_STRIDE * 4 * MEMORY_LAYOUT.MAX_NODES;
+        
+        // El buffer concatenado que el cliente espera es: Header + EntityBlock + NodeBlock
+        // Pero para ahorrar ancho de banda, solo enviamos hasta el final de las entidades actuales.
+        const syncBuffer = this.buffer.slice(0, MEMORY_LAYOUT.ENTITY_DATA_START + ENTITY_SECTION_BYTES + NODE_SECTION_BYTES);
 
         this.io.to(this.roomId).volatile.emit('syncStateDO', {
             entityCount,
@@ -524,19 +528,17 @@ export class GameServer {
         // Generate map with actual player count
         const mapNodes = MapGenerator.generate(
             actualPlayers,
-            2560, // worldWidth
-            1440  // worldHeight
+            GAME_SETTINGS.WORLD_WIDTH, // dynamic
+            GAME_SETTINGS.WORLD_HEIGHT  // dynamic
         );
 
         // NodeData.setNodeCount syncs the count from header, set it here too
         this.sharedMemory.setNodeCount(mapNodes.length);
         this.nodeData.count = mapNodes.length;
-        // Map OOP Node string types to NodeData numeric enum
-        const typeMap = { 'small': 0, 'medium': 1, 'large': 2 };
+        // Map OOP Node numeric constants (they are already numbers in GameConfig)
         mapNodes.forEach((n, i) => {
-            const typeEnum = typeMap[n.type] !== undefined ? typeMap[n.type] : 1; // default medium
             this.nodeData.setId(i, n.id);
-            this.nodeData.setType(i, typeEnum);
+            this.nodeData.setType(i, n.type);
             this.nodeData.setOwner(i, n.owner);
             this.nodeData.setX(i, n.x);
             this.nodeData.setY(i, n.y);
@@ -582,6 +584,6 @@ export class GameServer {
         }
 
         // Setup bounds properly
-        this.entityData.setWorldBounds(2560 / 2, 1440 / 2, Math.max(2560, 1440) / 2 + 300);
+        this.entityData.setWorldBounds(GAME_SETTINGS.WORLD_WIDTH / 2, GAME_SETTINGS.WORLD_HEIGHT / 2, GAME_SETTINGS.WORLD_RADIUS);
     }
 }
