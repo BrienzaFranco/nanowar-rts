@@ -1,19 +1,20 @@
 import { Node } from './Node.js';
-import { NODE_TYPES } from './GameConfig.js';
+import { NODE_TYPES, NODE_CONFIG } from './GameConfig.js';
 
 const MAP_TYPES = [
-    'GALAXY_SPIRAL', 'CONSTELLATION_WEB', 'SOLAR_SYSTEMS', 
-    'ORBITAL_RINGS', 'VOID_ISLANDS', 'NEBULA_CHANNELS',
-    'ASTEROID_BELT', 'DUAL_CORE', 'FRACTAL_BRANCHES'
+    'GALAXY_SPIRAL', 'CONSTELLATION_WEB', 'SOLAR_SYSTEMS',
+    'RING_OF_FIRE', 'VOID_ISLANDS'
 ];
 
 export class MapGenerator {
+    static getRadiusForType(type) {
+        return (NODE_CONFIG[type] && NODE_CONFIG[type].radius) || 40;
+    }
+
     static generate(playerCount, worldWidth, worldHeight) {
         let finalNodes = [];
-        // Densidad mínima: 4 nodos por jugador + centro. 
-        // Densidad máxima: 12 nodos por jugador para evitar caos visual.
-        const minNodes = Math.max(8, playerCount * 4); 
-        const maxNodes = playerCount * 12;
+        const minNodes = Math.max(8, playerCount * 4);
+        const maxNodes = playerCount * 15;
         let attempts = 0;
 
         while ((finalNodes.length < minNodes || finalNodes.length > maxNodes) && attempts < 50) {
@@ -21,7 +22,7 @@ export class MapGenerator {
             finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight, maxNodes);
         }
 
-        console.log(`Generated robust map for ${playerCount} players: ${finalNodes.length} nodes.`);
+        console.log(`Generated robust map for ${playerCount} players: ${finalNodes.length} nodes after ${attempts} attempts.`);
         return finalNodes;
     }
 
@@ -29,161 +30,156 @@ export class MapGenerator {
         const nodes = [];
         let idCounter = 0;
 
-        const centerX = worldWidth / 2;
-        const centerY = worldHeight / 2;
+        const cx = worldWidth / 2;
+        const cy = worldHeight / 2;
         const mapRadius = Math.min(worldWidth, worldHeight) * 0.46;
 
-        const baseStartAngle = Math.random() * Math.PI * 2;
+        const baseAngleOffset = Math.random() * Math.PI * 2;
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
 
-        // ─────────────────────────────────────────────────────────────────
-        // 1. Helpers
-        // ─────────────────────────────────────────────────────────────────
-        
-        const checkPos = (x, y, r, extraMargin = 60) => {
-            const margin = 100; 
+        // Helper to check collision for a single position against existing nodes
+        const isValidPos = (x, y, r, extraMargin = 60) => {
+            const margin = 100;
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
-            
+
             for (let n of nodes) {
                 const dist = Math.hypot(x - n.x, y - n.y);
-                const combinedR = r + n.radius;
-                
-                // Zona de exclusión de bases (Reducida dinámicamente para playerCount alto)
-                const baseExclusion = Math.max(300, 500 - playerCount * 20);
-                const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, baseExclusion) : extraMargin;
-                
-                if (dist < combinedR + effectiveMargin) return false;
+                const combinedR = r + this.getRadiusForType(n.type);
+
+                const baseExclusion = Math.max(250, 450 - playerCount * 20);
+                const isBase = (n.owner !== -1);
+
+                const limit = (n.type === NODE_TYPES.OMEGA) ? 150 : (isBase ? baseExclusion : extraMargin);
+
+                if (dist < combinedR + limit) return false;
             }
             return true;
         };
 
-        const addSymmetricNode = (baseX, baseY, owner, type) => {
+        // Attempts to add a node and all its rotationally symmetric clones.
+        // If ANY clone collides, the WHOLE group is rejected to guarantee 100% fairness.
+        const tryAddSymmetricGroup = (r, theta, type, ownerBaseIndex = -1) => {
             if (nodes.length >= maxAllowed) return false;
 
-            const dx = baseX - centerX;
-            const dy = baseY - centerY;
-            const baseDist = Math.sqrt(dx * dx + dy * dy);
-            
-            // Si es el centro exacto
-            if (baseDist < 20) {
-                if (checkPos(centerX, centerY, 100, 50)) {
-                    nodes.push(new Node(idCounter++, centerX, centerY, -1, type));
+            const nodeRadius = this.getRadiusForType(type);
+            const positions = [];
+            const angleStep = (Math.PI * 2) / playerCount;
+
+            // Center node special case
+            if (r < 10) {
+                if (isValidPos(cx, cy, nodeRadius, 50)) {
+                    nodes.push(new Node(idCounter++, cx, cy, -1, type));
                     return true;
                 }
                 return false;
             }
 
-            const angleStep = (Math.PI * 2) / playerCount;
-            const baseAngle = Math.atan2(dy, dx);
-            const positions = [];
-
-            // 1. Calcular todas las posiciones primero
+            // Calculate all symmetric positions
             for (let i = 0; i < playerCount; i++) {
-                const angle = baseAngle + (i * angleStep);
-                const px = centerX + baseDist * Math.cos(angle);
-                const py = centerY + baseDist * Math.sin(angle);
-                positions.push({ x: px, y: py, owner: (owner === -1 ? -1 : (owner + i) % playerCount) });
+                const angle = theta + (i * angleStep);
+                const px = cx + r * Math.cos(angle);
+                const py = cy + r * Math.sin(angle);
+                const owner = (ownerBaseIndex === -1 ? -1 : (ownerBaseIndex + i) % playerCount);
+                positions.push({ x: px, y: py, owner, angle });
             }
 
-            // 2. Validar que ninguna posición colisione con el mapa o entre sí
+            // Verify ALL positions before adding ANY
             for (let i = 0; i < positions.length; i++) {
                 const p = positions[i];
-                // Check against existing map
-                if (!checkPos(p.x, p.y, 40, 40)) return false;
-                
-                // Check against other clones in this same set
+                if (!isValidPos(p.x, p.y, nodeRadius, 40)) return false;
+
+                // Self-collision within the group: ensure nodes in the group don't overlap with each other
                 for (let j = i + 1; j < positions.length; j++) {
                     const p2 = positions[j];
-                    if (Math.hypot(p.x - p2.x, p.y - p2.y) < 150) return false;
+                    if (Math.hypot(p.x - p2.x, p.y - p2.y) < (nodeRadius * 2) + 60) return false;
                 }
             }
 
-            // 3. Añadir todos si todo es válido
+            // All valid, apply!
             for (let p of positions) {
                 nodes.push(new Node(idCounter++, p.x, p.y, p.owner, type));
             }
             return true;
         };
 
-        const createCosmicFormation = (cx, cy, owner, theme) => {
-            const themes = ['SOLAR', 'CROSS', 'CIRCLE', 'BINARY'];
-            const activeTheme = theme || themes[Math.floor(Math.random() * themes.length)];
+        // --- MAP GENERATION PIPELINE ---
 
-            if (activeTheme === 'SOLAR') {
-                const centerType = Math.random() > 0.7 ? NODE_TYPES.ULTRA : NODE_TYPES.LARGE;
-                if (addSymmetricNode(cx, cy, owner, centerType)) {
-                    const planets = 2;
-                    const orbit = 350;
-                    for(let i=0; i<planets; i++) {
-                        const a = (Math.PI * 2 / planets) * i + Math.random();
-                        addSymmetricNode(cx + orbit * Math.cos(a), cy + orbit * Math.sin(a), -1, NODE_TYPES.MEDIUM);
-                    }
+        // 1. PLACE OMEGA (Center) / DUAL CORE
+        if (mapType === 'RING_OF_FIRE' || (playerCount === 2 && Math.random() > 0.5)) {
+            // No center node. If not Ring of Fire, place Dual Cores.
+            if (mapType !== 'RING_OF_FIRE') {
+                tryAddSymmetricGroup(mapRadius * 0.2, baseAngleOffset + Math.PI / 2, NODE_TYPES.OMEGA);
+            }
+        } else {
+            // Standard center OMEGA
+            nodes.push(new Node(idCounter++, cx, cy, -1, NODE_TYPES.OMEGA));
+        }
+
+        // 2. PLACE PLAYER BASES
+        const baseDist = mapRadius * 0.85;
+        tryAddSymmetricGroup(baseDist, baseAngleOffset, NODE_TYPES.LARGE, 0);
+
+        // 3. SECURE FIRST EXPANSION (Close to bases)
+        // A medium node slightly inwards and to the side
+        tryAddSymmetricGroup(baseDist * 0.75, baseAngleOffset + 0.3, NODE_TYPES.MEDIUM);
+
+        // 4. THEMATIC FILL
+        const fillTheme = (theme) => {
+            const steps = 15;
+            for (let i = 0; i < steps; i++) {
+                if (nodes.length >= maxAllowed) break;
+
+                let r, theta, type;
+                type = Math.random() > 0.8 ? NODE_TYPES.MEGA : (Math.random() > 0.4 ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM);
+
+                if (theme === 'GALAXY_SPIRAL') {
+                    const t = i / steps;
+                    r = baseDist * (1 - t * 0.8);
+                    theta = baseAngleOffset + t * Math.PI;
                 }
-            } else if (activeTheme === 'CROSS') {
-                if (addSymmetricNode(cx, cy, owner, NODE_TYPES.LARGE)) {
-                    const d = 300;
-                    addSymmetricNode(cx + d, cy, -1, NODE_TYPES.MEDIUM);
-                    addSymmetricNode(cx - d, cy, -1, NODE_TYPES.MEDIUM);
+                else if (theme === 'SOLAR_SYSTEMS') {
+                    const a = Math.random() * Math.PI * 2;
+                    const d = 150 + Math.random() * 200;
+                    const bx = cx + baseDist * Math.cos(baseAngleOffset);
+                    const by = cy + baseDist * Math.sin(baseAngleOffset);
+                    const px = bx + d * Math.cos(a);
+                    const py = by + d * Math.sin(a);
+                    r = Math.hypot(px - cx, py - cy);
+                    theta = Math.atan2(py - cy, px - cx);
+                    type = Math.random() > 0.7 ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM;
                 }
-            } else {
-                addSymmetricNode(cx, cy, owner, NODE_TYPES.MEGA);
+                else if (theme === 'CONSTELLATION_WEB') {
+                    r = Math.random() * mapRadius * 0.9;
+                    theta = Math.random() * Math.PI * 2;
+                }
+                else if (theme === 'RING_OF_FIRE') {
+                    r = mapRadius * (0.6 + Math.random() * 0.3);
+                    theta = Math.random() * Math.PI * 2;
+                    type = Math.random() > 0.6 ? NODE_TYPES.MEGA : NODE_TYPES.LARGE;
+                }
+                else if (theme === 'VOID_ISLANDS') {
+                    if (Math.random() > 0.5) continue;
+                    r = Math.random() * mapRadius * 0.8;
+                    theta = Math.random() * Math.PI * 2;
+                    type = Math.random() > 0.5 ? NODE_TYPES.MEGA : NODE_TYPES.ULTRA;
+                }
+
+                tryAddSymmetricGroup(r, theta, type);
+            }
+
+            // Post-theme random scatter for connections
+            for (let i = 0; i < 20; i++) {
+                if (nodes.length >= maxAllowed) break;
+                const r = Math.random() * mapRadius * 0.9;
+                const theta = Math.random() * Math.PI * 2;
+                const type = Math.random() > 0.5 ? NODE_TYPES.MEDIUM : NODE_TYPES.SMALL;
+                tryAddSymmetricGroup(r, theta, type);
             }
         };
 
-        // ─────────────────────────────────────────────────────────────────
-        // 2. Estructura Principal
-        // ─────────────────────────────────────────────────────────────────
-        
-        // El Omega en el corazón
-        nodes.push(new Node(idCounter++, centerX, centerY, -1, NODE_TYPES.OMEGA));
+        fillTheme(mapType);
 
-        // Bases
-        const baseDistActual = mapRadius * 0.95; 
-        addSymmetricNode(centerX + baseDistActual * Math.cos(baseStartAngle), centerY + baseDistActual * Math.sin(baseStartAngle), 0, NODE_TYPES.LARGE);
-
-        // ─────────────────────────────────────────────────────────────────
-        // 3. Relleno y Caminos
-        // ─────────────────────────────────────────────────────────────────
-        
-        // Un camino claro al centro
-        const t = 0.5;
-        const bx = centerX + baseDistActual * Math.cos(baseStartAngle);
-        const by = centerY + baseDistActual * Math.sin(baseStartAngle);
-        const jx = bx + (centerX - bx) * t;
-        const jy = by + (centerY - by) * t;
-        addSymmetricNode(jx, jy, -1, NODE_TYPES.MEGA);
-
-        // Relleno de Sectores (Adaptativo a playerCount)
-        const sectorCount = playerCount <= 3 ? 6 : playerCount;
-        for (let k = 0; k < sectorCount; k++) {
-            const angle = baseStartAngle + (k * (Math.PI * 2 / sectorCount)) + (Math.PI / sectorCount);
-            const dist = mapRadius * 0.6;
-            const px = centerX + dist * Math.cos(angle);
-            const py = centerY + dist * Math.sin(angle);
-            
-            if (nodes.length < maxAllowed) {
-                createCosmicFormation(px, py, -1);
-            }
-        }
-
-        // ─────────────────────────────────────────────────────────────────
-        // 4. Cleanup
-        // ─────────────────────────────────────────────────────────────────
-        
-        const finalNodes = [];
-        for (let n of nodes) {
-            let tooClose = false;
-            for (let f of finalNodes) {
-                const limit = (n.type === NODE_TYPES.OMEGA || f.type === NODE_TYPES.OMEGA) ? 200 : 60;
-                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + limit) {
-                    tooClose = true; break;
-                }
-            }
-            if (!tooClose) finalNodes.push(n);
-        }
-        
-        finalNodes.forEach((n, idx) => n.id = idx);
-        return finalNodes;
+        return nodes;
     }
 }

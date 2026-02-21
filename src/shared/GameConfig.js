@@ -41,6 +41,6 @@ export const NODE_CONFIG = {
     [NODE_TYPES.MEDIUM]: { radius: 40, influenceRadius: 160, baseHp: 12, maxHp: 60, spawnInterval: 3.5 },
     [NODE_TYPES.LARGE]: { radius: 65, influenceRadius: 220, baseHp: 25, maxHp: 150, spawnInterval: 2.4 },
     [NODE_TYPES.MEGA]: { radius: 100, influenceRadius: 300, baseHp: 50, maxHp: 300, spawnInterval: 2.0 },
-    [NODE_TYPES.ULTRA]: { radius: 145, influenceRadius: 400, baseHp: 100, maxHp: 600, spawnInterval: 1.6 },
-    [NODE_TYPES.OMEGA]: { radius: 220, influenceRadius: 600, baseHp: 200, maxHp: 1200, spawnInterval: 1.2 }
+    [NODE_TYPES.ULTRA]: { radius: 125, influenceRadius: 380, baseHp: 80, maxHp: 500, spawnInterval: 1.6 },
+    [NODE_TYPES.OMEGA]: { radius: 160, influenceRadius: 450, baseHp: 120, maxHp: 800, spawnInterval: 1.4 }
 };
