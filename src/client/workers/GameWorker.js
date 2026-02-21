@@ -162,6 +162,15 @@ function handleUpdate(data) {
     const { dt } = data;
     const cappedDt = Math.min(dt, 0.05);
 
+    // REBUILD ID MAP: Source of truth is the actual shared memory
+    entityIdToIndex.clear();
+    const count = entityData.getCount();
+    for (let i = 0; i < count; i++) {
+        if (!entityData.isDead(i)) {
+            entityIdToIndex.set(entityData.getId(i), i);
+        }
+    }
+
     gameEngine.step(cappedDt);
 
     sharedMemory.incrementFrameCounter();

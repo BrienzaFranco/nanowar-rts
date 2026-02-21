@@ -362,11 +362,14 @@ export class SingleplayerController {
                 timeScale = 60;
             }
 
-            if (!dataArray || dataArray.length === 0) {
-                ctx.fillStyle = '#444';
-                ctx.textAlign = 'center';
-                ctx.fillText('DATOS INSUFICIENTES', w / 2, h / 2);
-                return;
+            if (!dataArray || dataArray.length < 2) {
+                // Try to show at least one point if exists
+                if (dataArray.length === 0) {
+                    ctx.fillStyle = '#444';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('DATOS INSUFICIENTES', w / 2, h / 2);
+                    return;
+                }
             }
 
             // Find max value
@@ -403,7 +406,8 @@ export class SingleplayerController {
                 ctx.fillText(Math.round((i / 4) * maxVal), padLeft - 8, y + 3);
             }
 
-            const totalTime = stats.elapsed || 1;
+            // TOTAL TIME in MINUTES for scaling
+            const totalTime = Math.max(stats.elapsed || 0, 0.1); // Min 6 seconds scale
             const timeToX = (t) => padLeft + (t * (graphW / totalTime) * this.graphState.scale) + this.graphState.offset;
 
             // Clip for scrolling
