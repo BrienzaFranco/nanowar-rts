@@ -1,7 +1,8 @@
 import { SharedMemory, MEMORY_LAYOUT } from '@shared/SharedMemory.js';
 import { EntityData, DEATH_TYPES } from '@shared/EntityData.js';
-import { NodeData, NODE_TYPES } from '@shared/NodeData.js';
+import { NodeData } from '@shared/NodeData.js';
 import { GameEngine } from '@shared/GameEngine.js';
+import { NODE_TYPES } from '@shared/GameConfig.js';
 
 let sharedMemory = null;
 let entityData = null;
@@ -77,8 +78,13 @@ function handleSetGameSettings(data) {
 
 function handleAddNode(data) {
     const { x, y, owner, type, id } = data;
-    const nodeType = type === 'small' ? NODE_TYPES.SMALL :
-        type === 'large' ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM;
+    // type is now expected to be a numeric constant from NODE_TYPES
+    const nodeType = typeof type === 'number' ? type :
+        (type === 'small' ? NODE_TYPES.SMALL :
+         type === 'large' ? NODE_TYPES.LARGE :
+         type === 'mega' ? NODE_TYPES.MEGA :
+         type === 'ultra' ? NODE_TYPES.ULTRA :
+         type === 'omega' ? NODE_TYPES.OMEGA : NODE_TYPES.MEDIUM);
 
     const idx = nodeData.allocate(x, y, owner, nodeType, id);
 
