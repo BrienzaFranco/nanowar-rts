@@ -356,14 +356,14 @@ export class GameEngine {
                 const dx = ex - nodeX;
                 const dy = ey - nodeY;
                 const distSq = dx * dx + dy * dy;
-                // EXTREME SENSITIVITY: Trigger capture/heal immediately (added +25)
-                const touchRange = nodeRadius + eRadius + 25;
+                // SENSITIVE CONTACT: Trigger capture/heal exactly at the edge (+2px margin for reliability)
+                const touchRange = nodeRadius + eRadius + 2;
                 const dist = Math.sqrt(distSq);
 
                 const targetX = this.entityData.getTargetX(i);
                 const targetY = this.entityData.getTargetY(i);
                 const isTargetingThisNode = (eTargetNodeId === nodeId) || 
-                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 15);
+                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 5);
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
