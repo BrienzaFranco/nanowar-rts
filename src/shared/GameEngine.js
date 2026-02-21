@@ -26,6 +26,15 @@ export class GameEngine {
     }
 
     step(dt) {
+        // Track which players currently own at least one node
+        this.activePlayers = new Set();
+        for (let i = 0; i < this.nodeData.getCount(); i++) {
+            const owner = this.nodeData.getOwner(i);
+            if (owner !== -1) {
+                this.activePlayers.add(owner);
+            }
+        }
+
         this.handleCollisionsAndCohesion();
         this.handleEntityNodeCollisions();
         this.updateEntities(dt);
@@ -506,6 +515,22 @@ export class GameEngine {
             let vy = this.entityData.getVy(i);
             let speedBoost = this.entityData.getSpeedBoost(i);
             const owner = this.entityData.getOwner(i);
+
+            // ─────────────────────────────────────────────────────────────────
+            // 0. Starvation Attrition: If owner has 0 nodes, progressive death
+            // ─────────────────────────────────────────────────────────────────
+            if (owner !== -1 && !this.activePlayers.has(owner)) {
+                // To keep it performant and chaotic, each unit has a small random
+                // chance to die every second. A 5% chance per second per unit 
+                // means an army of 100 will lose ~5 units per sec.
+                if (Math.random() < 0.05 * dt) {
+                    this.entityData.setDying(i, true);
+                    this.entityData.setDeathType(i, DEATH_TYPES.EXPLOSION);
+                    this.entityData.setDeathTime(i, 0);
+                    this.sharedMemory.addDeathEvent(x, y, owner, DEATH_TYPES.EXPLOSION, i);
+                    continue; // Skip the rest of the update for this entity
+                }
+            }
 
             // ─────────────────────────────────────────────────────────────────
             // A. Speed-boost: faster in friendly territory (acceleration lane)

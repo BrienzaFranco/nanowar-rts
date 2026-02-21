@@ -411,6 +411,9 @@
                     <option value="3">2 Enemigos</option>
                     <option value="4" selected>3 Enemigos</option>
                     <option value="5">4 Enemigos</option>
+                    <option value="6">5 Enemigos</option>
+                    <option value="7">6 Enemigos</option>
+                    <option value="8">7 Enemigos</option>
                 </select>
             </div>
 
@@ -475,14 +478,6 @@
                 <div class="color-picker" id="multi-color-picker" style="margin-bottom: 20px;">
                     <!-- Configured via JS -->
                 </div>
-
-                <label style="text-align: center; margin-top: 15px;">VELOCIDAD DE UNIDADES</label>
-                <div class="slider-container">
-                    <span style="font-size: 11px; opacity: 0.5;">0.5x</span>
-                    <input type="range" id="lobby-speed" min="0.5" max="2" step="0.1" value="1">
-                    <span style="font-size: 11px; opacity: 0.5;">2.0x</span>
-                </div>
-                <div class="slider-value" id="lobby-speed-val" style="margin-top: 8px; font-size: 13px;">1.0x</div>
             </div>
 
             <div class="lobby-players-list" id="lobby-players-container">
@@ -660,18 +655,6 @@
                     window.multiplayer.joinRoom(roomId);
                 }
             };
-
-            // -- INIT MULTIPLAYER LOBBY --
-            const lobbySpeed = document.getElementById('lobby-speed');
-            const lobbySpeedVal = document.getElementById('lobby-speed-val');
-
-            lobbySpeed.addEventListener('input', (e) => {
-                const speed = parseFloat(e.target.value).toFixed(1);
-                lobbySpeedVal.innerText = speed + 'x';
-                if (window.multiplayer && window.multiplayer.socket) {
-                    window.multiplayer.socket.emit('updateRoomSettings', { speed: parseFloat(speed) }); // Assume server supports this later or handles it
-                }
-            });
 
             // Actually going into lobby visually is handled when server responds to join / create (done in MultiplayerController ideally)
             // But we need to overwrite updateLobbyUI here

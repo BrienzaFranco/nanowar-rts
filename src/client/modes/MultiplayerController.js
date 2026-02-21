@@ -108,10 +108,23 @@ export class MultiplayerController {
                     background: rgba(244,67,54,0.9); color: white; padding: 10px 20px;
                     border-radius: 4px; z-index: 100; font-family: monospace;
                 `;
-                notif.textContent = data.surrendered ? 'TE RENDISTE - Solo puedes mover y atacar' : 'SIN NODOS - Solo puedes mover y atacar';
+                notif.textContent = data.surrendered ? 'TE RENDISTE - Ya no puedes controlar unidades' : 'ELIMINADO - Te has quedado sin tropas ni nodos';
                 document.body.appendChild(notif);
-                setTimeout(() => notif.remove(), 3000);
+                setTimeout(() => notif.remove(), 4000);
             }
+        });
+
+        this.socket.on('playerLostNodes', () => {
+            // Show small non-fatal notification
+            const notif = document.createElement('div');
+            notif.style.cssText = `
+                position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+                background: rgba(255,152,0,0.9); color: white; padding: 10px 20px;
+                border-radius: 4px; z-index: 100; font-family: monospace; font-weight: bold;
+            `;
+            notif.textContent = 'SIN NODOS - Tus unidades están pereciendo. Captura un nodo rápido!';
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 5000);
         });
 
         this.socket.on('syncStateDO', (serverState) => {
@@ -147,10 +160,10 @@ export class MultiplayerController {
             const msg = won ? '¡VICTORIA!' : (data.winner === -1 ? 'EMPATE' : 'DERROTA');
             const color = won ? '#4CAF50' : '#f44336';
 
-            const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4'];
+            const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
 
             // Generate stats HTML
-            let statsHTML = '<div style="margin: 20px 0; text-align: left; font-size: 12px;">';
+            let statsHTML = '<div style="margin: 20px 0; text-align: left; font-size: 12px; max-height: 200px; overflow-y: auto;">';
 
             const stats = data.stats || this.game.state.getStats();
 
@@ -318,7 +331,7 @@ export class MultiplayerController {
                 });
 
                 // Draw Lines
-                const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4'];
+                const playerColors = ['#4CAF50', '#f44336', '#2196F3', '#FF9800', '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'];
 
                 for (let pid in playerData) {
                     const data = playerData[pid];
@@ -546,7 +559,8 @@ export class MultiplayerController {
         if (!this.cameraCentered && this.playerIndex !== -1 && newNodeCount > 0) {
             for (let i = 0; i < newNodeCount; i++) {
                 if (view.getNodeOwner(i) === this.playerIndex) {
-                    this.game.camera.centerOn(view.getNodeX(i), view.getNodeY(i), this.game.canvas.width, this.game.canvas.height);
+                    this.game.camera.lookAt(view.getNodeX(i), view.getNodeY(i));
+                    this.game.camera.zoom = 1.0; // Start closer to the home node instead of fully zoomed out
                     this.cameraCentered = true;
                     break;
                 }

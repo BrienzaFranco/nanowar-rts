@@ -61,29 +61,43 @@ export class GameServer {
         const idx = this.playerSockets.findIndex(s => s.id === socketId);
         if (idx !== -1) {
             const removedPlayerIndex = idx;
-            this.playerSockets.splice(idx, 1);
 
-            // Reassign player indices
-            this.playerSockets.forEach((s, i) => s.playerIndex = i);
+            if (this.gameStarted) {
+                // Game has started: mark them as defeated/surrendered, keep them in array to preserve IDs
+                const player = this.playerSockets[idx];
+                player.disconnected = true;
+                player.surrendered = true;
+                player.defeated = true;
 
-            // Make disconnected player's nodes neutral
-            for (let i = 0; i < this.nodeData.getCount(); i++) {
-                if (this.nodeData.getOwner(i) === removedPlayerIndex) {
-                    this.nodeData.setOwner(i, -1);
-                    this.nodeData.setBaseHp(i, this.nodeData.getMaxHp(i) * 0.1);
+                // Make disconnected player's nodes neutral
+                for (let i = 0; i < this.nodeData.getCount(); i++) {
+                    if (this.nodeData.getOwner(i) === removedPlayerIndex) {
+                        this.nodeData.setOwner(i, -1);
+                        this.nodeData.setBaseHp(i, this.nodeData.getMaxHp(i) * 0.1);
+                    }
                 }
-            }
 
-            // Kill all entities from disconnected player
-            for (let i = 0; i < this.entityData.getCount(); i++) {
-                if (!this.entityData.isDead(i) && this.entityData.getOwner(i) === removedPlayerIndex) {
-                    this.entityData.setDying(i, true);
-                    this.entityData.setDeathType(i, DEATH_TYPES.EXPLOSION);
-                    this.entityData.setDeathTime(i, 0);
+                // Kill all entities from disconnected player
+                for (let i = 0; i < this.entityData.getCount(); i++) {
+                    if (!this.entityData.isDead(i) && this.entityData.getOwner(i) === removedPlayerIndex) {
+                        this.entityData.setDying(i, true);
+                        this.entityData.setDeathType(i, DEATH_TYPES.EXPLOSION);
+                        this.entityData.setDeathTime(i, 0);
+                    }
                 }
+
+                // Notify others that this player surrendered/disconnected
+                this.io.to(this.roomId).emit('playerDefeated', { playerIndex: removedPlayerIndex, surrendered: true });
+            } else {
+                // Game hasn't started: safe to reorder
+                this.playerSockets.splice(idx, 1);
+                this.playerSockets.forEach((s, i) => s.playerIndex = i);
             }
         }
-        if (this.playerSockets.length === 0) {
+
+        // Remove room if everyone disconnected
+        const activeSockets = this.playerSockets.filter(s => !s.disconnected);
+        if (activeSockets.length === 0) {
             this.gameStarted = false;
             this.gameEnded = false;
         }
@@ -200,9 +214,30 @@ export class GameServer {
             }
         }
 
-        if (!hasNodes) {
+        let hasUnits = false;
+        for (let i = 0; i < this.entityData.getCount(); i++) {
+            if (!this.entityData.isDead(i) && !this.entityData.isDying(i) && this.entityData.getOwner(i) === playerIndex) {
+                hasUnits = true;
+                break;
+            }
+        }
+
+        if (!hasNodes && hasUnits) {
+            // Player lost all nodes but still has an army (which is slowly dying from attrition).
+            // Send a single warning event so they know what's happening.
+            if (!player.lostNodesWarningSent) {
+                player.lostNodesWarningSent = true;
+                this.io.to(player.id).emit('playerLostNodes');
+                console.log(`Player ${playerIndex} lost all nodes, starvation mode activated`);
+            }
+        } else if (hasNodes) {
+            // Player has nodes, reset warning flag if they recovered
+            player.lostNodesWarningSent = false;
+        }
+
+        if (!hasNodes && !hasUnits) {
             player.defeated = true;
-            console.log(`Player ${playerIndex} defeated - no nodes`);
+            console.log(`Player ${playerIndex} defeated - no nodes and no units`);
             this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: false });
         }
     }
@@ -267,17 +302,9 @@ export class GameServer {
 
         const activePlayers = [];
         for (let i = 0; i < this.playerSockets.length; i++) {
-            if (this.playerSockets[i].surrendered) continue;
-            let hasNodes = false;
-            for (let n = 0; n < this.nodeData.getCount(); n++) {
-                if (this.nodeData.getOwner(n) === i) {
-                    hasNodes = true;
-                    break;
-                }
-            }
-            if (hasNodes) {
-                activePlayers.push(i);
-            }
+            if (this.playerSockets[i].surrendered || this.playerSockets[i].defeated) continue;
+            // The player is still in the game (either has nodes, or has surviving units)
+            activePlayers.push(i);
         }
 
         if (activePlayers.length === 1 && this.playerSockets.length > 1) {

@@ -14,9 +14,8 @@ export class SingleplayerController {
     setup(playerCount = 1, difficulty = 'intermediate', testMode = false) {
         this.game.state.playerCount = playerCount;
 
-        // In test mode, force 4 players (1 human + 3 AI) on easy
+        // In test mode, force easy difficulty but respect player count
         if (testMode) {
-            this.game.state.playerCount = 4;
             difficulty = 'easy';
         }
 
@@ -25,6 +24,13 @@ export class SingleplayerController {
         this.playerIndex = 0;
         this.createLevel();
         this.createInitialEntities(testMode);
+
+        // Center camera on human player's home node
+        const homeNode = this.game.state.nodes.find(n => n.owner === this.playerIndex);
+        if (homeNode) {
+            this.game.camera.lookAt(homeNode.x, homeNode.y);
+            this.game.camera.zoom = 1.0; // Set a slightly closer initial zoom instead of zooming to fit the whole map
+        }
 
         const difficultyMap = {
             'easy': 'Easy',
@@ -76,13 +82,35 @@ export class SingleplayerController {
         const playerNodes = this.game.state.nodes.filter(n => n.owner === 0);
         const enemyNodes = this.game.state.nodes.filter(n => n.owner > 0);
 
-        // Victory/defeat based on nodes only (units don't matter)
+        const playerUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner === 0);
+        const enemyUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner > 0);
+
         const playerHasNodes = playerNodes.length > 0;
         const enemiesHaveNodes = enemyNodes.length > 0;
 
-        if (!playerHasNodes) {
+        const playerAlive = playerHasNodes || playerUnits.length > 0;
+        const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;
+
+        if (!playerHasNodes && playerAlive) {
+            if (!this.playerLostNodesWarning) {
+                this.playerLostNodesWarning = true;
+                const notif = document.createElement('div');
+                notif.style.cssText = `
+                    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+                    background: rgba(255,152,0,0.9); color: white; padding: 10px 20px;
+                    border-radius: 4px; z-index: 100; font-family: monospace; font-weight: bold;
+                `;
+                notif.textContent = 'SIN NODOS - Tus unidades están pereciendo. Captura un nodo rápido!';
+                document.body.appendChild(notif);
+                setTimeout(() => notif.remove(), 5000);
+            }
+        } else if (playerHasNodes) {
+            this.playerLostNodesWarning = false;
+        }
+
+        if (!playerAlive) {
             this.showGameOver(false);
-        } else if (!enemiesHaveNodes) {
+        } else if (!enemiesAlive) {
             this.showGameOver(true);
         }
     }
