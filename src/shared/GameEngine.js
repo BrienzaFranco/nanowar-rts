@@ -138,7 +138,7 @@ export class GameEngine {
                 // Also skip push if our target point is INSIDE this node (sensitive capture)
                 const tdx = targetX - nodeX;
                 const tdy = targetY - nodeY;
-                if (hasTarget && tdx * tdx + tdy * tdy < (nodeRadius + 20) * (nodeRadius + 20)) continue;
+                if (hasTarget && tdx * tdx + tdy * tdy < (nodeRadius + 35) * (nodeRadius + 35)) continue;
 
                 const minDist = nodeRadius + radius + NODE_BODY_MARGIN;
 
@@ -357,15 +357,22 @@ export class GameEngine {
                 const dx = ex - nodeX;
                 const dy = ey - nodeY;
                 const distSq = dx * dx + dy * dy;
-                // SENSITIVE CONTACT: Trigger capture/heal exactly at the edge (+2px margin for reliability)
-                const touchRange = nodeRadius + eRadius + 2;
+                // ROBUST CONTACT: Trigger at edge (+8px margin for high speed safety)
+                const touchRange = nodeRadius + eRadius + 8;
+                const dist = Math.sqrt(distSq);
+
+                const dx = ex - nodeX;
+                const dy = ey - nodeY;
+                const distSq = dx * dx + dy * dy;
+                // ROBUST CONTACT: Trigger at edge (+8px margin for high speed safety)
+                const touchRange = nodeRadius + eRadius + 8;
                 const dist = Math.sqrt(distSq);
 
                 const targetX = this.entityData.getTargetX(i);
                 const targetY = this.entityData.getTargetY(i);
                 const hasTarget = this.entityData.hasTarget(i);
                 const isTargetingThisNode = hasTarget && ((eTargetNodeId === nodeId) || 
-                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 20));
+                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 35));
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
@@ -613,7 +620,7 @@ export class GameEngine {
                         if (this.nodeData.getId(n) === targetNodeId) continue;
                         const tdx = targetX - nnx;
                         const tdy = targetY - nny;
-                        if (tdx * tdx + tdy * tdy < (nRadius + 20) * (nRadius + 20)) continue;
+                        if (tdx * tdx + tdy * tdy < (nRadius + 35) * (nRadius + 35)) continue;
 
                         const ndx = nnx - x;
                         const ndy = nny - y;

@@ -100,13 +100,13 @@ export class Entity {
                 }
 
                 const dist = Math.sqrt(distSq);
-                // SENSITIVE CONTACT: Trigger at edge (+2px margin)
-                const touchRange = node.radius + this.radius + 2;
+                // ROBUST CONTACT: Trigger at edge (+8px margin for high speed safety)
+                const touchRange = node.radius + this.radius + 8;
                 const targetPoint = this.currentTarget || { x: this.x, y: this.y };
                 const hasTarget = !!this.currentTarget || this.targetNode !== null;
                 const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
                 const distToTargetSq = tdx * tdx + tdy * tdy;
-                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (distToTargetSq < (node.radius + 20) * (node.radius + 20)));
+                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (distToTargetSq < (node.radius + 35) * (node.radius + 35)));
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
@@ -288,7 +288,7 @@ export class Entity {
                 const targetPoint = this.currentTarget || { x: this.x, y: this.y };
                 const hasTarget = !!this.currentTarget || this.targetNode !== null;
                 const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
-                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (tdx * tdx + tdy * tdy < (node.radius + 10) * (node.radius + 10)));
+                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (tdx * tdx + tdy * tdy < (node.radius + 35) * (node.radius + 35)));
 
                 if (isTargetingThisNode) continue;
 
@@ -454,7 +454,7 @@ export class Entity {
             // Skip avoidance if this is our target node OR if our target point is inside it
             if (this.targetNode === node) continue;
             const tdx = this.currentTarget.x - node.x, tdy = this.currentTarget.y - node.y;
-            if (tdx * tdx + tdy * tdy < (node.radius + 20) * (node.radius + 20)) continue;
+            if (tdx * tdx + tdy * tdy < (node.radius + 35) * (node.radius + 35)) continue;
 
             const dx = node.x - this.x;
             const dy = node.y - this.y;
