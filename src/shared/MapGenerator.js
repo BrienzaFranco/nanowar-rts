@@ -10,16 +10,18 @@ const MAP_TYPES = [
 export class MapGenerator {
     static generate(playerCount, worldWidth, worldHeight) {
         let finalNodes = [];
-        const minNodes = playerCount * 6; 
-        const maxNodes = playerCount * 14;
+        // Densidad mínima: 4 nodos por jugador + centro. 
+        // Densidad máxima: 12 nodos por jugador para evitar caos visual.
+        const minNodes = Math.max(8, playerCount * 4); 
+        const maxNodes = playerCount * 12;
         let attempts = 0;
 
-        while ((finalNodes.length < minNodes || finalNodes.length > maxNodes) && attempts < 35) {
+        while ((finalNodes.length < minNodes || finalNodes.length > maxNodes) && attempts < 50) {
             attempts++;
             finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight, maxNodes);
         }
 
-        console.log(`Generated massive symmetric map: ${finalNodes.length} nodes after ${attempts} attempts.`);
+        console.log(`Generated robust map for ${playerCount} players: ${finalNodes.length} nodes.`);
         return finalNodes;
     }
 
@@ -38,19 +40,20 @@ export class MapGenerator {
         // 1. Helpers
         // ─────────────────────────────────────────────────────────────────
         
-        const isValid = (x, y, r, extraMargin = 100) => {
-            const margin = 80; 
+        const checkPos = (x, y, r, extraMargin = 60) => {
+            const margin = 100; 
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
             
             for (let n of nodes) {
                 const dist = Math.hypot(x - n.x, y - n.y);
-                const physicalLimit = r + n.radius + 30;
-                if (dist < physicalLimit) return false;
+                const combinedR = r + n.radius;
                 
-                // Base exclusion
-                const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, 480) : extraMargin;
-                if (dist < r + n.radius + effectiveMargin) return false;
+                // Zona de exclusión de bases (Reducida dinámicamente para playerCount alto)
+                const baseExclusion = Math.max(300, 500 - playerCount * 20);
+                const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, baseExclusion) : extraMargin;
+                
+                if (dist < combinedR + effectiveMargin) return false;
             }
             return true;
         };
@@ -62,138 +65,117 @@ export class MapGenerator {
             const dy = baseY - centerY;
             const baseDist = Math.sqrt(dx * dx + dy * dy);
             
-            if (baseDist < 50) return false; // Reserved for Omega
+            // Si es el centro exacto
+            if (baseDist < 20) {
+                if (checkPos(centerX, centerY, 100, 50)) {
+                    nodes.push(new Node(idCounter++, centerX, centerY, -1, type));
+                    return true;
+                }
+                return false;
+            }
 
             const angleStep = (Math.PI * 2) / playerCount;
             const baseAngle = Math.atan2(dy, dx);
+            const positions = [];
 
+            // 1. Calcular todas las posiciones primero
             for (let i = 0; i < playerCount; i++) {
                 const angle = baseAngle + (i * angleStep);
                 const px = centerX + baseDist * Math.cos(angle);
                 const py = centerY + baseDist * Math.sin(angle);
-                const finalOwner = (owner === -1) ? -1 : (owner + i) % playerCount;
-                nodes.push(new Node(idCounter++, px, py, finalOwner, type));
+                positions.push({ x: px, y: py, owner: (owner === -1 ? -1 : (owner + i) % playerCount) });
+            }
+
+            // 2. Validar que ninguna posición colisione con el mapa o entre sí
+            for (let i = 0; i < positions.length; i++) {
+                const p = positions[i];
+                // Check against existing map
+                if (!checkPos(p.x, p.y, 40, 40)) return false;
+                
+                // Check against other clones in this same set
+                for (let j = i + 1; j < positions.length; j++) {
+                    const p2 = positions[j];
+                    if (Math.hypot(p.x - p2.x, p.y - p2.y) < 150) return false;
+                }
+            }
+
+            // 3. Añadir todos si todo es válido
+            for (let p of positions) {
+                nodes.push(new Node(idCounter++, p.x, p.y, p.owner, type));
             }
             return true;
         };
 
-        const createCosmicFormation = (cx, cy, owner, theme = 'SOLAR') => {
-            const themes = ['SOLAR', 'CROSS', 'CIRCLE', 'HEXAGON', 'STAR', 'BINARY'];
+        const createCosmicFormation = (cx, cy, owner, theme) => {
+            const themes = ['SOLAR', 'CROSS', 'CIRCLE', 'BINARY'];
             const activeTheme = theme || themes[Math.floor(Math.random() * themes.length)];
 
             if (activeTheme === 'SOLAR') {
                 const centerType = Math.random() > 0.7 ? NODE_TYPES.ULTRA : NODE_TYPES.LARGE;
-                addSymmetricNode(cx, cy, owner, centerType);
-                const planets = 2;
-                for(let i=0; i<planets; i++) {
-                    const a = (Math.PI * 2 / planets) * i + Math.random();
-                    addSymmetricNode(cx + 350 * Math.cos(a), cy + 350 * Math.sin(a), -1, NODE_TYPES.MEDIUM);
+                if (addSymmetricNode(cx, cy, owner, centerType)) {
+                    const planets = 2;
+                    const orbit = 350;
+                    for(let i=0; i<planets; i++) {
+                        const a = (Math.PI * 2 / planets) * i + Math.random();
+                        addSymmetricNode(cx + orbit * Math.cos(a), cy + orbit * Math.sin(a), -1, NODE_TYPES.MEDIUM);
+                    }
                 }
             } else if (activeTheme === 'CROSS') {
-                addSymmetricNode(cx, cy, owner, NODE_TYPES.LARGE);
-                const d = 350;
-                addSymmetricNode(cx + d, cy, -1, NODE_TYPES.MEDIUM);
-                addSymmetricNode(cx - d, cy, -1, NODE_TYPES.MEDIUM);
-                addSymmetricNode(cx, cy + d, -1, NODE_TYPES.MEDIUM);
-                addSymmetricNode(cx, cy - d, -1, NODE_TYPES.MEDIUM);
-            } else if (activeTheme === 'CIRCLE') {
-                addSymmetricNode(cx, cy, owner, NODE_TYPES.MEGA);
-                const satellites = 6;
-                for(let i=0; i<satellites; i++) {
-                    const a = (Math.PI * 2 / satellites) * i;
-                    addSymmetricNode(cx + 380*Math.cos(a), cy + 380*Math.sin(a), -1, NODE_TYPES.SMALL);
-                }
-            } else if (activeTheme === 'HEXAGON') {
-                const hexDist = 300;
-                for(let i=0; i<6; i++) {
-                    const a = (Math.PI * 2 / 6) * i;
-                    addSymmetricNode(cx + hexDist * Math.cos(a), cy + hexDist * Math.sin(a), -1, NODE_TYPES.MEDIUM);
-                }
-            } else if (activeTheme === 'STAR') {
-                addSymmetricNode(cx, cy, owner, NODE_TYPES.LARGE);
-                for(let i=0; i<5; i++) {
-                    const a = (Math.PI * 2 / 5) * i;
-                    addSymmetricNode(cx + 420*Math.cos(a), cy + 420*Math.sin(a), -1, NODE_TYPES.SMALL);
+                if (addSymmetricNode(cx, cy, owner, NODE_TYPES.LARGE)) {
+                    const d = 300;
+                    addSymmetricNode(cx + d, cy, -1, NODE_TYPES.MEDIUM);
+                    addSymmetricNode(cx - d, cy, -1, NODE_TYPES.MEDIUM);
                 }
             } else {
-                addSymmetricNode(cx - 200, cy, owner, NODE_TYPES.LARGE);
-                addSymmetricNode(cx + 200, cy, owner, NODE_TYPES.LARGE);
+                addSymmetricNode(cx, cy, owner, NODE_TYPES.MEGA);
             }
         };
 
         // ─────────────────────────────────────────────────────────────────
-        // 2. Base y Centro (EL CORAZÓN OMEGA)
+        // 2. Estructura Principal
         // ─────────────────────────────────────────────────────────────────
         
-        // El Omega SIEMPRE en el centro
+        // El Omega en el corazón
         nodes.push(new Node(idCounter++, centerX, centerY, -1, NODE_TYPES.OMEGA));
 
+        // Bases
         const baseDistActual = mapRadius * 0.95; 
         addSymmetricNode(centerX + baseDistActual * Math.cos(baseStartAngle), centerY + baseDistActual * Math.sin(baseStartAngle), 0, NODE_TYPES.LARGE);
 
         // ─────────────────────────────────────────────────────────────────
-        // 3. Caminos y Relleno
+        // 3. Relleno y Caminos
         // ─────────────────────────────────────────────────────────────────
         
-        const pathSteps = 3;
-        for (let i = 1; i <= pathSteps; i++) {
-            const t = i / (pathSteps + 1);
-            const bx = centerX + baseDistActual * Math.cos(baseStartAngle);
-            const by = centerY + baseDistActual * Math.sin(baseStartAngle);
-            const px = bx + (centerX - bx) * t;
-            const py = by + (centerY - by) * t;
-            
-            const offset = (i % 2 === 0 ? 500 : -500);
-            const a = baseStartAngle + Math.PI/2;
-            const jx = px + offset * Math.cos(a);
-            const jy = py + offset * Math.sin(a);
-            
-            if (isValid(jx, jy, 80, 250)) {
-                const type = i === 2 ? NODE_TYPES.MEGA : NODE_TYPES.MEDIUM;
-                addSymmetricNode(jx, jy, -1, type);
-            }
-        }
+        // Un camino claro al centro
+        const t = 0.5;
+        const bx = centerX + baseDistActual * Math.cos(baseStartAngle);
+        const by = centerY + baseDistActual * Math.sin(baseStartAngle);
+        const jx = bx + (centerX - bx) * t;
+        const jy = by + (centerY - by) * t;
+        addSymmetricNode(jx, jy, -1, NODE_TYPES.MEGA);
 
-        const sectors = playerCount === 2 ? 6 : playerCount * 2;
-        for (let k = 0; k < sectors; k++) {
-            const angle = baseStartAngle + (k * (Math.PI * 2 / sectors)) + (Math.PI/sectors);
-            const d = mapRadius * 0.65;
-            const px = centerX + d * Math.cos(angle);
-            const py = centerY + d * Math.sin(angle);
-            if (isValid(px, py, 80, 300)) {
+        // Relleno de Sectores (Adaptativo a playerCount)
+        const sectorCount = playerCount <= 3 ? 6 : playerCount;
+        for (let k = 0; k < sectorCount; k++) {
+            const angle = baseStartAngle + (k * (Math.PI * 2 / sectorCount)) + (Math.PI / sectorCount);
+            const dist = mapRadius * 0.6;
+            const px = centerX + dist * Math.cos(angle);
+            const py = centerY + dist * Math.sin(angle);
+            
+            if (nodes.length < maxAllowed) {
                 createCosmicFormation(px, py, -1);
             }
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 4. Perdidos
+        // 4. Cleanup
         // ─────────────────────────────────────────────────────────────────
         
-        const lostCount = 6; 
-        for (let i = 0; i < lostCount; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = mapRadius * (1.2 + Math.random() * 0.35);
-            const px = centerX + dist * Math.cos(angle);
-            const py = centerY + dist * Math.sin(angle);
-            
-            let far = true;
-            for (let p = 0; p < playerCount; p++) {
-                const pA = baseStartAngle + (p * Math.PI * 2 / playerCount);
-                const bx = centerX + baseDistActual * Math.cos(pA);
-                const by = centerY + baseDistActual * Math.sin(pA);
-                if (Math.hypot(px - bx, py - by) < 800) { far = false; break; }
-            }
-            if (far && isValid(px, py, 40, 150)) {
-                const type = Math.random() > 0.8 ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM;
-                nodes.push(new Node(idCounter++, px, py, -1, type));
-            }
-        }
-
         const finalNodes = [];
         for (let n of nodes) {
             let tooClose = false;
             for (let f of finalNodes) {
-                const limit = n.type === NODE_TYPES.OMEGA || f.type === NODE_TYPES.OMEGA ? 180 : 60;
+                const limit = (n.type === NODE_TYPES.OMEGA || f.type === NODE_TYPES.OMEGA) ? 200 : 60;
                 if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + limit) {
                     tooClose = true; break;
                 }
