@@ -28,8 +28,10 @@ export const GAME_SETTINGS = {
 };
 
 export const NODE_TYPES = {
-    small: { radius: 20, influenceFat: 4, baseHp: 4, maxHp: 12, stockFat: 0.5 },
-    medium: { radius: 32, influenceFat: 3.5, baseHp: 7, maxHp: 22, stockFat: 0.5 },
-    large: { radius: 55, influenceFat: 3, baseHp: 12, maxHp: 35, stockFat: 0.6 },
-    super: { radius: 85, influenceFat: 2.5, baseHp: 25, maxHp: 80, stockFat: 0.8 }
+    small: { radius: 22, influenceFat: 4, baseHp: 6, maxHp: 18, stockFat: 0.5 },
+    medium: { radius: 38, influenceFat: 3.5, baseHp: 12, maxHp: 35, stockFat: 0.5 },
+    large: { radius: 60, influenceFat: 3, baseHp: 20, maxHp: 60, stockFat: 0.6 },
+    mega: { radius: 95, influenceFat: 2.5, baseHp: 40, maxHp: 130, stockFat: 0.7 },
+    ultra: { radius: 135, influenceFat: 2.2, baseHp: 70, maxHp: 280, stockFat: 0.8 },
+    omega: { radius: 190, influenceFat: 2.0, baseHp: 150, maxHp: 600, stockFat: 1.0 }
 };
