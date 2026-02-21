@@ -103,9 +103,10 @@ export class Entity {
                 // SENSITIVE CONTACT: Trigger at edge (+2px margin)
                 const touchRange = node.radius + this.radius + 2;
                 const targetPoint = this.currentTarget || { x: this.x, y: this.y };
+                const hasTarget = !!this.currentTarget || this.targetNode !== null;
                 const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
                 const distToTargetSq = tdx * tdx + tdy * tdy;
-                const isTargetingThisNode = (this.targetNode === node) || (distToTargetSq < (node.radius + 10) * (node.radius + 10));
+                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (distToTargetSq < (node.radius + 10) * (node.radius + 10)));
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
@@ -285,8 +286,9 @@ export class Entity {
         if (nodes) {
             for (let node of nodes) {
                 const targetPoint = this.currentTarget || { x: this.x, y: this.y };
+                const hasTarget = !!this.currentTarget || this.targetNode !== null;
                 const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
-                const isTargetingThisNode = (this.targetNode === node) || (tdx * tdx + tdy * tdy < node.radius * node.radius + 400);
+                const isTargetingThisNode = hasTarget && ((this.targetNode === node) || (tdx * tdx + tdy * tdy < (node.radius + 10) * (node.radius + 10)));
 
                 if (isTargetingThisNode) continue;
 

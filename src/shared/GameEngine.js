@@ -124,6 +124,7 @@ export class GameEngine {
             const targetNodeId = this.entityData.getTargetNodeId(i);
             const targetX = this.entityData.getTargetX(i);
             const targetY = this.entityData.getTargetY(i);
+            const hasTarget = this.entityData.hasTarget(i);
 
             for (let n = 0; n < this.nodeData.getCount(); n++) {
                 const nodeX = this.nodeData.getX(n);
@@ -132,12 +133,12 @@ export class GameEngine {
                 const nodeId = this.nodeData.getId(n);
 
                 // If this is the node we want to enter, don't push us away physically!
-                if (nodeId === targetNodeId) continue;
+                if (hasTarget && nodeId === targetNodeId) continue;
 
                 // Also skip push if our target point is INSIDE this node (sensitive capture)
                 const tdx = targetX - nodeX;
                 const tdy = targetY - nodeY;
-                if (tdx * tdx + tdy * tdy < (nodeRadius + 20) * (nodeRadius + 20)) continue;
+                if (hasTarget && tdx * tdx + tdy * tdy < (nodeRadius + 20) * (nodeRadius + 20)) continue;
 
                 const minDist = nodeRadius + radius + NODE_BODY_MARGIN;
 
@@ -362,8 +363,9 @@ export class GameEngine {
 
                 const targetX = this.entityData.getTargetX(i);
                 const targetY = this.entityData.getTargetY(i);
-                const isTargetingThisNode = (eTargetNodeId === nodeId) || 
-                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 5);
+                const hasTarget = this.entityData.hasTarget(i);
+                const isTargetingThisNode = hasTarget && ((eTargetNodeId === nodeId) || 
+                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 5));
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
