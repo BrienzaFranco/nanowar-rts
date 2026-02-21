@@ -74,6 +74,12 @@ export class SingleplayerController {
         });
     }
 
+    surrender() {
+        if (!this.gameOverShown) {
+            this.showGameOver(false);
+        }
+    }
+
     sendAction(action) {
         const { type, unitIds, nodeIds, targetX, targetY, targetNodeId, path } = action;
 

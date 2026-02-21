@@ -125,6 +125,12 @@
             box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
 
+        .ui-btn.danger:hover {
+            border-color: #f44336 !important;
+            color: #f44336 !important;
+            background: rgba(244, 67, 54, 0.1) !important;
+        }
+
         .btn {
             display: inline-block;
             width: 100%;
@@ -491,13 +497,12 @@
 
     <!-- SCREEN 6: GAME SCREEN -->
     <div id="game-screen" class="screen" style="padding: 0; background: #000;">
-        <div id="ui"
-            style="display:none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10;">
-            <!-- El UIManager inyectará contenido aquí -->
+        <div id="ui" style="display:none; position: fixed; top: 10px; left: 10px; z-index: 100; display: flex; gap: 6px; pointer-events: none;">
+            <button id="help-btn" class="ui-btn" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Controles">?</button>
+            <button id="mute-btn" class="ui-btn" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Silenciar">🔊</button>
+            <button id="menu-btn" class="ui-btn" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Menú">←</button>
+            <button id="surrender-btn" class="ui-btn danger" style="pointer-events: auto; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: rgba(8, 8, 10, 0.9); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.5); cursor: pointer; border-radius: 4px;" title="Rendirse">🏳️</button>
         </div>
-
-        <button id="surrender-btn" class="btn"
-            style="display:none; position: fixed; bottom: 20px; left: 20px; width: auto; padding: 10px 20px; font-size: 11px; z-index: 100; pointer-events: auto;">RENDIRSE</button>
 
         <canvas id="game-canvas"></canvas>
     </div>
@@ -697,6 +702,29 @@
             document.getElementById('btn-leave-lobby').addEventListener('click', () => {
                 // If the server doesn't have leaveRoom, reload handles it cleanly
                 location.reload();
+            });
+
+            // -- HUD BUTTONS (In-Game) --
+            document.getElementById('help-btn').addEventListener('click', () => {
+                // For simplicity, just alert controls or find a better way. 
+                // Multiplayer doesn't have a tutorial overlay in index.html, so let's use alert for now.
+                alert('CONTROLES:\n- Click Izq: Seleccionar\n- Click Der: Mover\n- T + Click: Rally Point\n- S: Detener');
+            });
+
+            document.getElementById('mute-btn').addEventListener('click', function () {
+                // Assuming soundManager is available globally via bundle
+                if (window.game && window.game.systems && window.game.systems.sounds) {
+                    const muted = window.game.systems.sounds.toggleMute();
+                    this.textContent = muted ? '🔇' : '🔊';
+                }
+            });
+
+            document.getElementById('menu-btn').addEventListener('click', () => location.reload());
+
+            document.getElementById('surrender-btn').addEventListener('click', () => {
+                if (window.multiplayer && window.multiplayer.surrender) {
+                    window.multiplayer.surrender();
+                }
             });
 
         });

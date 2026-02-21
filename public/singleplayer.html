@@ -16,123 +16,45 @@
             background: #0a0a0a;
         }
 
-        /* ── TOP-LEFT HUD PANEL ────────────────── */
+        /* ── MINIMAL HUD BUTTONS ────────────────── */
         #ui {
             position: absolute;
-            top: 0;
-            left: 0;
+            top: 10px;
+            left: 10px;
             z-index: 10;
-            background: rgba(8, 8, 10, 0.97);
-            border-right: 1px solid rgba(255, 255, 255, 0.09);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-            padding: 16px 20px 14px;
-            min-width: 240px;
-            font-family: 'Courier New', monospace;
-        }
-
-        #ui-top {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 11px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-        }
-
-        #ui-top h1 {
-            margin: 0;
-            font-size: 15px;
-            font-weight: bold;
-            color: #4CAF50;
-            text-transform: uppercase;
-            letter-spacing: 5px;
-        }
-
-        #ui-buttons {
-            display: flex;
-            gap: 3px;
+            gap: 6px;
+            pointer-events: none;
         }
 
         .ui-btn {
-            height: 28px;
-            padding: 0 10px;
+            pointer-events: auto;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(8, 8, 10, 0.9);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            background: transparent;
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 14px;
             font-family: 'Courier New', monospace;
             cursor: pointer;
-            transition: color 0.12s, border-color 0.12s;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
+            transition: all 0.15s;
+            border-radius: 4px;
         }
 
         .ui-btn:hover {
-            border-color: rgba(255, 255, 255, 0.3);
-            color: rgba(255, 255, 255, 0.85);
+            border-color: #4CAF50;
+            color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+            transform: translateY(-2px);
         }
 
-        /* ── NODE COUNTER ────────────────────────── */
-        #score {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-bottom: 9px;
-            padding-bottom: 9px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        #score span {
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.35);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        #score span strong {
-            color: rgba(255, 255, 255, 0.8);
-            font-weight: bold;
-        }
-
-        /* ── PLAYER LIST ─────────────────────────── */
-        #players-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            margin-bottom: 9px;
-        }
-
-        .player-score {
-            display: flex;
-            align-items: center;
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.45);
-            letter-spacing: 0.5px;
-            padding: 2px 0;
-        }
-
-        .player-score-color {
-            width: 5px;
-            height: 5px;
-            margin-right: 8px;
-            flex-shrink: 0;
-        }
-
-        /* ── BOTTOM ACTION BUTTONS ───────────────── */
-        .action-buttons {
-            display: flex;
-            gap: 4px;
-            padding-top: 12px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .action-buttons .ui-btn {
-            flex: 1;
-            height: 30px;
-            font-size: 11px;
-            letter-spacing: 1.5px;
+        .ui-btn.danger:hover {
+            border-color: #f44336;
+            color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
         }
 
         #game-canvas {
@@ -295,23 +217,11 @@
 <body>
     <div id="game-container">
         <div id="ui">
-            <div id="ui-top">
-                <h1>NANOWAR</h1>
-                <div id="ui-buttons">
-                    <button class="ui-btn" id="info-btn" title="Info">i</button>
-                    <button class="ui-btn" id="help-btn" title="Ayuda">?</button>
-                </div>
-            </div>
-            <div id="score">
-                <span>MIS NODOS <strong id="player-nodes">0</strong></span>
-                <span>ENEMIGOS <strong id="enemy-nodes">0</strong></span>
-            </div>
-            <div id="players-info"></div>
-            <div class="action-buttons">
-                <button id="mute-btn" class="ui-btn">🔊</button>
-                <button id="reset-btn" class="ui-btn">↺ RESET</button>
-                <button id="menu-btn" class="ui-btn">← MENU</button>
-            </div>
+            <button id="help-btn" class="ui-btn" title="Controles">?</button>
+            <button id="mute-btn" class="ui-btn" title="Silenciar">🔊</button>
+            <button id="reset-btn" class="ui-btn" title="Reiniciar">↺</button>
+            <button id="menu-btn" class="ui-btn" title="Menú">←</button>
+            <button id="surrender-btn" class="ui-btn danger" title="Rendirse">🏳️</button>
         </div>
         <canvas id="game-canvas"></canvas>
     </div>
@@ -358,7 +268,20 @@
         function showInfo() { document.getElementById('info-overlay').classList.add('visible'); }
         function closeInfo() { document.getElementById('info-overlay').classList.remove('visible'); }
         document.getElementById('help-btn').addEventListener('click', showTutorial);
-        document.getElementById('info-btn').addEventListener('click', showInfo);
+
+        document.getElementById('mute-btn').addEventListener('click', function () {
+            const muted = sounds.toggleMute();
+            this.textContent = muted ? '🔇' : '🔊';
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => location.reload());
+        document.getElementById('menu-btn').addEventListener('click', () => location.href = 'index.html');
+        document.getElementById('surrender-btn').addEventListener('click', () => {
+            if (window.game && window.game.controller && window.game.controller.surrender) {
+                window.game.controller.surrender();
+            }
+        });
+
         document.getElementById('info-overlay').addEventListener('click', function (e) { if (e.target === this) closeInfo(); });
         document.getElementById('tutorial-overlay').addEventListener('click', function (e) { if (e.target === this) closeTutorial(); });
     </script>
