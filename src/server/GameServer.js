@@ -369,7 +369,7 @@ export class GameServer {
             }
 
             if (!this.gameEnded) {
-                setTimeout(loop, 1000 / 20);
+                setTimeout(loop, 1000 / 30);
             }
         };
         loop();
