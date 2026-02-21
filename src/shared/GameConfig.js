@@ -30,5 +30,6 @@ export const GAME_SETTINGS = {
 export const NODE_TYPES = {
     small: { radius: 20, influenceFat: 4, baseHp: 4, maxHp: 12, stockFat: 0.5 },
     medium: { radius: 32, influenceFat: 3.5, baseHp: 7, maxHp: 22, stockFat: 0.5 },
-    large: { radius: 55, influenceFat: 3, baseHp: 12, maxHp: 35, stockFat: 0.6 }
+    large: { radius: 55, influenceFat: 3, baseHp: 12, maxHp: 35, stockFat: 0.6 },
+    super: { radius: 85, influenceFat: 2.5, baseHp: 25, maxHp: 80, stockFat: 0.8 }
 };
