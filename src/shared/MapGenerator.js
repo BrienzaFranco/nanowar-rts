@@ -4,6 +4,21 @@ const MAP_TYPES = ['SPIRAL_GALAXY', 'CONSTELLATIONS', 'SOLAR_CLUSTERS', 'RING_GA
 
 export class MapGenerator {
     static generate(playerCount, worldWidth, worldHeight) {
+        let finalNodes = [];
+        const minRequiredNodes = playerCount * 4;
+        let attempts = 0;
+
+        // Intentar generar hasta que se cumpla el mínimo de nodos
+        while (finalNodes.length < minRequiredNodes && attempts < 10) {
+            attempts++;
+            finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight);
+        }
+
+        console.log(`Generated map with ${finalNodes.length} nodes after ${attempts} attempts.`);
+        return finalNodes;
+    }
+
+    static _doGenerate(playerCount, worldWidth, worldHeight) {
         const nodes = [];
         let idCounter = 0;
 
@@ -13,7 +28,6 @@ export class MapGenerator {
 
         // Pick a random map style
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
-        console.log(`Generating map: ${mapType} for ${playerCount} players.`);
 
         // ─────────────────────────────────────────────────────────────────
         // 1. Helpers de Colocación y Simetría
@@ -28,11 +42,9 @@ export class MapGenerator {
             
             for (let n of nodes) {
                 const dist = Math.hypot(x - n.x, y - n.y);
-                // Physical limit to prevent overlapping bodies
                 const physicalLimit = r + n.radius + 20;
                 if (dist < physicalLimit) return false;
                 
-                // Exclusion zone: larger if the other node belongs to a player
                 const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, 400) : extraMargin;
                 if (dist < r + n.radius + effectiveMargin) return false;
             }
@@ -55,7 +67,6 @@ export class MapGenerator {
             }
         };
 
-        // Crea grupos con formas interesantes (Triángulos, Líneas, Cúmulos)
         const createFormGroup = (cx, cy, owner, mainType, formType = 'CLUSTER') => {
             addSymmetricNode(cx, cy, owner, mainType);
             
@@ -98,10 +109,8 @@ export class MapGenerator {
         const p0x = centerX + baseDist * Math.cos(baseStartAngle);
         const p0y = centerY + baseDist * Math.sin(baseStartAngle);
 
-        // BASES: Exactly ONE large node per player. No satellites, no clusters.
         addSymmetricNode(p0x, p0y, 0, 'large');
 
-        // Dynamic center
         const centerStyle = Math.random();
         if (centerStyle > 0.7) {
             nodes.push(new Node(idCounter++, centerX, centerY, -1, 'super'));
@@ -126,7 +135,7 @@ export class MapGenerator {
             for (let i = 1; i <= armPoints; i++) {
                 const t = i / (armPoints + 1);
                 const angle = baseStartAngle + (t * 1.5 * Math.PI);
-                const dist = 350 + (t * (baseDist - 600)); // Slightly more center-focused
+                const dist = 350 + (t * (baseDist - 600));
                 const px = centerX + dist * Math.cos(angle);
                 const py = centerY + dist * Math.sin(angle);
                 if (isValid(px, py, 60, 150)) {
@@ -192,7 +201,7 @@ export class MapGenerator {
         const lostCount = Math.floor(Math.random() * 5) + 3; 
         for (let i = 0; i < lostCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const dist = mapRadius * (1.15 + Math.random() * 0.25); // Pushed further out
+            const dist = mapRadius * (1.15 + Math.random() * 0.25);
             const px = centerX + dist * Math.cos(angle);
             const py = centerY + dist * Math.sin(angle);
             
@@ -201,7 +210,7 @@ export class MapGenerator {
                 const pAngle = baseStartAngle + (p * Math.PI * 2 / playerCount);
                 const bx = centerX + baseDist * Math.cos(pAngle);
                 const by = centerY + baseDist * Math.sin(pAngle);
-                if (Math.hypot(px - bx, py - by) < 700) { // Minimum 700 from any player base
+                if (Math.hypot(px - bx, py - by) < 700) {
                     farFromPlayers = false;
                     break;
                 }
@@ -220,7 +229,6 @@ export class MapGenerator {
         for (let n of nodes) {
             let tooClose = false;
             for (let f of finalNodes) {
-                // Minimum physical space between any two nodes
                 if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 40) {
                     tooClose = true;
                     break;
