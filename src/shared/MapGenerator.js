@@ -1,4 +1,5 @@
 import { Node } from './Node.js';
+import { NODE_TYPES } from './GameConfig.js';
 
 const MAP_TYPES = [
     'GALAXY_SPIRAL', 'CONSTELLATION_WEB', 'SOLAR_SYSTEMS', 
@@ -18,7 +19,7 @@ export class MapGenerator {
             finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight, maxNodes);
         }
 
-        console.log(`Generated stabilized map: ${finalNodes.length} nodes after ${attempts} attempts.`);
+        console.log(`Generated massive symmetric map: ${finalNodes.length} nodes after ${attempts} attempts.`);
         return finalNodes;
     }
 
@@ -34,7 +35,7 @@ export class MapGenerator {
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
 
         // ─────────────────────────────────────────────────────────────────
-        // 1. Helpers de Colocación
+        // 1. Helpers
         // ─────────────────────────────────────────────────────────────────
         
         const isValid = (x, y, r, extraMargin = 100) => {
@@ -44,10 +45,10 @@ export class MapGenerator {
             
             for (let n of nodes) {
                 const dist = Math.hypot(x - n.x, y - n.y);
-                const physicalLimit = r + n.radius + 30; // Espacio físico mínimo
+                const physicalLimit = r + n.radius + 30;
                 if (dist < physicalLimit) return false;
                 
-                // Exclusión de bases (Muy grande para el inicio)
+                // Base exclusion
                 const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, 480) : extraMargin;
                 if (dist < r + n.radius + effectiveMargin) return false;
             }
@@ -61,10 +62,7 @@ export class MapGenerator {
             const dy = baseY - centerY;
             const baseDist = Math.sqrt(dx * dx + dy * dy);
             
-            if (baseDist < 20) {
-                nodes.push(new Node(idCounter++, centerX, centerY, -1, type));
-                return true;
-            }
+            if (baseDist < 50) return false; // Reserved for Omega
 
             const angleStep = (Math.PI * 2) / playerCount;
             const baseAngle = Math.atan2(dy, dx);
@@ -84,55 +82,54 @@ export class MapGenerator {
             const activeTheme = theme || themes[Math.floor(Math.random() * themes.length)];
 
             if (activeTheme === 'SOLAR') {
-                const centerType = Math.random() > 0.7 ? 'ultra' : 'large';
+                const centerType = Math.random() > 0.7 ? NODE_TYPES.ULTRA : NODE_TYPES.LARGE;
                 addSymmetricNode(cx, cy, owner, centerType);
                 const planets = 2;
                 for(let i=0; i<planets; i++) {
                     const a = (Math.PI * 2 / planets) * i + Math.random();
-                    addSymmetricNode(cx + 280 * Math.cos(a), cy + 280 * Math.sin(a), -1, 'medium');
+                    addSymmetricNode(cx + 350 * Math.cos(a), cy + 350 * Math.sin(a), -1, NODE_TYPES.MEDIUM);
                 }
             } else if (activeTheme === 'CROSS') {
-                addSymmetricNode(cx, cy, owner, 'large');
-                const d = 300;
-                addSymmetricNode(cx + d, cy, -1, 'medium');
-                addSymmetricNode(cx - d, cy, -1, 'medium');
-                addSymmetricNode(cx, cy + d, -1, 'medium');
-                addSymmetricNode(cx, cy - d, -1, 'medium');
+                addSymmetricNode(cx, cy, owner, NODE_TYPES.LARGE);
+                const d = 350;
+                addSymmetricNode(cx + d, cy, -1, NODE_TYPES.MEDIUM);
+                addSymmetricNode(cx - d, cy, -1, NODE_TYPES.MEDIUM);
+                addSymmetricNode(cx, cy + d, -1, NODE_TYPES.MEDIUM);
+                addSymmetricNode(cx, cy - d, -1, NODE_TYPES.MEDIUM);
             } else if (activeTheme === 'CIRCLE') {
-                addSymmetricNode(cx, cy, owner, 'mega');
+                addSymmetricNode(cx, cy, owner, NODE_TYPES.MEGA);
                 const satellites = 6;
                 for(let i=0; i<satellites; i++) {
                     const a = (Math.PI * 2 / satellites) * i;
-                    addSymmetricNode(cx + 320*Math.cos(a), cy + 320*Math.sin(a), -1, 'small');
+                    addSymmetricNode(cx + 380*Math.cos(a), cy + 380*Math.sin(a), -1, NODE_TYPES.SMALL);
                 }
             } else if (activeTheme === 'HEXAGON') {
-                const hexDist = 250;
+                const hexDist = 300;
                 for(let i=0; i<6; i++) {
                     const a = (Math.PI * 2 / 6) * i;
-                    addSymmetricNode(cx + hexDist * Math.cos(a), cy + hexDist * Math.sin(a), -1, 'medium');
+                    addSymmetricNode(cx + hexDist * Math.cos(a), cy + hexDist * Math.sin(a), -1, NODE_TYPES.MEDIUM);
                 }
             } else if (activeTheme === 'STAR') {
-                addSymmetricNode(cx, cy, owner, 'large');
+                addSymmetricNode(cx, cy, owner, NODE_TYPES.LARGE);
                 for(let i=0; i<5; i++) {
                     const a = (Math.PI * 2 / 5) * i;
-                    addSymmetricNode(cx + 380*Math.cos(a), cy + 380*Math.sin(a), -1, 'small');
+                    addSymmetricNode(cx + 420*Math.cos(a), cy + 420*Math.sin(a), -1, NODE_TYPES.SMALL);
                 }
             } else {
-                addSymmetricNode(cx - 150, cy, owner, 'large');
-                addSymmetricNode(cx + 150, cy, owner, 'large');
+                addSymmetricNode(cx - 200, cy, owner, NODE_TYPES.LARGE);
+                addSymmetricNode(cx + 200, cy, owner, NODE_TYPES.LARGE);
             }
         };
 
         // ─────────────────────────────────────────────────────────────────
-        // 2. Base y Centro
+        // 2. Base y Centro (EL CORAZÓN OMEGA)
         // ─────────────────────────────────────────────────────────────────
         
-        const baseDistActual = mapRadius * 0.95; 
-        addSymmetricNode(centerX + baseDistActual * Math.cos(baseStartAngle), centerY + baseDistActual * Math.sin(baseStartAngle), 0, 'large');
+        // El Omega SIEMPRE en el centro
+        nodes.push(new Node(idCounter++, centerX, centerY, -1, NODE_TYPES.OMEGA));
 
-        // Centro: Omega o Ultra
-        const centerType = Math.random() > 0.6 ? 'omega' : 'ultra';
-        addSymmetricNode(centerX, centerY, -1, centerType);
+        const baseDistActual = mapRadius * 0.95; 
+        addSymmetricNode(centerX + baseDistActual * Math.cos(baseStartAngle), centerY + baseDistActual * Math.sin(baseStartAngle), 0, NODE_TYPES.LARGE);
 
         // ─────────────────────────────────────────────────────────────────
         // 3. Caminos y Relleno
@@ -146,62 +143,58 @@ export class MapGenerator {
             const px = bx + (centerX - bx) * t;
             const py = by + (centerY - by) * t;
             
-            const offset = (i % 2 === 0 ? 400 : -400);
+            const offset = (i % 2 === 0 ? 500 : -500);
             const a = baseStartAngle + Math.PI/2;
             const jx = px + offset * Math.cos(a);
             const jy = py + offset * Math.sin(a);
             
-            if (isValid(jx, jy, 80, 200)) {
-                const type = i === 2 ? 'mega' : 'medium';
+            if (isValid(jx, jy, 80, 250)) {
+                const type = i === 2 ? NODE_TYPES.MEGA : NODE_TYPES.MEDIUM;
                 addSymmetricNode(jx, jy, -1, type);
             }
         }
 
-        // Relleno de Sectores
         const sectors = playerCount === 2 ? 6 : playerCount * 2;
         for (let k = 0; k < sectors; k++) {
             const angle = baseStartAngle + (k * (Math.PI * 2 / sectors)) + (Math.PI/sectors);
-            const d = mapRadius * 0.6;
+            const d = mapRadius * 0.65;
             const px = centerX + d * Math.cos(angle);
             const py = centerY + d * Math.sin(angle);
-            if (isValid(px, py, 60, 250)) {
+            if (isValid(px, py, 80, 300)) {
                 createCosmicFormation(px, py, -1);
             }
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 4. Nodos Perdidos (Asimétricos)
+        // 4. Perdidos
         // ─────────────────────────────────────────────────────────────────
         
         const lostCount = 6; 
         for (let i = 0; i < lostCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const dist = mapRadius * (1.2 + Math.random() * 0.3);
+            const dist = mapRadius * (1.2 + Math.random() * 0.35);
             const px = centerX + dist * Math.cos(angle);
             const py = centerY + dist * Math.sin(angle);
             
             let far = true;
             for (let p = 0; p < playerCount; p++) {
                 const pA = baseStartAngle + (p * Math.PI * 2 / playerCount);
-                if (Math.hypot(px - (centerX + baseDistActual * Math.cos(pA)), py - (centerY + baseDistActual * Math.sin(pA))) < 800) {
-                    far = false; break;
-                }
+                const bx = centerX + baseDistActual * Math.cos(pA);
+                const by = centerY + baseDistActual * Math.sin(pA);
+                if (Math.hypot(px - bx, py - by) < 800) { far = false; break; }
             }
-            if (far && isValid(px, py, 30, 100)) {
-                const type = Math.random() > 0.8 ? 'large' : 'medium';
+            if (far && isValid(px, py, 40, 150)) {
+                const type = Math.random() > 0.8 ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM;
                 nodes.push(new Node(idCounter++, px, py, -1, type));
             }
         }
 
-        // ─────────────────────────────────────────────────────────────────
-        // 5. Cleanup
-        // ─────────────────────────────────────────────────────────────────
-        
         const finalNodes = [];
         for (let n of nodes) {
             let tooClose = false;
             for (let f of finalNodes) {
-                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 50) {
+                const limit = n.type === NODE_TYPES.OMEGA || f.type === NODE_TYPES.OMEGA ? 180 : 60;
+                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + limit) {
                     tooClose = true; break;
                 }
             }

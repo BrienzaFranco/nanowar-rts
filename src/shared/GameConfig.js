@@ -28,10 +28,19 @@ export const GAME_SETTINGS = {
 };
 
 export const NODE_TYPES = {
-    small: { radius: 22, influenceFat: 4, baseHp: 6, maxHp: 18, stockFat: 0.5 },
-    medium: { radius: 38, influenceFat: 3.5, baseHp: 12, maxHp: 35, stockFat: 0.5 },
-    large: { radius: 60, influenceFat: 3, baseHp: 20, maxHp: 60, stockFat: 0.6 },
-    mega: { radius: 95, influenceFat: 2.5, baseHp: 40, maxHp: 130, stockFat: 0.7 },
-    ultra: { radius: 135, influenceFat: 2.2, baseHp: 70, maxHp: 280, stockFat: 0.8 },
-    omega: { radius: 190, influenceFat: 2.0, baseHp: 150, maxHp: 600, stockFat: 1.0 }
+    SMALL: 0,
+    MEDIUM: 1,
+    LARGE: 2,
+    MEGA: 3,
+    ULTRA: 4,
+    OMEGA: 5
+};
+
+export const NODE_CONFIG = {
+    [NODE_TYPES.SMALL]: { radius: 22, influenceRadius: 100, baseHp: 6, maxHp: 25, spawnInterval: 4.5 },
+    [NODE_TYPES.MEDIUM]: { radius: 40, influenceRadius: 160, baseHp: 12, maxHp: 60, spawnInterval: 3.5 },
+    [NODE_TYPES.LARGE]: { radius: 65, influenceRadius: 220, baseHp: 25, maxHp: 150, spawnInterval: 2.4 },
+    [NODE_TYPES.MEGA]: { radius: 100, influenceRadius: 300, baseHp: 50, maxHp: 300, spawnInterval: 2.0 },
+    [NODE_TYPES.ULTRA]: { radius: 145, influenceRadius: 400, baseHp: 100, maxHp: 600, spawnInterval: 1.6 },
+    [NODE_TYPES.OMEGA]: { radius: 220, influenceRadius: 600, baseHp: 200, maxHp: 1200, spawnInterval: 1.2 }
 };

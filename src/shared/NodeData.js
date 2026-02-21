@@ -1,10 +1,5 @@
 import { SharedMemory, MEMORY_LAYOUT } from './SharedMemory.js';
-
-export const NODE_TYPES = {
-    SMALL: 0,
-    MEDIUM: 1,
-    LARGE: 2,
-};
+import { NODE_TYPES, NODE_CONFIG } from './GameConfig.js';
 
 export class NodeData {
     constructor(sharedMemory) {
@@ -14,26 +9,7 @@ export class NodeData {
         // after the memory is written externally (e.g. server sending to client)
         this.count = sharedMemory.getNodeCount();
 
-        this.typeConfig = {
-            [NODE_TYPES.SMALL]: {
-                radius: 22,
-                influenceRadius: 88,
-                maxHp: 40,
-                spawnInterval: 4.5,
-            },
-            [NODE_TYPES.MEDIUM]: {
-                radius: 39,
-                influenceRadius: 136,
-                maxHp: 80,
-                spawnInterval: 3.5,
-            },
-            [NODE_TYPES.LARGE]: {
-                radius: 62,
-                influenceRadius: 186,
-                maxHp: 150,
-                spawnInterval: 2.4,
-            },
-        };
+        this.typeConfig = NODE_CONFIG;
     }
 
     allocate(x, y, owner, type, id) {

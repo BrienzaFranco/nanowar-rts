@@ -1,29 +1,19 @@
-import { PLAYER_COLORS } from './GameConfig.js';
+import { PLAYER_COLORS, NODE_TYPES, NODE_CONFIG } from './GameConfig.js';
 import { Entity } from './Entity.js'; // Circular dependency if Entity imports Node? Node doesn't import Entity class, but uses it in JSDoc maybe.
 // Actually Node creates new Entity in update(). So it needs to import Entity.
 
 export class Node {
-    constructor(id, x, y, ownerId, type = 'medium') {
+    constructor(id, x, y, ownerId, type = NODE_TYPES.MEDIUM) {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
 
-        if (type === 'small') {
-            this.radius = 20 + Math.random() * 5;
-            this.influenceRadius = this.radius * 4;
-            this.maxHp = 40; // Was 50
-            this.spawnInterval = 4.5; // Was 4.0 - Slower
-        }
-        else if (type === 'large') {
-            this.radius = 55 + Math.random() * 15;
-            this.influenceRadius = this.radius * 3;
-            this.maxHp = 150; // Was 180
-            this.spawnInterval = 2.4; // Was 2.0 - Slower
-        }
-        else {
-            this.radius = 35 + Math.random() * 8;
-            this.influenceRadius = this.radius * 3.5;
-            this.maxHp = 80; // Was 100
-            this.spawnInterval = 3.5; // Was 3.0 - Slower
-        }
+        const config = NODE_CONFIG[type] || NODE_CONFIG[NODE_TYPES.MEDIUM];
+        
+        // Add a small bit of random variation to radius for natural feel
+        const variation = (Math.random() - 0.5) * (config.radius * 0.15);
+        this.radius = config.radius + variation;
+        this.influenceRadius = config.influenceRadius;
+        this.maxHp = config.maxHp;
+        this.spawnInterval = config.spawnInterval;
 
         // Neutral nodes start at 10% health (same)
         // Owned nodes (starter) start at 25% health (Was 50%) -> More balanced start
