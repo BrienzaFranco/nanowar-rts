@@ -163,11 +163,15 @@ function handleUpdate(data) {
     const cappedDt = Math.min(dt, 0.05);
 
     // REBUILD ID MAP: Source of truth is the actual shared memory
+    // Only clear and rebuild if count changed or periodically for safety
     entityIdToIndex.clear();
     const count = entityData.getCount();
     for (let i = 0; i < count; i++) {
         if (!entityData.isDead(i)) {
-            entityIdToIndex.set(entityData.getId(i), i);
+            const id = entityData.getId(i);
+            if (id > 0) {
+                entityIdToIndex.set(id, i);
+            }
         }
     }
 

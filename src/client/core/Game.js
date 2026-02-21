@@ -372,16 +372,12 @@ export class Game {
         }
 
         // SYNC LOCAL ENTITIES WITH WORKER STATE
-        // The worker is the source of truth for who is alive.
-        const serverEntitiesCount = view.getEntityCount();
-        const workerAliveIds = new Set();
-        for (let i = 0; i < serverEntitiesCount; i++) {
-            if (!view.isEntityDead(i)) {
-                workerAliveIds.add(view.getEntityId(i));
-            }
-        }
-
-        this.state.entities = this.state.entities.filter(ent => workerAliveIds.has(ent.id));
+        // Only remove entities that are EXPLICITLY marked dead in the worker
+        this.state.entities = this.state.entities.filter(ent => {
+            const idx = view.findEntityById(ent.id);
+            if (idx === -1) return true; // Keep it, might be newly spawned and not in worker yet
+            return !view.isEntityDead(idx);
+        });
 
         const isValidPlayer = playerIdx >= 0;
         if (isValidPlayer) {

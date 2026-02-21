@@ -35,7 +35,7 @@ window.initGame = (mode) => {
         // Show game UI and screen
         const ui = document.getElementById('ui');
         const menu = document.getElementById('menu-screen');
-        if (ui) ui.style.display = 'block';
+        if (ui) ui.style.display = 'flex'; // Changed to flex for horizontal layout
         if (menu) menu.style.display = 'none';
 
         game.resize();
