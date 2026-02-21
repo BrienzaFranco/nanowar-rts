@@ -100,12 +100,12 @@ export class Entity {
                 }
 
                 const dist = Math.sqrt(distSq);
-                // INCREASED SENSITIVITY: Trigger earlier
-                const touchRange = node.radius + this.radius + 15;
+                // EXTREME SENSITIVITY: Trigger earlier (+25)
+                const touchRange = node.radius + this.radius + 25;
                 const targetPoint = this.currentTarget || { x: this.x, y: this.y };
                 const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
                 const distToTargetSq = tdx * tdx + tdy * tdy;
-                const isTargetingThisNode = (this.targetNode === node) || (distToTargetSq < node.radius * node.radius + 400);
+                const isTargetingThisNode = (this.targetNode === node) || (distToTargetSq < (node.radius + 20) * (node.radius + 20));
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
