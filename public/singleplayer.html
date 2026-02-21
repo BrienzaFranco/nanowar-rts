@@ -53,10 +53,15 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
+        .ui-btn.danger {
+            border-color: rgba(244, 67, 54, 0.3);
+            color: rgba(244, 67, 54, 0.8);
+        }
+
         .ui-btn.danger:hover {
-            border-color: rgba(244, 67, 54, 0.5);
+            border-color: rgba(244, 67, 54, 0.8);
             color: #f44336;
-            background: rgba(244, 67, 54, 0.08);
+            background: rgba(244, 67, 54, 0.12);
         }
 
         #game-canvas {
@@ -219,10 +224,10 @@
 <body>
     <div id="game-container">
         <div id="ui">
-            <button id="help-btn" class="ui-btn" title="Controles">?</button>
-            <button id="mute-btn" class="ui-btn" title="Silenciar">🔊</button>
-            <button id="reset-btn" class="ui-btn" title="Reiniciar">↺</button>
             <button id="menu-btn" class="ui-btn" title="Menú">←</button>
+            <button id="reset-btn" class="ui-btn" title="Reiniciar">↺</button>
+            <button id="mute-btn" class="ui-btn" title="Silenciar">🔊</button>
+            <button id="help-btn" class="ui-btn" title="Controles">?</button>
             <button id="surrender-btn" class="ui-btn danger" title="Rendirse">🏳️</button>
         </div>
         <canvas id="game-canvas"></canvas>

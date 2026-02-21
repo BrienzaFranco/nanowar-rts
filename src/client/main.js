@@ -84,11 +84,11 @@ window.initGame = (mode) => {
     if (surrenderBtn) {
         surrenderBtn.style.display = 'flex';
         surrenderBtn.addEventListener('click', () => {
-            if (mode === 'multiplayer') {
-                if (confirm('¿Estás seguro de que quieres rendirte?')) {
-                    if (game.controller && game.controller.surrender) game.controller.surrender();
-                }
-            } else {
+            const confirmMsg = mode === 'multiplayer' ? 
+                '¿Estás seguro de que quieres rendirte? Los nodos pasarán a ser neutrales.' :
+                '¿Estás seguro de que quieres rendirte?';
+            
+            if (confirm(confirmMsg)) {
                 if (game.controller && game.controller.surrender) game.controller.surrender();
             }
         });
