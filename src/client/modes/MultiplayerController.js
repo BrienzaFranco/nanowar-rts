@@ -485,7 +485,7 @@ export class MultiplayerController {
             // 1. Copy Nodes directly (they don't move)
             const nodeBytes = 19 * 4 * MEMORY_LAYOUT.MAX_NODES; // 19 fields * 4 bytes
             const nodeDest = new Uint8Array(this.game.sharedMemory.buffer, MEMORY_LAYOUT.NODE_DATA_START, nodeBytes);
-            const nodeSrc = new Uint8Array(serverState.syncBuffer, MEMORY_LAYOUT.NODE_DATA_START, nodeBytes);
+            const nodeSrc = new Uint8Array(fullTempBuf, MEMORY_LAYOUT.NODE_DATA_START, nodeBytes);
             nodeDest.set(nodeSrc);
 
             // 2. Softly sync Entities (lerp positions if close, snap if far)
