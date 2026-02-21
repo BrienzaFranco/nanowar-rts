@@ -177,9 +177,8 @@ export class AIController {
                 minDefendersToStay = 40;
             }
 
-            const nodeBaseHp = this.getNodeBaseHp(sourceIdx);
-            const nodeMaxHp = this.getNodeMaxHp(sourceIdx);
-            if (this.personality === 'defensive' && nodeBaseHp < nodeMaxHp * 0.95) {
+            // Defensive AI strictly waits until its node is FULL before doing anything else
+            if (this.personality === 'defensive' && nodeBaseHp < nodeMaxHp) {
                 continue;
             }
 
@@ -195,67 +194,101 @@ export class AIController {
                 let bestTargetIdx = -1;
                 let bestScore = -Infinity;
 
-                const nodeCount = this.getNodeCount();
-                for (let targetIdx = 0; targetIdx < nodeCount; targetIdx++) {
-                    if (targetIdx === sourceIdx) continue;
-
-                    const targetX = this.getNodeX(targetIdx);
-                    const targetY = this.getNodeY(targetIdx);
-                    const dx = targetX - sourceX;
-                    const dy = targetY - sourceY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    let score = 1000 / dist;
-                    const targetOwner = this.getNodeOwner(targetIdx);
-                    const targetBaseHp = this.getNodeBaseHp(targetIdx);
-                    const targetMaxHp = this.getNodeMaxHp(targetIdx);
-
-                    if (targetOwner === -1) {
-                        let expansionWeight = 1.5;
-                        if (this.personality === 'expansive') expansionWeight = 3.0;
-                        if (this.difficulty === 'Easy') expansionWeight = 10.0; // Focus ONLY on neutral if easy
-                        if (this.difficulty === 'Intermediate') expansionWeight = 5.0;
-
-                        if (myNodeIdxs.length > 5 && this.difficulty !== 'Easy') expansionWeight *= 0.5;
-                        score *= expansionWeight;
-                    } else if (targetOwner !== this.playerId) {
-                        let attackWeight = 1.0;
-                        if (this.personality === 'aggressive') attackWeight = 2.5;
-                        if (this.difficulty === 'Impossible') attackWeight = 4.0;
-                        if (this.difficulty === 'Expert') attackWeight = 3.0;
-                        if (this.difficulty === 'Hard') attackWeight = 2.0;
-                        if (this.difficulty === 'Intermediate') attackWeight = 0.5;
-                        if (this.difficulty === 'Easy') attackWeight = 0.01; // Almost never attack players early
-
-                        if (this.difficulty !== 'Easy' && this.difficulty !== 'Intermediate' && targetBaseHp < targetMaxHp * 0.4) {
-                            attackWeight *= 2.0;
+                // Check if any of my nodes need help (Defensive Priority)
+                let needsDefenseIdx = -1;
+                if (this.personality === 'defensive') {
+                    for (const myIdx of myNodeIdxs) {
+                        if (myIdx === sourceIdx) continue;
+                        const hp = this.getNodeBaseHp(myIdx);
+                        const maxHp = this.getNodeMaxHp(myIdx);
+                        if (hp < maxHp) {
+                            needsDefenseIdx = myIdx;
+                            break;
                         }
-                        score *= attackWeight;
-                    } else {
-                        if (this.personality === 'defensive' && targetBaseHp < targetMaxHp * 0.5) {
-                            score *= 2.0;
-                        } else if (this.difficulty === 'Impossible' && targetBaseHp < targetMaxHp * 0.9) {
-                            score *= 1.5; // Impossible AI heals its nodes efficiently
-                        } else {
-                            score *= 0.1;
-                        }
-                    }
-
-                    // Add "Stupidity" for Intermediate - sometimes choose nodes that are too strong
-                    if (this.difficulty === 'Intermediate') {
-                        if (targetBaseHp > nodeBaseHp * 1.5) {
-                            score *= (0.5 + Math.random() * 2.0); // Randomly overvalue strong nodes
-                        }
-                    }
-
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestTargetIdx = targetIdx;
                     }
                 }
 
-                if (bestTargetIdx >= 0) {
-                    this.sendUnits(sourceIdx, bestTargetIdx);
+                if (needsDefenseIdx !== -1) {
+                    // Defensive AI immediately helps its own damaged node
+                    bestTargetIdx = needsDefenseIdx;
+                    bestScore = 99999;
+                } else {
+                    const nodeCount = this.getNodeCount();
+                    for (let targetIdx = 0; targetIdx < nodeCount; targetIdx++) {
+                        if (targetIdx === sourceIdx) continue;
+
+                        const targetX = this.getNodeX(targetIdx);
+                        const targetY = this.getNodeY(targetIdx);
+                        const dx = targetX - sourceX;
+                        const dy = targetY - sourceY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        let score = 1000 / dist;
+                        const targetOwner = this.getNodeOwner(targetIdx);
+                        const targetBaseHp = this.getNodeBaseHp(targetIdx);
+                        const targetMaxHp = this.getNodeMaxHp(targetIdx);
+
+                        if (targetOwner === -1) {
+                            let expansionWeight = 1.5;
+                            if (this.personality === 'expansive') expansionWeight = 3.0;
+                            if (this.difficulty === 'Easy') expansionWeight = 10.0; // Focus ONLY on neutral if easy
+                            if (this.difficulty === 'Intermediate') expansionWeight = 5.0;
+
+                            if (myNodeIdxs.length > 5 && this.difficulty !== 'Easy') expansionWeight *= 0.5;
+                            score *= expansionWeight;
+                        } else if (targetOwner !== this.playerId) {
+                            let attackWeight = 1.0;
+                            if (this.personality === 'aggressive') attackWeight = 2.5;
+                            if (this.difficulty === 'Impossible') attackWeight = 4.0;
+                            if (this.difficulty === 'Expert') attackWeight = 3.0;
+                            if (this.difficulty === 'Hard') attackWeight = 2.0;
+                            if (this.difficulty === 'Intermediate') attackWeight = 0.5;
+                            if (this.difficulty === 'Easy') attackWeight = 0.01; // Almost never attack players early
+
+                            if (this.personality === 'defensive') {
+                                // Defensive AI only attacks if it has a massive army (e.g. 100+)
+                                if (defenderCount < 100) {
+                                    attackWeight = 0; // Won't attack enemies at all
+                                } else {
+                                    attackWeight = 5.0; // Huge counter attack
+                                }
+                            }
+
+                            if (this.difficulty !== 'Easy' && this.difficulty !== 'Intermediate' && targetBaseHp < targetMaxHp * 0.4) {
+                                attackWeight *= 2.0;
+                            }
+                            score *= attackWeight;
+                        } else {
+                            if (this.personality === 'defensive' && targetBaseHp < targetMaxHp) {
+                                score *= 5.0; // High priority to heal own nodes
+                            } else if (this.difficulty === 'Impossible' && targetBaseHp < targetMaxHp * 0.9) {
+                                score *= 1.5; // Impossible AI heals its nodes efficiently
+                            } else {
+                                score *= 0.1;
+                            }
+                        }
+
+                        // For Defensive AI, heavily penalize distance so they only conquer nearby nodes
+                        if (this.personality === 'defensive') {
+                            score *= (1000 / Math.max(1000, dist));
+                        }
+
+                        // Add "Stupidity" for Intermediate - sometimes choose nodes that are too strong
+                        if (this.difficulty === 'Intermediate') {
+                            if (targetBaseHp > nodeBaseHp * 1.5) {
+                                score *= (0.5 + Math.random() * 2.0); // Randomly overvalue strong nodes
+                            }
+                        }
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestTargetIdx = targetIdx;
+                        }
+                    }
+
+                    if (bestTargetIdx >= 0) {
+                        this.sendUnits(sourceIdx, bestTargetIdx);
+                    }
                 }
             }
         }

@@ -20,7 +20,7 @@ export class GameState {
         // optimizations
         this.spatialGrid = new SpatialGrid(this.worldWidth, this.worldHeight, 160); // 160px cells for units
         this.spatialGridNodes = new SpatialGrid(this.worldWidth, this.worldHeight, 400); // 400px cells for nodes (larger radius)
-        this.maxEntitiesPerPlayer = 1000; // Increased to 1000 per user feedback
+        this.maxEntitiesPerPlayer = GAME_SETTINGS.MAX_UNITS_PER_PLAYER; // Global unit cap per player
         this.unitCounts = {}; // Cache unit counts per player for capping
         this.flockUpdateCounter = 0; // Throttling for flock detection
 
@@ -69,9 +69,9 @@ export class GameState {
                 // Count deaths per player in this battle
                 const participants = {};
                 closeOnes.forEach(d => participants[d.owner] = (participants[d.owner] || 0) + 1);
-                
-                this.recordEvent('big_battle', playerId, { 
-                    x: avgX, y: avgY, 
+
+                this.recordEvent('big_battle', playerId, {
+                    x: avgX, y: avgY,
                     count: closeOnes.length,
                     participants
                 });
@@ -148,7 +148,7 @@ export class GameState {
         this.unitCounts = {};
         this.productionRates = {};
         this.entities.forEach(ent => {
-            if (!ent.dead) {
+            if (!ent.dead && !ent.dying) {
                 this.unitCounts[ent.owner] = (this.unitCounts[ent.owner] || 0) + 1;
             }
         });

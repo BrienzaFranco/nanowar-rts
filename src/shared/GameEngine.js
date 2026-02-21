@@ -8,7 +8,7 @@ export class GameEngine {
         this.sharedMemory = sharedMemory;
         this.entityData = entityData;
         this.nodeData = nodeData;
-        this.gameSettings = gameSettings || { speedMultiplier: 1, maxEntitiesPerPlayer: 1000 };
+        this.gameSettings = gameSettings || { speedMultiplier: 1, maxEntitiesPerPlayer: GAME_SETTINGS.MAX_UNITS_PER_PLAYER };
 
         this.CELL_SIZE = 80;
         this.spatialGrid = new Map();
@@ -364,7 +364,7 @@ export class GameEngine {
                 const targetX = this.entityData.getTargetX(i);
                 const targetY = this.entityData.getTargetY(i);
                 const hasTarget = this.entityData.hasTarget(i);
-                const isTargetingThisNode = hasTarget && ((eTargetNodeId === nodeId) || 
+                const isTargetingThisNode = hasTarget && ((eTargetNodeId === nodeId) ||
                     (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 35));
 
                 if (dist < touchRange && dist > 0.001) {
@@ -712,8 +712,10 @@ export class GameEngine {
     updateNodes(dt) {
         // Precalculate unit counts per player to enforce global cap efficiently
         const playerUnitCounts = {};
+        let totalAlive = 0;
         for (let i = 0; i < this.entityData.getCount(); i++) {
             if (this.entityData.isDead(i) || this.entityData.isDying(i)) continue;
+            totalAlive++;
             const owner = this.entityData.getOwner(i);
             if (owner !== -1) {
                 playerUnitCounts[owner] = (playerUnitCounts[owner] || 0) + 1;
@@ -752,7 +754,7 @@ export class GameEngine {
 
                 const currentCount = playerUnitCounts[owner] || 0;
                 const hitGlobalCap = currentCount >= GAME_SETTINGS.MAX_UNITS_PER_PLAYER;
-                const canSpawn = this.entityData.getCount() < MEMORY_LAYOUT.MAX_ENTITIES && !hitGlobalCap;
+                const canSpawn = totalAlive < MEMORY_LAYOUT.MAX_ENTITIES && !hitGlobalCap;
 
                 if (canSpawn && spawnTimer >= spawnThreshold && baseHp > maxHp * 0.1) {
                     spawnTimer = 0;

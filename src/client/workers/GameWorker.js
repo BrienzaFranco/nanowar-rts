@@ -13,7 +13,7 @@ let entityIdToIndex = new Map();
 let nodeIdToIndex = new Map();
 let gameSettings = {
     speedMultiplier: 1,
-    maxEntitiesPerPlayer: 1000,
+    maxEntitiesPerPlayer: GAME_SETTINGS.MAX_UNITS_PER_PLAYER,
 };
 
 const WORLD_WIDTH = GAME_SETTINGS.WORLD_WIDTH;
@@ -81,10 +81,10 @@ function handleAddNode(data) {
     // type is now expected to be a numeric constant from NODE_TYPES
     const nodeType = typeof type === 'number' ? type :
         (type === 'small' ? NODE_TYPES.SMALL :
-         type === 'large' ? NODE_TYPES.LARGE :
-         type === 'mega' ? NODE_TYPES.MEGA :
-         type === 'ultra' ? NODE_TYPES.ULTRA :
-         type === 'omega' ? NODE_TYPES.OMEGA : NODE_TYPES.MEDIUM);
+            type === 'large' ? NODE_TYPES.LARGE :
+                type === 'mega' ? NODE_TYPES.MEGA :
+                    type === 'ultra' ? NODE_TYPES.ULTRA :
+                        type === 'omega' ? NODE_TYPES.OMEGA : NODE_TYPES.MEDIUM);
 
     const idx = nodeData.allocate(x, y, owner, nodeType, id);
 

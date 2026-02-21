@@ -38,7 +38,7 @@ export class MapGenerator {
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
 
         // Helper to check collision for a single position against existing nodes
-        const isValidPos = (x, y, r, extraMargin = 60) => {
+        const isValidPos = (x, y, r, extraMargin = 120) => {
             const margin = 100;
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
@@ -47,12 +47,13 @@ export class MapGenerator {
                 const dist = Math.hypot(x - n.x, y - n.y);
                 const combinedR = r + this.getRadiusForType(n.type);
 
-                const baseExclusion = Math.max(250, 450 - playerCount * 20);
-                const isBase = (n.owner !== -1);
+                const baseExclusion = Math.max(350, 500 - playerCount * 20); // Much further from bases
+                const limit = (n.owner !== -1) ? baseExclusion : extraMargin;
 
-                const limit = (n.type === NODE_TYPES.OMEGA) ? 150 : (isBase ? baseExclusion : extraMargin);
+                // Push Omega even further
+                const finalLimit = (n.type === NODE_TYPES.OMEGA) ? limit + 100 : limit;
 
-                if (dist < combinedR + limit) return false;
+                if (dist < combinedR + finalLimit) return false;
             }
             return true;
         };
@@ -126,21 +127,20 @@ export class MapGenerator {
 
         // 4. THEMATIC FILL
         const fillTheme = (theme) => {
-            const steps = 15;
+            // Reduced total thematic nodes for less clutter, better spacing
+            const steps = 10;
             for (let i = 0; i < steps; i++) {
                 if (nodes.length >= maxAllowed) break;
 
                 let r, theta;
                 let type;
-                // 10% MEGA
-                // 30% LARGE
-                // 40% MEDIUM
-                // 20% SMALL
+
+                // Shifted node distribution to favor LARGE and MEGA, entirely cutting SMALL
+                // 30% MEGA, 55% LARGE, 15% MEDIUM, 0% SMALL
                 const randType = Math.random();
-                if (randType > 0.9) type = NODE_TYPES.MEGA;
-                else if (randType > 0.6) type = NODE_TYPES.LARGE;
-                else if (randType > 0.2) type = NODE_TYPES.MEDIUM;
-                else type = NODE_TYPES.SMALL;
+                if (randType > 0.70) type = NODE_TYPES.MEGA;
+                else if (randType > 0.15) type = NODE_TYPES.LARGE;
+                else type = NODE_TYPES.MEDIUM;
 
                 if (theme === 'GALAXY_SPIRAL') {
                     const t = i / steps;
@@ -178,18 +178,18 @@ export class MapGenerator {
             }
 
             // Post-theme random scatter for connections
-            for (let i = 0; i < 20; i++) {
+            // Reduced to 10 scattered structures
+            for (let i = 0; i < 10; i++) {
                 if (nodes.length >= maxAllowed) break;
                 const r = Math.random() * mapRadius * 0.9;
                 const theta = Math.random() * Math.PI * 2;
 
                 // Keep the proportion balanced instead of defaulting entirely to SMALL/MEDIUM
-                // 30% LARGE, 50% MEDIUM, 20% SMALL
+                // 80% LARGE, 20% MEDIUM
                 const rand = Math.random();
                 let type;
-                if (rand > 0.7) type = NODE_TYPES.LARGE;
-                else if (rand > 0.2) type = NODE_TYPES.MEDIUM;
-                else type = NODE_TYPES.SMALL;
+                if (rand > 0.20) type = NODE_TYPES.LARGE;
+                else type = NODE_TYPES.MEDIUM;
 
                 tryAddSymmetricGroup(r, theta, type);
             }
