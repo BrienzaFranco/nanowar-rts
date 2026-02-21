@@ -13,7 +13,7 @@ export class MapGenerator {
             finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight);
         }
 
-        console.log(`Generated symmetric map with ${finalNodes.length} nodes.`);
+        console.log(`Generated massive symmetric map with ${finalNodes.length} nodes.`);
         return finalNodes;
     }
 
@@ -23,7 +23,8 @@ export class MapGenerator {
 
         const centerX = worldWidth / 2;
         const centerY = worldHeight / 2;
-        const mapRadius = Math.min(worldWidth, worldHeight) * 0.45;
+        // mapRadius ligeramente reducido para alejarse de los bordes finales
+        const mapRadius = Math.min(worldWidth, worldHeight) * 0.42;
 
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
 
@@ -31,17 +32,21 @@ export class MapGenerator {
         // 1. Helpers de Colocación y Simetría
         // ─────────────────────────────────────────────────────────────────
         
-        const isValid = (x, y, r, extraMargin = 100) => {
-            const margin = 50; 
+        // Espaciado masivo para que el viaje sea largo y determinante
+        const MIN_NODE_DIST = 280; 
+
+        const isValid = (x, y, r, extraMargin = 150) => {
+            const margin = 100; 
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
             
             for (let n of nodes) {
                 const dist = Math.hypot(x - n.x, y - n.y);
-                const physicalLimit = r + n.radius + 20;
+                const physicalLimit = r + n.radius + 30;
                 if (dist < physicalLimit) return false;
                 
-                const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, 400) : extraMargin;
+                // Zona de exclusión de bases MUY grande (650 unidades)
+                const effectiveMargin = (n.owner !== -1) ? Math.max(extraMargin, 650) : extraMargin;
                 if (dist < r + n.radius + effectiveMargin) return false;
             }
             return true;
@@ -52,7 +57,6 @@ export class MapGenerator {
             const dy = baseY - centerY;
             const baseDist = Math.sqrt(dx * dx + dy * dy);
             
-            // Si el nodo es el centro absoluto, solo ponemos uno
             if (baseDist < 5) {
                 nodes.push(new Node(idCounter++, centerX, centerY, -1, type));
                 return;
@@ -74,7 +78,8 @@ export class MapGenerator {
             addSymmetricNode(cx, cy, owner, mainType);
             
             let points = [];
-            const orbitRadius = mainType === 'large' ? 140 : 110;
+            // Órbitas más amplias para evitar amontonamiento
+            const orbitRadius = mainType === 'large' ? 220 : 160;
 
             if (formType === 'TRIANGLE') {
                 points = [
@@ -89,9 +94,9 @@ export class MapGenerator {
                     { a: angle + Math.PI, d: orbitRadius }
                 ];
             } else {
-                const count = Math.floor(Math.random() * 3 + 2);
+                const count = Math.floor(Math.random() * 2 + 1); // Menos satélites para más espacio
                 for (let i = 0; i < count; i++) {
-                    points.push({ a: (Math.PI * 2 / count) * i + Math.random(), d: orbitRadius });
+                    points.push({ a: (Math.PI * 2 / (count+1)) * i + Math.random(), d: orbitRadius });
                 }
             }
 
@@ -107,23 +112,22 @@ export class MapGenerator {
         // 2. Base y Centro
         // ─────────────────────────────────────────────────────────────────
         
-        const baseDist = mapRadius * 0.94; 
+        // Bases en el extremo máximo (96% del radio del mapa)
+        const baseDist = mapRadius * 0.96; 
         const baseStartAngle = -Math.PI / 2;
         const p0x = centerX + baseDist * Math.cos(baseStartAngle);
         const p0y = centerY + baseDist * Math.sin(baseStartAngle);
 
-        // Bases siempre simétricas
         addSymmetricNode(p0x, p0y, 0, 'large');
 
-        // Centro: Garantizar simetría total
+        // Centro: Siempre con buen espacio alrededor
         const centerStyle = Math.random();
         if (centerStyle > 0.7) {
             nodes.push(new Node(idCounter++, centerX, centerY, -1, 'super'));
-            // Pequeño anillo simétrico alrededor del super nodo
             const satellites = 3;
             for(let i=0; i<satellites; i++) {
                 const a = (Math.PI * 2 / satellites) * i;
-                nodes.push(new Node(idCounter++, centerX + 220*Math.cos(a), centerY + 220*Math.sin(a), -1, 'medium'));
+                nodes.push(new Node(idCounter++, centerX + 350*Math.cos(a), centerY + 350*Math.sin(a), -1, 'medium'));
             }
         } else if (centerStyle > 0.35) {
             createFormGroup(centerX, centerY, -1, 'large', 'TRIANGLE');
@@ -132,31 +136,31 @@ export class MapGenerator {
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 3. Lógica de Tipos de Mapa (Todo simétrico)
+        // 3. Lógica de Tipos de Mapa (Espaciada)
         // ─────────────────────────────────────────────────────────────────
 
         if (mapType === 'SPIRAL_GALAXY') {
-            const armPoints = 6;
+            const armPoints = 4; // Menos puntos para más vacío
             for (let i = 1; i <= armPoints; i++) {
                 const t = i / (armPoints + 1);
-                const angle = baseStartAngle + (t * 1.5 * Math.PI);
-                const dist = 350 + (t * (baseDist - 600));
+                const angle = baseStartAngle + (t * 1.6 * Math.PI);
+                const dist = 600 + (t * (baseDist - 1000)); // Gran salto inicial desde el centro
                 const px = centerX + dist * Math.cos(angle);
                 const py = centerY + dist * Math.sin(angle);
-                if (isValid(px, py, 60, 150)) {
-                    createFormGroup(px, py, -1, i % 2 === 0 ? 'large' : 'medium', Math.random() > 0.7 ? 'LINE' : 'CLUSTER');
+                if (isValid(px, py, 60, MIN_NODE_DIST)) {
+                    createFormGroup(px, py, -1, i % 2 === 0 ? 'large' : 'medium', 'LINE');
                 }
             }
         } else if (mapType === 'CONSTELLATIONS') {
-            const steps = 6;
+            const steps = 4; // Menos pasos intermedios
             for (let i = 1; i < steps; i++) {
                 const t = i / steps;
                 const px = p0x * (1 - t) + centerX * t;
                 const py = p0y * (1 - t) + centerY * t;
-                const offset = (Math.random() - 0.5) * 600;
+                const offset = (Math.random() - 0.5) * 800; // Zig-zags más anchos
                 const jx = px + offset * Math.cos(baseStartAngle + Math.PI/2);
                 const jy = py + offset * Math.sin(baseStartAngle + Math.PI/2);
-                if (isValid(jx, jy, 55, 120)) {
+                if (isValid(jx, jy, 55, MIN_NODE_DIST)) {
                     createFormGroup(jx, jy, -1, 'medium', 'LINE');
                 }
             }
@@ -164,11 +168,10 @@ export class MapGenerator {
             const islandCount = 4;
             for (let i = 0; i < islandCount; i++) {
                 const angle = baseStartAngle + (Math.PI / playerCount) + (i * Math.PI / 2);
-                const dist = mapRadius * 0.65;
+                const dist = mapRadius * 0.6;
                 const px = centerX + dist * Math.cos(angle);
                 const py = centerY + dist * Math.sin(angle);
-                if (isValid(px, py, 70, 200)) {
-                    // Usamos addSymmetricNode para que estas "islas" se repliquen simétricamente
+                if (isValid(px, py, 70, 350)) {
                     createFormGroup(px, py, -1, 'large', 'TRIANGLE');
                 }
             }
@@ -176,8 +179,8 @@ export class MapGenerator {
             for(let x = -1; x <= 1; x++) {
                 for(let y = -1; y <= 1; y++) {
                     if (x === 0 && y === 0) continue;
-                    const px = centerX + x * 700;
-                    const py = centerY + y * 600;
+                    const px = centerX + x * 900;
+                    const py = centerY + y * 800;
                     
                     const dx = px - centerX;
                     const dy = py - centerY;
@@ -185,31 +188,32 @@ export class MapGenerator {
                     const sectorAngle = (Math.PI * 2) / playerCount;
                     const relAngle = (angle - baseStartAngle + Math.PI * 4) % (Math.PI * 2);
                     
-                    if (relAngle < sectorAngle && isValid(px, py, 50, 150)) {
+                    if (relAngle < sectorAngle && isValid(px, py, 50, 200)) {
                         addSymmetricNode(px, py, -1, 'medium');
                     }
                 }
             }
         } else {
-            for (let k = 0; k < 4; k++) {
+            // Solar Clusters dispersos
+            for (let k = 0; k < 3; k++) {
                 const angle = baseStartAngle + (Math.random() * (Math.PI * 2 / playerCount));
-                const dist = 450 + Math.random() * (baseDist - 750);
+                const dist = 600 + Math.random() * (baseDist - 1200);
                 const px = centerX + dist * Math.cos(angle);
                 const py = centerY + dist * Math.sin(angle);
-                if (isValid(px, py, 60, 180)) {
+                if (isValid(px, py, 60, MIN_NODE_DIST + 100)) {
                     createFormGroup(px, py, -1, 'large', 'CLUSTER');
                 }
             }
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 4. Nodos Perdidos (ÚNICA EXCEPCIÓN A LA SIMETRÍA)
+        // 4. Nodos Perdidos (Asimétricos y ultra-alejados)
         // ─────────────────────────────────────────────────────────────────
         
-        const lostCount = Math.floor(Math.random() * 5) + 3; 
+        const lostCount = Math.floor(Math.random() * 4) + 2; 
         for (let i = 0; i < lostCount; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const dist = mapRadius * (1.15 + Math.random() * 0.25);
+            const dist = mapRadius * (1.2 + Math.random() * 0.3); // Aún más lejos
             const px = centerX + dist * Math.cos(angle);
             const py = centerY + dist * Math.sin(angle);
             
@@ -218,14 +222,13 @@ export class MapGenerator {
                 const pAngle = baseStartAngle + (p * Math.PI * 2 / playerCount);
                 const bx = centerX + baseDist * Math.cos(pAngle);
                 const by = centerY + baseDist * Math.sin(pAngle);
-                if (Math.hypot(px - bx, py - by) < 700) {
+                if (Math.hypot(px - bx, py - by) < 900) { // Mínimo 900 de cualquier base
                     farFromPlayers = false;
                     break;
                 }
             }
 
-            if (farFromPlayers && isValid(px, py, 25, 100)) {
-                // Nodo asimétrico perdido
+            if (farFromPlayers && isValid(px, py, 25, 150)) {
                 nodes.push(new Node(idCounter++, px, py, -1, Math.random() > 0.8 ? 'medium' : 'small'));
             }
         }
@@ -238,7 +241,8 @@ export class MapGenerator {
         for (let n of nodes) {
             let tooClose = false;
             for (let f of finalNodes) {
-                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 40) {
+                // Margen de limpieza mayor
+                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 60) {
                     tooClose = true;
                     break;
                 }
