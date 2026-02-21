@@ -2,7 +2,7 @@ import { SharedMemory, MEMORY_LAYOUT } from '@shared/SharedMemory.js';
 import { EntityData, DEATH_TYPES } from '@shared/EntityData.js';
 import { NodeData } from '@shared/NodeData.js';
 import { GameEngine } from '@shared/GameEngine.js';
-import { NODE_TYPES } from '@shared/GameConfig.js';
+import { NODE_TYPES, GAME_SETTINGS } from '@shared/GameConfig.js';
 
 let sharedMemory = null;
 let entityData = null;
@@ -16,9 +16,9 @@ let gameSettings = {
     maxEntitiesPerPlayer: 1000,
 };
 
-const WORLD_WIDTH = 2400;
-const WORLD_HEIGHT = 1800;
-const WORLD_RADIUS = 1800;
+const WORLD_WIDTH = GAME_SETTINGS.WORLD_WIDTH;
+const WORLD_HEIGHT = GAME_SETTINGS.WORLD_HEIGHT;
+const WORLD_RADIUS = GAME_SETTINGS.WORLD_RADIUS;
 const CENTER_X = 1200;
 const CENTER_Y = 900;
 

@@ -1,4 +1,5 @@
 import { SharedMemory, MEMORY_LAYOUT } from './SharedMemory.js';
+import { GAME_SETTINGS } from './GameConfig.js';
 
 export const DEATH_TYPES = {
     NONE: 0,
@@ -259,11 +260,11 @@ export class EntityData {
     getWorldBounds() {
         if (this._worldBoundsOverride) return this._worldBoundsOverride;
         return {
-            width: 2400,
-            height: 1800,
-            worldRadius: 1800,
-            centerX: 1200,
-            centerY: 900,
+            width: GAME_SETTINGS.WORLD_WIDTH,
+            height: GAME_SETTINGS.WORLD_HEIGHT,
+            worldRadius: GAME_SETTINGS.WORLD_RADIUS,
+            centerX: GAME_SETTINGS.WORLD_WIDTH / 2,
+            centerY: GAME_SETTINGS.WORLD_HEIGHT / 2,
         };
     }
 
