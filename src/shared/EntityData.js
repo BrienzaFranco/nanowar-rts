@@ -19,10 +19,24 @@ export class EntityData {
     }
 
     allocate(x, y, owner, id) {
-        const idx = this.count;
-        if (idx >= MEMORY_LAYOUT.MAX_ENTITIES) {
-            console.warn('Max entities reached');
-            return -1;
+        let idx = -1;
+
+        // Try to find a dead slot to recycle
+        for (let i = 0; i < this.count; i++) {
+            if (this.entities.flags[i] & 0x01) { // isDead flag
+                idx = i;
+                break;
+            }
+        }
+
+        if (idx === -1) {
+            idx = this.count;
+            if (idx >= MEMORY_LAYOUT.MAX_ENTITIES) {
+                console.warn('Max entities reached');
+                return -1;
+            }
+            this.count++;
+            this.memory.setEntityCount(this.count);
         }
 
         this.entities.x[idx] = x;
@@ -36,7 +50,7 @@ export class EntityData {
         this.entities.hp[idx] = 1;
         this.entities.speedBoost[idx] = 0;
 
-        this.entities.flags[idx] = 0;
+        this.entities.flags[idx] = 0; // Clear all flags including isDead
         this.entities.deathTime[idx] = 0;
         this.entities.deathType[idx] = DEATH_TYPES.NONE;
 
@@ -45,9 +59,7 @@ export class EntityData {
         this.entities.targetNodeId[idx] = -1;
 
         this.entities.id[idx] = id || 0;
-
-        this.count++;
-        this.memory.setEntityCount(this.count);
+        this.entities.outsideTime[idx] = 0;
 
         return idx;
     }

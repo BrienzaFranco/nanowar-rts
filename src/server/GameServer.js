@@ -89,6 +89,9 @@ export class GameServer {
 
                 // Notify others that this player surrendered/disconnected
                 this.io.to(this.roomId).emit('playerDefeated', { playerIndex: removedPlayerIndex, surrendered: true });
+                
+                // Immediately check win condition
+                this.checkWinCondition();
             } else {
                 // Game hasn't started: safe to reorder
                 this.playerSockets.splice(idx, 1);
@@ -201,6 +204,9 @@ export class GameServer {
 
         console.log(`Player ${playerIndex} surrendered - nodes neutralized, units killed`);
         this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: true });
+        
+        // Immediately check win condition
+        this.checkWinCondition();
     }
 
     checkPlayerDefeated(playerIndex) {
@@ -308,12 +314,13 @@ export class GameServer {
 
         const activePlayers = [];
         for (let i = 0; i < this.playerSockets.length; i++) {
-            if (this.playerSockets[i].surrendered || this.playerSockets[i].defeated) continue;
+            const s = this.playerSockets[i];
+            if (s.surrendered || s.defeated || s.disconnected) continue;
             // The player is still in the game (either has nodes, or has surviving units)
             activePlayers.push(i);
         }
 
-        if (activePlayers.length === 1 && this.playerSockets.length > 1) {
+        if (activePlayers.length === 1 && this.playerSockets.length >= 2) {
             this.gameEnded = true;
             const winnerIndex = activePlayers[0];
             console.log(`Game Over! Winner: Player ${winnerIndex}`);

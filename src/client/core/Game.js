@@ -339,6 +339,11 @@ export class Game {
                 if (event.type === 1 || event.type === 2) {
                     sounds.playCollision();
                 }
+
+                // Cleanup selection
+                if (this.systems && this.systems.selection) {
+                    this.systems.selection.onEntityDead(event.entityIndex);
+                }
             }
         }
 
@@ -439,6 +444,11 @@ export class Game {
                     for (let j = 0; j < 3; j++) {
                         this.particles.push(new Particle(event.x, event.y, color, 1.5, 'sacrifice', event.targetX, event.targetY));
                     }
+                }
+                
+                // Cleanup selection
+                if (this.systems && this.systems.selection) {
+                    this.systems.selection.onEntityDead(event.entityIndex);
                 }
             }
         }

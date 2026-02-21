@@ -35,8 +35,8 @@ export class GameEngine {
             }
         }
 
-        this.handleCollisionsAndCohesion();
-        this.handleEntityNodeCollisions();
+        this.handleCollisionsAndCohesion(dt);
+        this.handleEntityNodeCollisions(dt);
         this.updateEntities(dt);
         this.updateNodes(dt);
     }
@@ -86,7 +86,7 @@ export class GameEngine {
         return count;
     }
 
-    handleCollisionsAndCohesion() {
+    handleCollisionsAndCohesion(dt) {
         this.buildSpatialGrid();
 
         const count = this.entityData.getCount();
@@ -268,8 +268,8 @@ export class GameEngine {
                 // Drive velocity toward flock average
                 const targetVx = aliVx / aliN;
                 const targetVy = aliVy / aliN;
-                fx += (targetVx - vx) * ALI_FORCE * 0.016;
-                fy += (targetVy - vy) * ALI_FORCE * 0.016;
+                fx += (targetVx - vx) * ALI_FORCE * dt;
+                fy += (targetVy - vy) * ALI_FORCE * dt;
             }
             if (cohN > 0) {
                 const cx = cohX / cohN - x;
@@ -283,8 +283,8 @@ export class GameEngine {
                 fy += (eneY / eneN) * ENE_FORCE;
             }
 
-            vx += fx * 0.016;
-            vy += fy * 0.016;
+            vx += fx * dt;
+            vy += fy * dt;
 
             this.entityData.setX(i, x);
             this.entityData.setY(i, y);
@@ -293,7 +293,7 @@ export class GameEngine {
         }
     }
 
-    handleEntityNodeCollisions() {
+    handleEntityNodeCollisions(dt) {
         const entityCount = this.entityData.getCount();
         const nodeCount = this.nodeData.getCount();
 
@@ -482,8 +482,8 @@ export class GameEngine {
                             const side = (dx * targetDy - dy * targetDx) > 0 ? 1 : -1;
                             // Increased evasion force (was 100/2500)
                             const evasionForce = (1 - (dist / (nodeRadius + 60))) * 4500;
-                            this.entityData.setVx(i, this.entityData.getVx(i) + perpX * side * evasionForce * 0.016);
-                            this.entityData.setVy(i, this.entityData.getVy(i) + perpY * side * evasionForce * 0.016);
+                            this.entityData.setVx(i, this.entityData.getVx(i) + perpX * side * evasionForce * dt);
+                            this.entityData.setVy(i, this.entityData.getVy(i) + perpY * side * evasionForce * dt);
                         }
                     }
                 }

@@ -9,6 +9,7 @@ export class InputManager {
         this.isPanning = false;
         this.spaceDown = false;
         this.nodeUnderMouse = null; // Track if mouse is over a node
+        this.keys = {}; // Track active keys for continuous movement
         this.setupEvents();
     }
 
@@ -94,35 +95,68 @@ export class InputManager {
     }
 
     onKeyDown(e) {
+        this.keys[e.code] = true;
+
         if (e.code === 'Space') {
             this.spaceDown = true;
             e.preventDefault();
         }
-        if (e.code === 'KeyT') {
-            this.game.systems.selection.rallyMode = true;
-        }
-        if (e.code === 'KeyS') {
+        
+        // Rally point with T or E - only if we have nodes selected
+        if (e.code === 'KeyT' || e.code === 'KeyE') {
             const sel = this.game.systems.selection;
-            if (this.game.controller && this.game.controller.sendAction) {
-                this.game.controller.sendAction({
-                    type: 'stop',
-                    unitIds: Array.from(sel.selectedEntities)
-                });
-            } else {
-                sel.selectedEntities.forEach(id => {
-                    const ent = this.game.state.entities.find(e => e.id === id);
-                    if (ent) ent.stop();
-                });
+            if (sel.selectedNodes.size > 0) {
+                sel.rallyMode = true;
+            }
+        }
+
+        // Escape - cancel selection and rally mode
+        if (e.code === 'Escape') {
+            const sel = this.game.systems.selection;
+            sel.clear();
+            sel.rallyMode = false;
+        }
+
+        // Q - Select all units on screen
+        if (e.code === 'KeyQ') {
+            const sel = this.game.systems.selection;
+            const playerIdx = this.game.controller.playerIndex !== undefined ? this.game.controller.playerIndex : 0;
+            
+            // Get all units currently in view
+            const entitiesInView = sel.getEntitiesInViewScreenRect(0, 0, window.innerWidth, window.innerHeight, playerIdx);
+            
+            if (entitiesInView.length > 0) {
+                // Clear existing selection first? (Standard RTS behavior is Q selects all units)
+                if (!e.shiftKey) sel.clear();
+                
+                for (const eIdx of entitiesInView) {
+                    sel.selectedEntities.add(sel.getEntityId(eIdx));
+                }
+                sounds.playSelect();
             }
         }
     }
 
     onKeyUp(e) {
+        this.keys[e.code] = false;
         if (e.code === 'Space') {
             this.spaceDown = false;
         }
     }
 
     update(dt) {
+        // WASD Camera movement
+        const panSpeed = 800 * dt; // Adjust speed as needed
+        let dx = 0;
+        let dy = 0;
+
+        if (this.keys['KeyW']) dy += panSpeed;
+        if (this.keys['KeyS']) dy -= panSpeed;
+        if (this.keys['KeyA']) dx += panSpeed;
+        if (this.keys['KeyD']) dx -= panSpeed;
+
+        if (dx !== 0 || dy !== 0) {
+            this.game.camera.pan(dx, dy);
+        }
     }
 }

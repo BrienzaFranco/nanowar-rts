@@ -52,6 +52,14 @@ export class MultiplayerController {
 
         this.socket.on('lobbyUpdate', (data) => {
             console.log('Lobby Update:', data);
+            
+            // Update our player index based on our position in the players array
+            const myIndex = data.players.findIndex(p => p.id === this.socket.id);
+            if (myIndex !== -1) {
+                this.playerIndex = myIndex;
+                console.log('Updated player index to:', this.playerIndex);
+            }
+
             if (window.updateLobbyUI) {
                 window.updateLobbyUI(data.players, this.roomId);
             }

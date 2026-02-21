@@ -8,7 +8,18 @@ export class SelectionManager {
         this.isSelectingBox = false;
         this.boxStart = { x: 0, y: 0 };
         this.currentPath = [];
-        this.rallyMode = false;
+        this._rallyMode = false;
+    }
+
+    get rallyMode() {
+        return this._rallyMode;
+    }
+
+    set rallyMode(value) {
+        this._rallyMode = value;
+        if (this.game.canvas) {
+            this.game.canvas.style.cursor = value ? 'crosshair' : 'default';
+        }
     }
 
     get view() {
@@ -460,6 +471,7 @@ export class SelectionManager {
                     }
                     this.game.systems.input.nodeUnderMouse = null;
                     this.isSelectingBox = false;
+                    this.rallyMode = false; // Reset rally mode after drag-setting
                     return;
                 }
             }
@@ -554,5 +566,13 @@ export class SelectionManager {
         this.selectedNodes.clear();
         this.selectedEntities.clear();
         this.rallyMode = false;
+    }
+
+    onEntityDead(id) {
+        this.selectedEntities.delete(id);
+    }
+
+    onNodeDead(id) {
+        this.selectedNodes.delete(id);
     }
 }
