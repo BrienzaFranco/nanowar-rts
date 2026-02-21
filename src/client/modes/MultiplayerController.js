@@ -559,8 +559,8 @@ export class MultiplayerController {
         if (!this.cameraCentered && this.playerIndex !== -1 && newNodeCount > 0) {
             for (let i = 0; i < newNodeCount; i++) {
                 if (view.getNodeOwner(i) === this.playerIndex) {
-                    this.game.camera.lookAt(view.getNodeX(i), view.getNodeY(i));
                     this.game.camera.zoom = 1.0; // Start closer to the home node instead of fully zoomed out
+                    this.game.camera.centerOn(view.getNodeX(i), view.getNodeY(i), this.game.canvas.width, this.game.canvas.height);
                     this.cameraCentered = true;
                     break;
                 }

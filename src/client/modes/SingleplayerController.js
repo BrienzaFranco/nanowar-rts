@@ -28,8 +28,8 @@ export class SingleplayerController {
         // Center camera on human player's home node
         const homeNode = this.game.state.nodes.find(n => n.owner === this.playerIndex);
         if (homeNode) {
-            this.game.camera.lookAt(homeNode.x, homeNode.y);
-            this.game.camera.zoom = 1.0; // Set a slightly closer initial zoom instead of zooming to fit the whole map
+            this.game.camera.zoom = 1.0; // Start closer to the home node instead of zooming to fit the whole map
+            this.game.camera.centerOn(homeNode.x, homeNode.y, this.game.canvas.width, this.game.canvas.height);
         }
 
         const difficultyMap = {
