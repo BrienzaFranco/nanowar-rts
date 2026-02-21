@@ -122,13 +122,23 @@ export class GameEngine {
             // 1. Hard push OUT of node bodies
             // ──────────────────────────────────────
             const targetNodeId = this.entityData.getTargetNodeId(i);
-            for (let n = 0; n < this.nodeData.getCount(); n++) {
-                // If this is the node we want to enter, don't push us away physically!
-                if (this.nodeData.getId(n) === targetNodeId) continue;
+            const targetX = this.entityData.getTargetX(i);
+            const targetY = this.entityData.getTargetY(i);
 
+            for (let n = 0; n < this.nodeData.getCount(); n++) {
                 const nodeX = this.nodeData.getX(n);
                 const nodeY = this.nodeData.getY(n);
                 const nodeRadius = this.nodeData.getRadius(n);
+                const nodeId = this.nodeData.getId(n);
+
+                // If this is the node we want to enter, don't push us away physically!
+                if (nodeId === targetNodeId) continue;
+
+                // Also skip push if our target point is INSIDE this node (sensitive capture)
+                const tdx = targetX - nodeX;
+                const tdy = targetY - nodeY;
+                if (tdx * tdx + tdy * tdy < (nodeRadius + 20) * (nodeRadius + 20)) continue;
+
                 const minDist = nodeRadius + radius + NODE_BODY_MARGIN;
 
                 const dx = x - nodeX;
@@ -346,10 +356,14 @@ export class GameEngine {
                 const dx = ex - nodeX;
                 const dy = ey - nodeY;
                 const distSq = dx * dx + dy * dy;
-                const touchRange = nodeRadius + eRadius;
+                // INCREASED SENSITIVITY: Trigger capture/heal earlier (added +15)
+                const touchRange = nodeRadius + eRadius + 15;
                 const dist = Math.sqrt(distSq);
 
-                const isTargetingThisNode = (eTargetNodeId === nodeId);
+                const targetX = this.entityData.getTargetX(i);
+                const targetY = this.entityData.getTargetY(i);
+                const isTargetingThisNode = (eTargetNodeId === nodeId) || 
+                    (Math.hypot(targetX - nodeX, targetY - nodeY) < nodeRadius + 10);
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
@@ -738,8 +752,8 @@ export class GameEngine {
                     this.nodeData.setManualSpawnReady(i, false);
 
                     const angle = Math.random() * Math.PI * 2;
-                    const influenceRadius = this.nodeData.getInfluenceRadius(i);
-                    const spawnDist = influenceRadius * 0.6;
+                    const nodeRadius = this.nodeData.getRadius(i);
+                    const spawnDist = nodeRadius * 1.1; // Spawn right outside node body
                     const ex = this.nodeData.getX(i) + Math.cos(angle) * spawnDist;
                     const ey = this.nodeData.getY(i) + Math.sin(angle) * spawnDist;
 

@@ -37,10 +37,10 @@ export const NODE_TYPES = {
 };
 
 export const NODE_CONFIG = {
-    [NODE_TYPES.SMALL]: { radius: 22, influenceRadius: 100, baseHp: 6, maxHp: 25, spawnInterval: 4.5 },
-    [NODE_TYPES.MEDIUM]: { radius: 40, influenceRadius: 160, baseHp: 12, maxHp: 60, spawnInterval: 3.5 },
-    [NODE_TYPES.LARGE]: { radius: 65, influenceRadius: 220, baseHp: 25, maxHp: 150, spawnInterval: 2.4 },
-    [NODE_TYPES.MEGA]: { radius: 100, influenceRadius: 300, baseHp: 50, maxHp: 300, spawnInterval: 2.0 },
-    [NODE_TYPES.ULTRA]: { radius: 125, influenceRadius: 380, baseHp: 80, maxHp: 500, spawnInterval: 1.6 },
-    [NODE_TYPES.OMEGA]: { radius: 160, influenceRadius: 450, baseHp: 120, maxHp: 800, spawnInterval: 1.4 }
+    [NODE_TYPES.SMALL]: { radius: 22, influenceRadius: 100, baseHp: 6, maxHp: 15, spawnInterval: 4.8 },
+    [NODE_TYPES.MEDIUM]: { radius: 40, influenceRadius: 160, baseHp: 12, maxHp: 35, spawnInterval: 3.8 },
+    [NODE_TYPES.LARGE]: { radius: 65, influenceRadius: 220, baseHp: 25, maxHp: 70, spawnInterval: 2.7 },
+    [NODE_TYPES.MEGA]: { radius: 100, influenceRadius: 300, baseHp: 50, maxHp: 120, spawnInterval: 2.3 },
+    [NODE_TYPES.ULTRA]: { radius: 125, influenceRadius: 380, baseHp: 80, maxHp: 200, spawnInterval: 1.9 },
+    [NODE_TYPES.OMEGA]: { radius: 160, influenceRadius: 450, baseHp: 120, maxHp: 300, spawnInterval: 1.5 }
 };

@@ -100,8 +100,12 @@ export class Entity {
                 }
 
                 const dist = Math.sqrt(distSq);
-                const touchRange = node.radius + this.radius;
-                const isTargetingThisNode = (this.targetNode === node);
+                // INCREASED SENSITIVITY: Trigger earlier
+                const touchRange = node.radius + this.radius + 15;
+                const targetPoint = this.currentTarget || { x: this.x, y: this.y };
+                const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
+                const distToTargetSq = tdx * tdx + tdy * tdy;
+                const isTargetingThisNode = (this.targetNode === node) || (distToTargetSq < node.radius * node.radius + 400);
 
                 if (dist < touchRange && dist > 0.001) {
                     const overlap = touchRange - dist;
@@ -109,6 +113,7 @@ export class Entity {
                     const ny = dy / dist;
 
                     if (isTargetingThisNode) {
+                        // Accept interaction if we are close enough to touch the node (SENSITIVE)
                         if (node.owner === -1) {
                             if (!this.dying) {
                                 node.receiveAttack(this.owner, 1, game);
@@ -260,7 +265,15 @@ export class Entity {
             const dy = this.currentTarget.y - this.y;
             const distSq = dx * dx + dy * dy;
 
-            if (distSq < 400) { // 20px reach distance
+            // If heading towards a node, finish waypoint slightly before exact center to avoid getting stuck
+            let reachDistSq = 400; // 20px default reach distance
+            if (this.targetNode) {
+                // Complete the waypoint journey as soon as we touch the node's physical radius + a small margin
+                const touchDist = this.targetNode.radius + this.radius + 10;
+                reachDistSq = touchDist * touchDist;
+            }
+
+            if (distSq < reachDistSq) {
                 this.waypoints.shift();
                 this.currentTarget = this.waypoints.length > 0 ? this.waypoints[0] : null;
             }
@@ -271,6 +284,12 @@ export class Entity {
         // Push entities out of nodes physical radius
         if (nodes) {
             for (let node of nodes) {
+                const targetPoint = this.currentTarget || { x: this.x, y: this.y };
+                const tdx = targetPoint.x - node.x, tdy = targetPoint.y - node.y;
+                const isTargetingThisNode = (this.targetNode === node) || (tdx * tdx + tdy * tdy < node.radius * node.radius + 400);
+
+                if (isTargetingThisNode) continue;
+
                 const dx = this.x - node.x;
                 const dy = this.y - node.y;
                 const distSq = dx * dx + dy * dy;

@@ -68,7 +68,7 @@ export class MapGenerator {
 
             // Center node special case
             if (r < 10) {
-                if (isValidPos(cx, cy, nodeRadius, 50)) {
+                if (isValidPos(cx, cy, nodeRadius, 100)) {
                     nodes.push(new Node(idCounter++, cx, cy, -1, type));
                     return true;
                 }
@@ -87,12 +87,12 @@ export class MapGenerator {
             // Verify ALL positions before adding ANY
             for (let i = 0; i < positions.length; i++) {
                 const p = positions[i];
-                if (!isValidPos(p.x, p.y, nodeRadius, 40)) return false;
+                if (!isValidPos(p.x, p.y, nodeRadius, 90)) return false;
 
                 // Self-collision within the group: ensure nodes in the group don't overlap with each other
                 for (let j = i + 1; j < positions.length; j++) {
                     const p2 = positions[j];
-                    if (Math.hypot(p.x - p2.x, p.y - p2.y) < (nodeRadius * 2) + 60) return false;
+                    if (Math.hypot(p.x - p2.x, p.y - p2.y) < (nodeRadius * 2) + 120) return false;
                 }
             }
 
@@ -130,8 +130,17 @@ export class MapGenerator {
             for (let i = 0; i < steps; i++) {
                 if (nodes.length >= maxAllowed) break;
 
-                let r, theta, type;
-                type = Math.random() > 0.8 ? NODE_TYPES.MEGA : (Math.random() > 0.4 ? NODE_TYPES.LARGE : NODE_TYPES.MEDIUM);
+                let r, theta;
+                let type;
+                // 10% MEGA
+                // 30% LARGE
+                // 40% MEDIUM
+                // 20% SMALL
+                const randType = Math.random();
+                if (randType > 0.9) type = NODE_TYPES.MEGA;
+                else if (randType > 0.6) type = NODE_TYPES.LARGE;
+                else if (randType > 0.2) type = NODE_TYPES.MEDIUM;
+                else type = NODE_TYPES.SMALL;
 
                 if (theme === 'GALAXY_SPIRAL') {
                     const t = i / steps;
@@ -173,7 +182,15 @@ export class MapGenerator {
                 if (nodes.length >= maxAllowed) break;
                 const r = Math.random() * mapRadius * 0.9;
                 const theta = Math.random() * Math.PI * 2;
-                const type = Math.random() > 0.5 ? NODE_TYPES.MEDIUM : NODE_TYPES.SMALL;
+
+                // Keep the proportion balanced instead of defaulting entirely to SMALL/MEDIUM
+                // 30% LARGE, 50% MEDIUM, 20% SMALL
+                const rand = Math.random();
+                let type;
+                if (rand > 0.7) type = NODE_TYPES.LARGE;
+                else if (rand > 0.2) type = NODE_TYPES.MEDIUM;
+                else type = NODE_TYPES.SMALL;
+
                 tryAddSymmetricGroup(r, theta, type);
             }
         };

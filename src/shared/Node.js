@@ -7,7 +7,7 @@ export class Node {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
 
         const config = NODE_CONFIG[type] || NODE_CONFIG[NODE_TYPES.MEDIUM];
-        
+
         // Add a small bit of random variation to radius for natural feel
         const variation = (Math.random() - 0.5) * (config.radius * 0.15);
         this.radius = config.radius + variation;
@@ -152,9 +152,9 @@ export class Node {
             this.spawnTimer += dt;
             const healthPercent = Math.min(this.baseHp / this.maxHp, 1.0);
 
-            // Base generation: 0.3 at 0% HP (Was 0.5), up to 1.5 at 100% HP
+            // Base generation: 0.2 at 0% HP (Was 0.3), up to 1.4 at 100% HP
             // This slows down early game production significantly
-            let healthScaling = 0.3 + healthPercent * 1.2;
+            let healthScaling = 0.2 + healthPercent * 1.2;
 
             // Smoothly ramp bonus production from 90% to 100% HP (prevents visual jumps)
             const fullBonus = Math.max(0, Math.min(0.5, (healthPercent - 0.9) * 5));
