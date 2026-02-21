@@ -243,7 +243,7 @@ export class GameServer {
         }
     }
 
-    getStats() {
+    getStats(includeHistory = false) {
         // Minimal stats needed by clients to avoid crashing
         let current = {};
         for (let i = 0; i < this.playerSockets.length; i++) current[i] = 0;
@@ -262,17 +262,22 @@ export class GameServer {
             producedMapped[pid] = { total: this.stats.produced[pid] };
         }
 
-        return {
+        const result = {
             elapsed: this.elapsedTime / 60,
             produced: producedMapped,
             current: current,
             lost: {},
             captured: this.stats.captured,
-            history: this.stats.history,
-            nodeHistory: this.stats.nodeHistory,
-            productionHistory: this.stats.productionHistory,
             events: []
         };
+
+        if (includeHistory) {
+            result.history = this.stats.history;
+            result.nodeHistory = this.stats.nodeHistory;
+            result.productionHistory = this.stats.productionHistory;
+        }
+
+        return result;
     }
 
     checkWinCondition() {
@@ -280,7 +285,7 @@ export class GameServer {
 
         if (this.elapsedTime >= this.GAME_TIME_LIMIT) {
             this.gameEnded = true;
-            const stats = this.getStats();
+            const stats = this.getStats(true);
 
             let maxProduction = -1;
             let winnerIndex = -1;
@@ -314,7 +319,7 @@ export class GameServer {
             console.log(`Game Over! Winner: Player ${winnerIndex}`);
             this.io.to(this.roomId).emit('gameOver', {
                 winner: winnerIndex,
-                stats: this.getStats()
+                stats: this.getStats(true)
             });
             return;
         }
@@ -323,7 +328,7 @@ export class GameServer {
             this.gameEnded = true;
             this.io.to(this.roomId).emit('gameOver', {
                 winner: -1,
-                stats: this.getStats()
+                stats: this.getStats(true)
             });
         }
     }
