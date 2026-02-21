@@ -19,10 +19,10 @@ export class MapGenerator {
         // 1. Helpers de Colocación y Simetría
         // ─────────────────────────────────────────────────────────────────
         
-        const MIN_NODE_DIST = 140; // Espacio para que las tropas respiren
+        const MIN_NODE_DIST = 150; // Aumentado ligeramente para más espacio
 
         const isValid = (x, y, r, extraMargin = 100) => {
-            const margin = 120;
+            const margin = 80; // Margen menor para permitir nodos "perdidos" cerca del borde
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
             
@@ -49,11 +49,8 @@ export class MapGenerator {
             }
         };
 
-        // Crea un cúmulo de 2-4 nodos: 1 Grande/Mediano + satélites
         const createCluster = (cx, cy, owner, mainType) => {
             addSymmetricNode(cx, cy, owner, mainType);
-
-            // Determinar cantidad de satélites (1 a 3)
             const satelliteCount = Math.floor(Math.random() * 3) + 1;
             const orbitRadius = mainType === 'large' ? 140 : 110;
 
@@ -61,10 +58,7 @@ export class MapGenerator {
                 const angle = (Math.PI * 2 / satelliteCount) * i + Math.random();
                 const px = cx + orbitRadius * Math.cos(angle);
                 const py = cy + orbitRadius * Math.sin(angle);
-                
-                // Jerarquía: Large -> Medium/Small, Medium -> Small
                 const subType = mainType === 'large' ? (Math.random() > 0.5 ? 'medium' : 'small') : 'small';
-                
                 addSymmetricNode(px, py, owner, subType);
             }
         };
@@ -73,20 +67,19 @@ export class MapGenerator {
         // 2. Base y Centro
         // ─────────────────────────────────────────────────────────────────
         
-        const baseDist = mapRadius * 0.88;
+        // Aumentada la distancia de spawn (era 0.88)
+        const baseDist = mapRadius * 0.92; 
         const baseStartAngle = -Math.PI / 2;
         const p0x = centerX + baseDist * Math.cos(baseStartAngle);
         const p0y = centerY + baseDist * Math.sin(baseStartAngle);
 
-        // Bases: 1 Large + satélites (Defensa espaciada)
         createCluster(p0x, p0y, 0, 'large');
 
-        // Nodo Central: Super o Large
         const centerType = Math.random() > 0.5 ? 'super' : 'large';
         nodes.push(new Node(idCounter++, centerX, centerY, -1, centerType));
 
         // ─────────────────────────────────────────────────────────────────
-        // 3. Lógica de Tipos de Mapa (Restaurada y Pulida)
+        // 3. Lógica de Tipos de Mapa
         // ─────────────────────────────────────────────────────────────────
 
         if (mapType === 'SPIRAL_GALAXY') {
@@ -95,10 +88,9 @@ export class MapGenerator {
             for (let i = 1; i <= armPoints; i++) {
                 const t = i / (armPoints + 1);
                 const angle = baseStartAngle + (t * twist * Math.PI);
-                const dist = 500 + (t * (baseDist - 700));
+                const dist = 450 + (t * (baseDist - 650));
                 const px = centerX + dist * Math.cos(angle);
                 const py = centerY + dist * Math.sin(angle);
-                
                 if (isValid(px, py, 60, MIN_NODE_DIST)) {
                     createCluster(px, py, -1, 'large');
                 }
@@ -113,7 +105,6 @@ export class MapGenerator {
                 const offset = (Math.random() - 0.5) * 450;
                 const jx = px + offset * Math.cos(offAngle);
                 const jy = py + offset * Math.sin(offAngle);
-
                 if (isValid(jx, jy, 55, MIN_NODE_DIST)) {
                     createCluster(jx, jy, -1, 'medium');
                 }
@@ -132,7 +123,7 @@ export class MapGenerator {
         } else if (mapType === 'SOLAR_CLUSTERS') {
             for (let k = 0; k < 3; k++) {
                 const angle = baseStartAngle + (Math.random() * (Math.PI * 2 / playerCount));
-                const dist = 500 + Math.random() * (baseDist - 800);
+                const dist = 450 + Math.random() * (baseDist - 700);
                 const px = centerX + dist * Math.cos(angle);
                 const py = centerY + dist * Math.sin(angle);
                 if (isValid(px, py, 60, MIN_NODE_DIST + 80)) {
@@ -149,14 +140,35 @@ export class MapGenerator {
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // 4. Limpieza Final (Overlap Protection)
+        // 4. Nodos Perdidos (Asimétricos y detrás de los jugadores)
+        // ─────────────────────────────────────────────────────────────────
+        
+        if (Math.random() > 0.3) { // 70% de probabilidad de que aparezcan
+            const lostCount = Math.floor(Math.random() * 3) + 1; // 1 a 3 nodos perdidos totales
+            for (let i = 0; i < lostCount; i++) {
+                // Elegir un ángulo aleatorio en el mundo
+                const angle = Math.random() * Math.PI * 2;
+                // Distancia muy alejada (detrás de las bases habituales)
+                const dist = mapRadius * (1.0 + Math.random() * 0.15);
+                const px = centerX + dist * Math.cos(angle);
+                const py = centerY + dist * Math.sin(angle);
+                
+                // Estos nodos son pequeños y están "solos" (sin simetría)
+                if (isValid(px, py, 20, 100)) {
+                    nodes.push(new Node(idCounter++, px, py, -1, 'small'));
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // 5. Limpieza Final (Overlap Protection)
         // ─────────────────────────────────────────────────────────────────
         
         const finalNodes = [];
         for (let n of nodes) {
             let tooClose = false;
             for (let f of finalNodes) {
-                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 70) {
+                if (Math.hypot(n.x - f.x, n.y - f.y) < n.radius + f.radius + 75) {
                     tooClose = true;
                     break;
                 }
