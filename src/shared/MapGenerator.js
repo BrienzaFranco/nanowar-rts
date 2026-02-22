@@ -31,9 +31,24 @@ export class MapGenerator {
         const maxNodes = playerCount * 15;
         let attempts = 0;
 
-        while ((finalNodes.length < minNodes || finalNodes.length > maxNodes) && attempts < 50) {
+        while (attempts < 50) {
             attempts++;
             finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight, maxNodes);
+
+            if (finalNodes && finalNodes.length >= minNodes && finalNodes.length <= maxNodes) {
+                // Ensure all players have at least one node
+                const uniqueOwners = new Set(finalNodes.filter(n => n.owner !== -1).map(n => n.owner));
+                if (uniqueOwners.size === playerCount) {
+                    break;
+                }
+            }
+            finalNodes = [];
+        }
+
+        if (finalNodes.length === 0) {
+            console.error("Failed to generate a valid map after 50 attempts. Forcing fallback.");
+            // Last resort: just try one more time without owner check if it's really stuck
+            finalNodes = this._doGenerate(playerCount, worldWidth, worldHeight, maxNodes) || [];
         }
 
         console.log(`Generated robust map for ${playerCount} players: ${finalNodes.length} nodes after ${attempts} attempts.`);
@@ -61,7 +76,7 @@ export class MapGenerator {
                 const dist = Math.hypot(x - n.x, y - n.y);
                 const combinedR = r + this.getRadiusForType(n.type);
 
-                const baseExclusion = Math.max(350, 500 - playerCount * 20); // Much further from bases
+                const baseExclusion = Math.max(180, 250 - playerCount * 10); // More reasonable spacing
                 const limit = (n.owner !== -1) ? baseExclusion : extraMargin;
 
                 // Push Omega even further
@@ -133,7 +148,9 @@ export class MapGenerator {
 
         // 2. PLACE PLAYER BASES
         const baseDist = mapRadius * 0.85;
-        tryAddSymmetricGroup(baseDist, baseAngleOffset, NODE_TYPES.LARGE, 0);
+        if (!tryAddSymmetricGroup(baseDist, baseAngleOffset, NODE_TYPES.LARGE, 0)) {
+            return null; // Fatal failure, retry
+        }
 
         // 3. SECURE FIRST EXPANSION (Close to bases)
         // A medium node slightly inwards and to the side
