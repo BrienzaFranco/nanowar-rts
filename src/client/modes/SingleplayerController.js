@@ -3,15 +3,37 @@ import { Node } from '../../shared/Node.js';
 import { Entity } from '../../shared/Entity.js';
 import { MapGenerator } from '../../shared/MapGenerator.js';
 import { sounds } from '../systems/SoundManager.js';
+import { CampaignLevels } from '../../shared/CampaignConfig.js';
+import { CampaignManager } from '../CampaignManager.js';
 
 export class SingleplayerController {
     constructor(game) {
         this.game = game;
         this.ais = [];
         this.gameOverShown = false;
+
+        // Tutorial State
+        this.tutorialSteps = [];
+        this.currentTutorialStep = 0;
+        this.tutorialTimer = 0;
+        this.tutorialActive = false;
     }
 
-    setup(playerCount = 1, difficulty = 'intermediate', testMode = false) {
+    setup(playerCount = 1, difficulty = 'intermediate', testMode = false, campaignId = null) {
+        this.campaignId = campaignId;
+        this.isCampaign = campaignId !== null;
+        let campaignConfig = null;
+
+        if (this.isCampaign) {
+            campaignConfig = CampaignLevels.find(l => l.id === parseInt(this.campaignId));
+            if (!campaignConfig) {
+                console.error("Campaign level not found. Falling back to default.");
+                this.isCampaign = false;
+            } else {
+                playerCount = 1 + campaignConfig.enemies.length;
+            }
+        }
+
         this.game.state.playerCount = playerCount;
 
         // In test mode, force easy difficulty but respect player count
@@ -22,7 +44,7 @@ export class SingleplayerController {
         this.game.state.difficulty = difficulty;
         this.testMode = testMode;
         this.playerIndex = 0;
-        this.createLevel();
+        this.createLevel(campaignConfig);
         this.createInitialEntities(testMode);
 
         // Center camera on human player's home node
@@ -41,17 +63,63 @@ export class SingleplayerController {
             'impossible': 'Impossible'
         };
 
-        // Create AIs for CPUs (indices > 0)
-        for (let i = 1; i < playerCount; i++) {
-            const aiDifficulty = difficultyMap[difficulty] || 'Normal';
-            this.ais.push(new AIController(this.game, i, aiDifficulty));
+        if (this.isCampaign) {
+            // Load specific AIs
+            campaignConfig.enemies.forEach(enemy => {
+                const ai = new AIController(this.game, enemy.id, enemy.difficulty);
+                ai.personality = enemy.personality; // Override personality if set
+                this.ais.push(ai);
+            });
+
+            if (campaignConfig.tutorialSteps) {
+                this.tutorialSteps = campaignConfig.tutorialSteps;
+                this.tutorialActive = true;
+                this.currentTutorialStep = 0;
+                this.tutorialTimer = 0;
+            }
+        } else {
+            // Create AIs for CPUs (indices > 0)
+            for (let i = 1; i < playerCount; i++) {
+                const aiDifficulty = difficultyMap[difficulty] || 'Normal';
+                this.ais.push(new AIController(this.game, i, aiDifficulty));
+            }
         }
     }
 
-    createLevel() {
-        const width = this.game.state.worldWidth;
-        const height = this.game.state.worldHeight;
-        this.game.state.nodes = MapGenerator.generate(this.game.state.playerCount, width, height);
+    createLevel(campaignConfig = null) {
+        let width = this.game.state.worldWidth;
+        let height = this.game.state.worldHeight;
+
+        if (campaignConfig && campaignConfig.mapConfig) {
+            // Override with campaign configs
+            const sizeMap = {
+                'small': { w: 1500, h: 1000 },
+                'medium': { w: 2500, h: 1800 },
+                'large': { w: 4000, h: 3000 },
+                'epic': { w: 6000, h: 4500 }
+            };
+
+            const sz = sizeMap[campaignConfig.mapConfig.size];
+            if (sz) {
+                width = sz.w;
+                height = sz.h;
+                this.game.state.worldWidth = width;
+                this.game.state.worldHeight = height;
+            }
+
+            // Fixed nodes override
+            const fixedNodes = campaignConfig.mapConfig ? campaignConfig.mapConfig.fixedNodes : null;
+
+            // Otherwise generate random map but with config parameters
+            this.game.state.nodes = MapGenerator.generate(
+                this.game.state.playerCount,
+                width,
+                height,
+                fixedNodes || null
+            );
+        } else {
+            this.game.state.nodes = MapGenerator.generate(this.game.state.playerCount, width, height);
+        }
     }
 
     createInitialEntities(testMode = false) {
@@ -122,8 +190,56 @@ export class SingleplayerController {
         }
     }
 
+    handleTutorial(dt) {
+        const step = this.tutorialSteps[this.currentTutorialStep];
+        if (!step) return;
+
+        let completed = false;
+
+        if (step.trigger === 'time') {
+            this.tutorialTimer += dt * 1000; // ms
+            if (this.tutorialTimer >= step.delay) {
+                completed = true;
+            }
+        } else if (step.trigger === 'units') {
+            const playerUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner === 0).length;
+            if (playerUnits >= step.count) {
+                completed = true;
+            }
+        } else if (step.trigger === 'nodes') {
+            const playerNodes = this.game.state.nodes.filter(n => n.owner === 0).length;
+            if (playerNodes >= step.count) {
+                completed = true;
+            }
+        }
+
+        // Display current step text if it has one and we are waiting
+        const msgEl = document.getElementById('tutorial-message');
+        if (msgEl) {
+            if (step.text) {
+                msgEl.style.display = 'block';
+                msgEl.textContent = step.text;
+            } else {
+                msgEl.style.display = 'none';
+            }
+        }
+
+        if (completed) {
+            this.currentTutorialStep++;
+            this.tutorialTimer = 0;
+            if (this.currentTutorialStep >= this.tutorialSteps.length) {
+                this.tutorialActive = false;
+                if (msgEl) msgEl.style.display = 'none';
+            }
+        }
+    }
+
     update(dt) {
         this.ais.forEach(ai => ai.update(dt));
+
+        if (this.tutorialActive && this.currentTutorialStep < this.tutorialSteps.length) {
+            this.handleTutorial(dt);
+        }
 
         // Path-following logic for singleplayer (feeder for worker)
         if (this.game.useWorker) {
@@ -195,6 +311,9 @@ export class SingleplayerController {
 
         if (won) {
             sounds.playWin();
+            if (this.isCampaign) {
+                CampaignManager.completeLevel(parseInt(this.campaignId));
+            }
         } else {
             sounds.playLose();
         }
@@ -289,13 +408,21 @@ export class SingleplayerController {
             ${statsHTML}
             
             <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
-                <button onclick="location.reload()" style="
+                ${this.isCampaign && won && parseInt(this.campaignId) < CampaignLevels.length - 1 ?
+                `<button onclick="window.location.href='singleplayer.html?campaign=${parseInt(this.campaignId) + 1}'" style="
+                    padding: 14px 35px; background: ${color}; border: none; border-radius: 4px;
+                    color: white; font-family: 'Courier New', monospace; font-weight: bold;
+                    font-size: 13px; cursor: pointer; letter-spacing: 2px;
+                    transition: all 0.2s; box-shadow: 0 4px 15px ${color}33;">
+                    SIGUIENTE NIVEL
+                </button>` :
+                `<button onclick="location.reload()" style="
                     padding: 14px 35px; background: ${color}; border: none; border-radius: 4px;
                     color: white; font-family: 'Courier New', monospace; font-weight: bold;
                     font-size: 13px; cursor: pointer; letter-spacing: 2px;
                     transition: all 0.2s; box-shadow: 0 4px 15px ${color}33;">
                     REINTENTAR
-                </button>
+                </button>`}
                 <button onclick="location.href='index.html'" style="
                     padding: 14px 35px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
                     border-radius: 4px; color: #aaa; font-family: 'Courier New', monospace;
@@ -335,7 +462,7 @@ export class SingleplayerController {
 
             let dataArray = [];
             let title = '';
-            let timeScale = 1; 
+            let timeScale = 1;
 
             // Update active button style
             ['prod', 'units', 'nodes'].forEach(t => {
@@ -487,7 +614,7 @@ export class SingleplayerController {
             ctx.font = 'bold 13px "Courier New"';
             ctx.textAlign = 'center';
             ctx.fillText(title, w / 2, 18);
-            
+
             ctx.fillStyle = 'rgba(255,255,255,0.2)';
             ctx.font = '9px "Courier New"';
             ctx.fillText('SCROLL: ZOOM • DRAG: PAN', w / 2, h - 8);

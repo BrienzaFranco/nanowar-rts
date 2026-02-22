@@ -5507,6 +5507,45 @@ function hasBinary(obj, toJSON) {
 
 /***/ },
 
+/***/ "./src/client/CampaignManager.js"
+/*!***************************************!*\
+  !*** ./src/client/CampaignManager.js ***!
+  \***************************************/
+(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CampaignManager: () => (/* binding */ CampaignManager)
+/* harmony export */ });
+// client/CampaignManager.js
+
+class CampaignManager {
+    static STORAGE_KEY = 'nanowar_campaign_progress';
+
+    static getUnlockedLevel() {
+        const saved = localStorage.getItem(this.STORAGE_KEY);
+        if (saved) {
+            return parseInt(saved, 10);
+        }
+        return 0; // 0 represents the tutorial level
+    }
+
+    static completeLevel(completedLevelId) {
+        const currentUnlocked = this.getUnlockedLevel();
+        if (completedLevelId >= currentUnlocked) {
+            localStorage.setItem(this.STORAGE_KEY, (completedLevelId + 1).toString());
+        }
+    }
+
+    static resetProgress() {
+        localStorage.removeItem(this.STORAGE_KEY);
+    }
+}
+
+
+/***/ },
+
 /***/ "./src/client/core/Camera.js"
 /*!***********************************!*\
   !*** ./src/client/core/Camera.js ***!
@@ -7728,6 +7767,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _shared_Entity_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../shared/Entity.js */ "./src/shared/Entity.js");
 /* harmony import */ var _shared_MapGenerator_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../shared/MapGenerator.js */ "./src/shared/MapGenerator.js");
 /* harmony import */ var _systems_SoundManager_js__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../systems/SoundManager.js */ "./src/client/systems/SoundManager.js");
+/* harmony import */ var _shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../shared/CampaignConfig.js */ "./src/shared/CampaignConfig.js");
+/* harmony import */ var _CampaignManager_js__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../CampaignManager.js */ "./src/client/CampaignManager.js");
+
+
 
 
 
@@ -7739,9 +7782,29 @@ class SingleplayerController {
         this.game = game;
         this.ais = [];
         this.gameOverShown = false;
+
+        // Tutorial State
+        this.tutorialSteps = [];
+        this.currentTutorialStep = 0;
+        this.tutorialTimer = 0;
+        this.tutorialActive = false;
     }
 
-    setup(playerCount = 1, difficulty = 'intermediate', testMode = false) {
+    setup(playerCount = 1, difficulty = 'intermediate', testMode = false, campaignId = null) {
+        this.campaignId = campaignId;
+        this.isCampaign = campaignId !== null;
+        let campaignConfig = null;
+
+        if (this.isCampaign) {
+            campaignConfig = _shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_5__.CampaignLevels.find(l => l.id === parseInt(this.campaignId));
+            if (!campaignConfig) {
+                console.error("Campaign level not found. Falling back to default.");
+                this.isCampaign = false;
+            } else {
+                playerCount = 1 + campaignConfig.enemies.length;
+            }
+        }
+
         this.game.state.playerCount = playerCount;
 
         // In test mode, force easy difficulty but respect player count
@@ -7752,7 +7815,7 @@ class SingleplayerController {
         this.game.state.difficulty = difficulty;
         this.testMode = testMode;
         this.playerIndex = 0;
-        this.createLevel();
+        this.createLevel(campaignConfig);
         this.createInitialEntities(testMode);
 
         // Center camera on human player's home node
@@ -7771,17 +7834,63 @@ class SingleplayerController {
             'impossible': 'Impossible'
         };
 
-        // Create AIs for CPUs (indices > 0)
-        for (let i = 1; i < playerCount; i++) {
-            const aiDifficulty = difficultyMap[difficulty] || 'Normal';
-            this.ais.push(new _shared_AIController_js__WEBPACK_IMPORTED_MODULE_0__.AIController(this.game, i, aiDifficulty));
+        if (this.isCampaign) {
+            // Load specific AIs
+            campaignConfig.enemies.forEach(enemy => {
+                const ai = new _shared_AIController_js__WEBPACK_IMPORTED_MODULE_0__.AIController(this.game, enemy.id, enemy.difficulty);
+                ai.personality = enemy.personality; // Override personality if set
+                this.ais.push(ai);
+            });
+
+            if (campaignConfig.tutorialSteps) {
+                this.tutorialSteps = campaignConfig.tutorialSteps;
+                this.tutorialActive = true;
+                this.currentTutorialStep = 0;
+                this.tutorialTimer = 0;
+            }
+        } else {
+            // Create AIs for CPUs (indices > 0)
+            for (let i = 1; i < playerCount; i++) {
+                const aiDifficulty = difficultyMap[difficulty] || 'Normal';
+                this.ais.push(new _shared_AIController_js__WEBPACK_IMPORTED_MODULE_0__.AIController(this.game, i, aiDifficulty));
+            }
         }
     }
 
-    createLevel() {
-        const width = this.game.state.worldWidth;
-        const height = this.game.state.worldHeight;
-        this.game.state.nodes = _shared_MapGenerator_js__WEBPACK_IMPORTED_MODULE_3__.MapGenerator.generate(this.game.state.playerCount, width, height);
+    createLevel(campaignConfig = null) {
+        let width = this.game.state.worldWidth;
+        let height = this.game.state.worldHeight;
+
+        if (campaignConfig && campaignConfig.mapConfig) {
+            // Override with campaign configs
+            const sizeMap = {
+                'small': { w: 1500, h: 1000 },
+                'medium': { w: 2500, h: 1800 },
+                'large': { w: 4000, h: 3000 },
+                'epic': { w: 6000, h: 4500 }
+            };
+
+            const sz = sizeMap[campaignConfig.mapConfig.size];
+            if (sz) {
+                width = sz.w;
+                height = sz.h;
+                this.game.state.worldWidth = width;
+                this.game.state.worldHeight = height;
+            }
+
+            // Fixed nodes override
+            const fixedNodes = campaignConfig.mapConfig ? campaignConfig.mapConfig.fixedNodes : null;
+
+            // Otherwise generate random map but with config parameters
+            this.game.state.nodes = _shared_MapGenerator_js__WEBPACK_IMPORTED_MODULE_3__.MapGenerator.generate(
+                this.game.state.playerCount,
+                width,
+                height,
+                fixedNodes || null
+            );
+        } else {
+            this.game.state.nodes = _shared_MapGenerator_js__WEBPACK_IMPORTED_MODULE_3__.MapGenerator.generate(this.game.state.playerCount, width, height);
+        }
     }
 
     createInitialEntities(testMode = false) {
@@ -7852,8 +7961,56 @@ class SingleplayerController {
         }
     }
 
+    handleTutorial(dt) {
+        const step = this.tutorialSteps[this.currentTutorialStep];
+        if (!step) return;
+
+        let completed = false;
+
+        if (step.trigger === 'time') {
+            this.tutorialTimer += dt * 1000; // ms
+            if (this.tutorialTimer >= step.delay) {
+                completed = true;
+            }
+        } else if (step.trigger === 'units') {
+            const playerUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner === 0).length;
+            if (playerUnits >= step.count) {
+                completed = true;
+            }
+        } else if (step.trigger === 'nodes') {
+            const playerNodes = this.game.state.nodes.filter(n => n.owner === 0).length;
+            if (playerNodes >= step.count) {
+                completed = true;
+            }
+        }
+
+        // Display current step text if it has one and we are waiting
+        const msgEl = document.getElementById('tutorial-message');
+        if (msgEl) {
+            if (step.text) {
+                msgEl.style.display = 'block';
+                msgEl.textContent = step.text;
+            } else {
+                msgEl.style.display = 'none';
+            }
+        }
+
+        if (completed) {
+            this.currentTutorialStep++;
+            this.tutorialTimer = 0;
+            if (this.currentTutorialStep >= this.tutorialSteps.length) {
+                this.tutorialActive = false;
+                if (msgEl) msgEl.style.display = 'none';
+            }
+        }
+    }
+
     update(dt) {
         this.ais.forEach(ai => ai.update(dt));
+
+        if (this.tutorialActive && this.currentTutorialStep < this.tutorialSteps.length) {
+            this.handleTutorial(dt);
+        }
 
         // Path-following logic for singleplayer (feeder for worker)
         if (this.game.useWorker) {
@@ -7925,6 +8082,9 @@ class SingleplayerController {
 
         if (won) {
             _systems_SoundManager_js__WEBPACK_IMPORTED_MODULE_4__.sounds.playWin();
+            if (this.isCampaign) {
+                _CampaignManager_js__WEBPACK_IMPORTED_MODULE_6__.CampaignManager.completeLevel(parseInt(this.campaignId));
+            }
         } else {
             _systems_SoundManager_js__WEBPACK_IMPORTED_MODULE_4__.sounds.playLose();
         }
@@ -8019,13 +8179,21 @@ class SingleplayerController {
             ${statsHTML}
             
             <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px;">
-                <button onclick="location.reload()" style="
+                ${this.isCampaign && won && parseInt(this.campaignId) < _shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_5__.CampaignLevels.length - 1 ?
+                `<button onclick="window.location.href='singleplayer.html?campaign=${parseInt(this.campaignId) + 1}'" style="
+                    padding: 14px 35px; background: ${color}; border: none; border-radius: 4px;
+                    color: white; font-family: 'Courier New', monospace; font-weight: bold;
+                    font-size: 13px; cursor: pointer; letter-spacing: 2px;
+                    transition: all 0.2s; box-shadow: 0 4px 15px ${color}33;">
+                    SIGUIENTE NIVEL
+                </button>` :
+                `<button onclick="location.reload()" style="
                     padding: 14px 35px; background: ${color}; border: none; border-radius: 4px;
                     color: white; font-family: 'Courier New', monospace; font-weight: bold;
                     font-size: 13px; cursor: pointer; letter-spacing: 2px;
                     transition: all 0.2s; box-shadow: 0 4px 15px ${color}33;">
                     REINTENTAR
-                </button>
+                </button>`}
                 <button onclick="location.href='index.html'" style="
                     padding: 14px 35px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
                     border-radius: 4px; color: #aaa; font-family: 'Courier New', monospace;
@@ -8065,7 +8233,7 @@ class SingleplayerController {
 
             let dataArray = [];
             let title = '';
-            let timeScale = 1; 
+            let timeScale = 1;
 
             // Update active button style
             ['prod', 'units', 'nodes'].forEach(t => {
@@ -8217,7 +8385,7 @@ class SingleplayerController {
             ctx.font = 'bold 13px "Courier New"';
             ctx.textAlign = 'center';
             ctx.fillText(title, w / 2, 18);
-            
+
             ctx.fillStyle = 'rgba(255,255,255,0.2)';
             ctx.font = '9px "Courier New"';
             ctx.fillText('SCROLL: ZOOM • DRAG: PAN', w / 2, h - 8);
@@ -9942,6 +10110,98 @@ class AIController {
         }
     }
 
+}
+
+
+/***/ },
+
+/***/ "./src/shared/CampaignConfig.js"
+/*!**************************************!*\
+  !*** ./src/shared/CampaignConfig.js ***!
+  \**************************************/
+(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CampaignLevels: () => (/* binding */ CampaignLevels),
+/* harmony export */   getCampaignLevel: () => (/* binding */ getCampaignLevel)
+/* harmony export */ });
+// shared/CampaignConfig.js
+
+const CampaignLevels = [
+    {
+        id: 0,
+        name: "Entrenamiento Básico",
+        description: "Aprende los conceptos básicos del movimiento y conquista.",
+        isTutorial: true,
+        mapConfig: {
+            numNodes: 5,
+            size: "small", // Using existing map sizes
+            fixedNodes: null, // No fixed positions for now, fallback to random
+        },
+        enemies: [
+            { id: 2, color: 0xFF4444, difficulty: 'Easy', personality: 'defensive' }
+        ]
+    },
+    {
+        id: 1,
+        name: "Expansión Rápida",
+        description: "El enemigo es más agresivo, captura nodos neutrales rápido.",
+        isTutorial: false,
+        mapConfig: {
+            numNodes: 8,
+            size: "small",
+        },
+        enemies: [
+            { id: 2, color: 0xFF4444, difficulty: 'Intermediate', personality: 'expansive' }
+        ]
+    },
+    {
+        id: 2,
+        name: "Cuellos de Botella",
+        description: "Encuentro en un mapa un poco más grande.",
+        isTutorial: false,
+        mapConfig: {
+            numNodes: 12,
+            size: "medium",
+        },
+        enemies: [
+            { id: 2, color: 0xFF4444, difficulty: 'Intermediate', personality: 'aggressive' }
+        ]
+    },
+    {
+        id: 3,
+        name: "Batalla a Tres Bandas",
+        description: "Aparece un nuevo contendiente Azul.",
+        isTutorial: false,
+        mapConfig: {
+            numNodes: 15,
+            size: "medium",
+        },
+        enemies: [
+            { id: 2, color: 0xFF4444, difficulty: 'Normal', personality: 'defensive' },
+            { id: 3, color: 0x4444FF, difficulty: 'Normal', personality: 'expansive' }
+        ]
+    },
+    {
+        id: 4,
+        name: "Primera Prueba de Fuego",
+        description: "El enemigo Rojo no se rinde fácilmente.",
+        isTutorial: false,
+        mapConfig: {
+            numNodes: 20,
+            size: "large",
+        },
+        enemies: [
+            { id: 2, color: 0xFF4444, difficulty: 'Hard', personality: 'aggressive' }
+            // Added up to level 5 just to prove the concept for Phase 1
+        ]
+    }
+];
+
+function getCampaignLevel(id) {
+    return CampaignLevels.find(level => level.id === id) || null;
 }
 
 
@@ -12139,8 +12399,22 @@ class MapGenerator {
         return (_GameConfig_js__WEBPACK_IMPORTED_MODULE_1__.NODE_CONFIG[type] && _GameConfig_js__WEBPACK_IMPORTED_MODULE_1__.NODE_CONFIG[type].radius) || 40;
     }
 
-    static generate(playerCount, worldWidth, worldHeight) {
+    static generate(playerCount, worldWidth, worldHeight, fixedNodes = null) {
         let finalNodes = [];
+
+        if (fixedNodes && fixedNodes.length > 0) {
+            // Bypass random generation and use fixed layout
+            console.log(`Loading fixed map layout with ${fixedNodes.length} nodes.`);
+            fixedNodes.forEach((n, index) => {
+                const node = new _Node_js__WEBPACK_IMPORTED_MODULE_0__.Node(index, n.x, n.y, n.owner, n.type);
+                if (n.baseHp !== undefined) node.baseHp = n.baseHp;
+                if (n.maxHp !== undefined) node.maxHp = n.maxHp;
+                if (n.radius !== undefined) node.radius = n.radius;
+                finalNodes.push(node);
+            });
+            return finalNodes;
+        }
+
         const minNodes = Math.max(8, playerCount * 4);
         const maxNodes = playerCount * 15;
         let attempts = 0;
@@ -13841,6 +14115,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _systems_SoundManager_js__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./systems/SoundManager.js */ "./src/client/systems/SoundManager.js");
 /* harmony import */ var _shared_GameConfig_js__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../shared/GameConfig.js */ "./src/shared/GameConfig.js");
 /* harmony import */ var _shared_Entity_js__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ../shared/Entity.js */ "./src/shared/Entity.js");
+/* harmony import */ var _shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ../shared/CampaignConfig.js */ "./src/shared/CampaignConfig.js");
+/* harmony import */ var _CampaignManager_js__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./CampaignManager.js */ "./src/client/CampaignManager.js");
+
+
 
 
 
@@ -13869,11 +14147,12 @@ window.initGame = (mode) => {
         const difficulty = urlParams.get('difficulty') || 'intermediate';
         const testMode = urlParams.get('test') === '1';
         const colorIndex = parseInt(urlParams.get('color')) || 0;
+        const campaignId = urlParams.get('campaign');
 
         (0,_shared_GameConfig_js__WEBPACK_IMPORTED_MODULE_8__.setPlayerColor)(colorIndex);
 
         game.controller = new _modes_SingleplayerController_js__WEBPACK_IMPORTED_MODULE_4__.SingleplayerController(game);
-        game.controller.setup(playerCount, difficulty, testMode);
+        game.controller.setup(playerCount, difficulty, testMode, campaignId);
 
         // Show game UI and screen
         const ui = document.getElementById('ui');
@@ -13899,7 +14178,7 @@ window.initGame = (mode) => {
     }
 
     // -- HUD BUTTONS SETUP --
-    
+
     // 0. Help
     const helpBtn = document.getElementById('help-btn');
     if (helpBtn) {
@@ -13927,10 +14206,10 @@ window.initGame = (mode) => {
     if (surrenderBtn) {
         surrenderBtn.style.display = 'flex';
         surrenderBtn.addEventListener('click', () => {
-            const confirmMsg = mode === 'multiplayer' ? 
+            const confirmMsg = mode === 'multiplayer' ?
                 '¿Estás seguro de que quieres rendirte? Los nodos pasarán a ser neutrales.' :
                 '¿Estás seguro de que quieres rendirte?';
-            
+
             if (confirm(confirmMsg)) {
                 if (game.controller && game.controller.surrender) game.controller.surrender();
             }
@@ -13991,6 +14270,77 @@ window.initGame = (mode) => {
 
     return game;
 };
+
+// --- CAMPAIGN UI LOGIC ---
+let selectedCampaignId = null;
+
+window.renderCampaignGrid = () => {
+    const grid = document.getElementById('campaign-grid');
+    if (!grid) return;
+
+    // Create elements if not already there, up to 50
+    const unlockedLevelId = _CampaignManager_js__WEBPACK_IMPORTED_MODULE_11__.CampaignManager.getUnlockedLevel();
+    grid.innerHTML = '';
+
+    // Render the 50 slots (even if configured levels don't exist yet, we show placeholders)
+    for (let i = 0; i < 50; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'ui-btn-game';
+        btn.textContent = i === 0 ? 'T' : (i).toString();
+        btn.style.width = '100%';
+        btn.style.height = '40px';
+        btn.style.fontSize = '12px';
+
+        const isUnlocked = i <= unlockedLevelId;
+        const config = _shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_10__.CampaignLevels.find(l => l.id === i);
+
+        if (!isUnlocked) {
+            btn.style.opacity = '0.2';
+            btn.style.cursor = 'not-allowed';
+            btn.textContent = '🔒';
+        } else if (!config) {
+            // Level is unlocked but not yet implemented in Config
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.title = 'Próximamente';
+        } else {
+            // Unlocked and playable
+            if (i < unlockedLevelId) {
+                btn.style.borderColor = '#4CAF50';
+                btn.style.color = '#4CAF50';
+            } else {
+                btn.style.borderColor = '#FFEB3B';
+                btn.style.color = '#FFEB3B';
+                btn.style.boxShadow = '0 0 10px rgba(255, 235, 59, 0.3)';
+            }
+
+            btn.addEventListener('click', () => {
+                selectedCampaignId = i;
+                document.getElementById('campaign-level-title').textContent = `Misión ${i}: ${config.name}`;
+                document.getElementById('campaign-level-desc').textContent = config.description || 'Sin descripción.';
+                document.getElementById('btn-start-campaign').disabled = false;
+
+                // Visual selection
+                Array.from(grid.children).forEach(c => c.style.background = 'transparent');
+                btn.style.background = 'rgba(255, 255, 255, 0.2)';
+            });
+        }
+
+        grid.appendChild(btn);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnStartCampaign = document.getElementById('btn-start-campaign');
+    if (btnStartCampaign) {
+        btnStartCampaign.addEventListener('click', () => {
+            if (selectedCampaignId !== null) {
+                // We pass the campaign id in the URL
+                window.location.href = `singleplayer.html?campaign=${selectedCampaignId}`;
+            }
+        });
+    }
+});
 
 // Auto-init based on page
 document.addEventListener('DOMContentLoaded', () => {

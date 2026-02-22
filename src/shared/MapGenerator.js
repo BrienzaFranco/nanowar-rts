@@ -11,8 +11,22 @@ export class MapGenerator {
         return (NODE_CONFIG[type] && NODE_CONFIG[type].radius) || 40;
     }
 
-    static generate(playerCount, worldWidth, worldHeight) {
+    static generate(playerCount, worldWidth, worldHeight, fixedNodes = null) {
         let finalNodes = [];
+
+        if (fixedNodes && fixedNodes.length > 0) {
+            // Bypass random generation and use fixed layout
+            console.log(`Loading fixed map layout with ${fixedNodes.length} nodes.`);
+            fixedNodes.forEach((n, index) => {
+                const node = new Node(index, n.x, n.y, n.owner, n.type);
+                if (n.baseHp !== undefined) node.baseHp = n.baseHp;
+                if (n.maxHp !== undefined) node.maxHp = n.maxHp;
+                if (n.radius !== undefined) node.radius = n.radius;
+                finalNodes.push(node);
+            });
+            return finalNodes;
+        }
+
         const minNodes = Math.max(8, playerCount * 4);
         const maxNodes = playerCount * 15;
         let attempts = 0;

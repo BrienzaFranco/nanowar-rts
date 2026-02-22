@@ -147,7 +147,7 @@
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 6px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
         }
 
         .ui-btn-game:hover {
@@ -155,7 +155,7 @@
             color: #4CAF50;
             background: rgba(76, 175, 80, 0.08);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .ui-btn-game.danger {
@@ -425,9 +425,9 @@
             </div>
 
             <div class="mode-buttons">
-                <div class="btn-mode disabled">
-                    <h3>CAMPAÑA</h3>
-                    <p>Misiones clasíficadas. (Próximamente)</p>
+                <div class="btn-mode" id="btn-mode-campaign">
+                    <h3 style="color: #FFEB3B;">MODO CAMPAÑA</h3>
+                    <p>Misiones clasíficas para un solo jugador.</p>
                 </div>
                 <div class="btn-mode" id="btn-mode-single">
                     <h3>SINGLEPLAYER</h3>
@@ -438,6 +438,28 @@
                     <p>Combate táctico en red contra otros comandantes.</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- SCREEN: CAMPAIGN SELECTOR -->
+    <div id="screen-campaign" class="screen">
+        <div class="menu-container" style="max-width: 800px;">
+            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #FFEB3B;">
+                MAPA ESTELAR - CAMPAÑA</h2>
+
+            <div id="campaign-grid"
+                style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; margin-bottom: 30px;">
+                <!-- Filled via JS -->
+            </div>
+
+            <div style="text-align: left; margin-bottom: 20px; font-size: 12px; opacity: 0.8; height: 60px;">
+                <h3 id="campaign-level-title" style="margin: 0 0 5px; color: #FFEB3B;">--</h3>
+                <p id="campaign-level-desc" style="margin: 0;">Selecciona una misión.</p>
+            </div>
+
+            <button class="btn" id="btn-start-campaign" style="border-color: #FFEB3B; color: #FFEB3B;" disabled>INICIAR
+                MISIÓN</button>
+            <button class="btn secondary" id="btn-back-modes-campaign">← VOLVER</button>
         </div>
     </div>
 
@@ -535,7 +557,8 @@
 
     <!-- SCREEN 6: GAME SCREEN -->
     <div id="game-screen" class="screen" style="padding: 0; background: #000;">
-        <div id="ui" style="display:none; position: fixed; top: 15px; left: 15px; z-index: 100; display: flex; gap: 8px; pointer-events: none;">
+        <div id="ui"
+            style="display:none; position: fixed; top: 15px; left: 15px; z-index: 100; display: flex; gap: 8px; pointer-events: none;">
             <button id="menu-btn" class="ui-btn-game" title="Menú">←</button>
             <button id="mute-btn" class="ui-btn-game" title="Silenciar">🔊</button>
             <button id="help-btn" class="ui-btn-game" title="Controles">?</button>
@@ -543,6 +566,10 @@
         </div>
 
         <canvas id="game-canvas"></canvas>
+
+        <div id="tutorial-message"
+            style="display:none; position:fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(0, 50, 150, 0.9); border: 2px solid #4CAF50; color: white; padding: 15px 30px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 14px; z-index: 1000; box-shadow: 0 0 20px rgba(76, 175, 80, 0.5); text-align: center; max-width: 80%;">
+        </div>
     </div>
 
     <script src="dist/bundle.js"></script>
@@ -558,6 +585,7 @@
             // -- Screens --
             const screens = {
                 modes: document.getElementById('screen-modes'),
+                campaign: document.getElementById('screen-campaign'),
                 single: document.getElementById('screen-single'),
                 multi: document.getElementById('screen-multi'),
                 lobby: document.getElementById('lobby-screen'),
@@ -576,7 +604,7 @@
                 }
 
                 const profileBar = document.getElementById('commander-profile');
-                if (id === 'modes' || id === 'lobby' || id === 'game') {
+                if (id === 'modes' || id === 'lobby' || id === 'game' || id === 'campaign') {
                     profileBar.style.display = 'none';
                 }
             }
@@ -628,6 +656,11 @@
             });
 
             // -- INIT MODES --
+            document.getElementById('btn-mode-campaign').addEventListener('click', () => {
+                showScreen('campaign');
+                if (window.renderCampaignGrid) window.renderCampaignGrid();
+            });
+
             document.getElementById('btn-mode-single').addEventListener('click', () => {
                 showScreen('single');
                 populateColorPicker('single-color-picker', null);
@@ -649,6 +682,7 @@
             });
 
             // -- INIT SINGLEPLAYER --
+            document.getElementById('btn-back-modes-campaign').addEventListener('click', () => showScreen('modes'));
             document.getElementById('btn-back-modes-1').addEventListener('click', () => showScreen('modes'));
             document.getElementById('btn-back-modes-2').addEventListener('click', () => showScreen('modes'));
 

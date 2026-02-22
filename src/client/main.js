@@ -8,6 +8,8 @@ import { GameState } from '../shared/GameState.js';
 import { sounds } from './systems/SoundManager.js';
 import { setPlayerColor } from '../shared/GameConfig.js';
 import { Entity } from '../shared/Entity.js';
+import { CampaignLevels } from '../shared/CampaignConfig.js';
+import { CampaignManager } from './CampaignManager.js';
 
 window.initGame = (mode) => {
     const game = new Game('game-canvas');
@@ -26,11 +28,12 @@ window.initGame = (mode) => {
         const difficulty = urlParams.get('difficulty') || 'intermediate';
         const testMode = urlParams.get('test') === '1';
         const colorIndex = parseInt(urlParams.get('color')) || 0;
+        const campaignId = urlParams.get('campaign');
 
         setPlayerColor(colorIndex);
 
         game.controller = new SingleplayerController(game);
-        game.controller.setup(playerCount, difficulty, testMode);
+        game.controller.setup(playerCount, difficulty, testMode, campaignId);
 
         // Show game UI and screen
         const ui = document.getElementById('ui');
@@ -56,7 +59,7 @@ window.initGame = (mode) => {
     }
 
     // -- HUD BUTTONS SETUP --
-    
+
     // 0. Help
     const helpBtn = document.getElementById('help-btn');
     if (helpBtn) {
@@ -84,10 +87,10 @@ window.initGame = (mode) => {
     if (surrenderBtn) {
         surrenderBtn.style.display = 'flex';
         surrenderBtn.addEventListener('click', () => {
-            const confirmMsg = mode === 'multiplayer' ? 
+            const confirmMsg = mode === 'multiplayer' ?
                 '¿Estás seguro de que quieres rendirte? Los nodos pasarán a ser neutrales.' :
                 '¿Estás seguro de que quieres rendirte?';
-            
+
             if (confirm(confirmMsg)) {
                 if (game.controller && game.controller.surrender) game.controller.surrender();
             }
@@ -148,6 +151,77 @@ window.initGame = (mode) => {
 
     return game;
 };
+
+// --- CAMPAIGN UI LOGIC ---
+let selectedCampaignId = null;
+
+window.renderCampaignGrid = () => {
+    const grid = document.getElementById('campaign-grid');
+    if (!grid) return;
+
+    // Create elements if not already there, up to 50
+    const unlockedLevelId = CampaignManager.getUnlockedLevel();
+    grid.innerHTML = '';
+
+    // Render the 50 slots (even if configured levels don't exist yet, we show placeholders)
+    for (let i = 0; i < 50; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'ui-btn-game';
+        btn.textContent = i === 0 ? 'T' : (i).toString();
+        btn.style.width = '100%';
+        btn.style.height = '40px';
+        btn.style.fontSize = '12px';
+
+        const isUnlocked = i <= unlockedLevelId;
+        const config = CampaignLevels.find(l => l.id === i);
+
+        if (!isUnlocked) {
+            btn.style.opacity = '0.2';
+            btn.style.cursor = 'not-allowed';
+            btn.textContent = '🔒';
+        } else if (!config) {
+            // Level is unlocked but not yet implemented in Config
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            btn.title = 'Próximamente';
+        } else {
+            // Unlocked and playable
+            if (i < unlockedLevelId) {
+                btn.style.borderColor = '#4CAF50';
+                btn.style.color = '#4CAF50';
+            } else {
+                btn.style.borderColor = '#FFEB3B';
+                btn.style.color = '#FFEB3B';
+                btn.style.boxShadow = '0 0 10px rgba(255, 235, 59, 0.3)';
+            }
+
+            btn.addEventListener('click', () => {
+                selectedCampaignId = i;
+                document.getElementById('campaign-level-title').textContent = `Misión ${i}: ${config.name}`;
+                document.getElementById('campaign-level-desc').textContent = config.description || 'Sin descripción.';
+                document.getElementById('btn-start-campaign').disabled = false;
+
+                // Visual selection
+                Array.from(grid.children).forEach(c => c.style.background = 'transparent');
+                btn.style.background = 'rgba(255, 255, 255, 0.2)';
+            });
+        }
+
+        grid.appendChild(btn);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnStartCampaign = document.getElementById('btn-start-campaign');
+    if (btnStartCampaign) {
+        btnStartCampaign.addEventListener('click', () => {
+            if (selectedCampaignId !== null) {
+                // We pass the campaign id in the URL
+                window.location.href = `singleplayer.html?campaign=${selectedCampaignId}`;
+            }
+        });
+    }
+});
 
 // Auto-init based on page
 document.addEventListener('DOMContentLoaded', () => {
