@@ -350,7 +350,23 @@ export class SingleplayerController {
                         // All nodes lost
                         this.showGameOver(false);
                     }
+                    return;
                 }
+            }
+        }
+
+        // Final absolute defeat check
+        if (!playerAlive && !this.gameOverShown) {
+            this.showGameOver(false);
+            return;
+        }
+
+        // Final absolute victory check (only for standard mode with enemies)
+        if (isStandardWin && !enemiesAlive && !this.gameOverShown) {
+            const hasEnemiesInConfig = this.isCampaign && getCampaignLevel(parseInt(this.campaignId))?.enemies?.length > 0;
+            if (hasEnemiesInConfig || !this.isCampaign) {
+                this.showGameOver(true);
+                return;
             }
         }
 
@@ -372,12 +388,6 @@ export class SingleplayerController {
             }
         } else if (playerHasNodes) {
             this.playerLostNodesWarning = false;
-        }
-
-        if (!playerAlive) {
-            this.showGameOver(false);
-        } else if (!enemiesAlive) {
-            this.showGameOver(true);
         }
     }
 
