@@ -157,6 +157,8 @@ export class AIController {
             const sourceX = this.getNodeX(sourceIdx);
             const sourceY = this.getNodeY(sourceIdx);
             const sourceInfluence = this.getNodeInfluenceRadius(sourceIdx);
+            const nodeBaseHp = this.getNodeBaseHp(sourceIdx);
+            const nodeMaxHp = this.getNodeMaxHp(sourceIdx);
 
             const defenderIdxs = this.getEntitiesInRadius(sourceX, sourceY, sourceInfluence, this.playerId);
             const defenderCount = defenderIdxs.length;
