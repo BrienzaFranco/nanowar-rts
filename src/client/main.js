@@ -167,7 +167,7 @@ window.renderCampaignGrid = () => {
     for (let i = 0; i < 50; i++) {
         const btn = document.createElement('button');
         btn.className = 'ui-btn-game';
-        btn.textContent = i === 0 ? 'T' : (i).toString();
+        btn.textContent = (i + 1).toString();
         btn.style.width = '100%';
         btn.style.height = '40px';
         btn.style.fontSize = '12px';

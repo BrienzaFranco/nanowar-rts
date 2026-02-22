@@ -10218,53 +10218,10 @@ __webpack_require__.r(__webpack_exports__);
 
 const CampaignLevels = [
     // Phase 1: Recluta (0-4)
-    // Phase 0: Tutoriales Obligatorios (0-3)
-    {
-        id: 0,
-        name: "Tutorial 1: Conquista",
-        description: "Aprende a mover tus tropas para capturar territorio.",
-        isTutorial: true,
-        mapConfig: {
-            size: "small",
-            fixedNodes: [
-                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 }, // Player
-                { x: 750, y: 500, owner: -1, type: 1, baseHp: 5 }, // Neutral
-                { x: 1100, y: 500, owner: 1, type: 2, baseHp: 10, productionDisabled: true } // Enemy
-            ],
-        },
-        enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
-        tutorialSteps: [
-            { trigger: 'time', delay: 1000, text: '¡Bienvenido Comandante! El nodo VERDE es tu base.' },
-            { trigger: 'time', delay: 4000, text: 'HAZ CLICK Y ARRASTRA desde tu nodo hacia el nodo GRIS para enviar tropas.' },
-            { trigger: 'nodes', count: 2, text: '¡Bien! Los nodos conquistados generan unidades automáticamente.' },
-            { trigger: 'units', count: 15, text: 'FINALIZACIÓN: Ataca el nodo ROJO ahora para ganar.' }
-        ]
-    },
-    {
-        id: 1,
-        name: "Tutorial 2: Sanación",
-        description: "Tus nodos heridos necesitan tropas para recuperarse.",
-        isTutorial: true,
-        winCondition: { type: 'unitsToGoal', nodeId: 0, goal: 30 }, // Goal: Put 30 units in the node
-        mapConfig: {
-            size: "small",
-            fixedNodes: [
-                { x: 400, y: 500, owner: 0, type: 2, baseHp: 2 }, // Dying Player Node
-                { x: 1200, y: 500, owner: 1, type: 2, baseHp: 50, productionDisabled: true } // Inactive Enemy
-            ],
-            initialEntities: [
-                { x: 250, y: 500, owner: 0, count: 35 } // Start with units nearby
-            ]
-        },
-        enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
-        tutorialSteps: [
-            { trigger: 'time', delay: 1000, text: '¡ALERTA! Tu nodo principal está a punto de colapsar (baja vida).' },
-            { trigger: 'time', delay: 4000, text: 'ORDEN: Envía tus unidades de vuelta al nodo VERDE para sanarlo.' },
-            { trigger: 'time', delay: 8000, text: 'RECUERDA: Mantener tus nodos con vida alta maximiza la producción.' }
-        ]
-    },
-    { id: 2, name: "Misión 1: Frontera Real", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
-    { id: 3, name: "Misión 2: Escaramuza Rival", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
+    { id: 0, name: "Misión 1: Frontera Real", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
+    { id: 1, name: "Misión 2: Escaramuza Rival", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
+    { id: 2, name: "Misión 3: Paso Estrecho", description: "Controla los cuellos de botella.", mapConfig: { numNodes: 12, size: 'small' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 3, name: "Misión 4: Refuerzos", description: "Rojo tiene reservas ocultas.", mapConfig: { numNodes: 14, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'defensive' }] },
     { id: 4, name: "Misión 5: Jefe de División", description: "El comandante Rojo se defiende con todo.", mapConfig: { numNodes: 15, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
 
     // Phase 2: Expansión (5-14)
@@ -10320,7 +10277,30 @@ const CampaignLevels = [
     { id: 46, name: "Misión 47: Oscuridad Creciente", description: "La amenaza consume nodos neutrales rápidamente.", mapConfig: { numNodes: 50, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Expert', personality: 'expansive' }] },
     { id: 47, name: "Misión 48: El Vórtice", description: "Flanqueos masivos requeridos para frenar su avance.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }] },
     { id: 48, name: "Misión 49: La Última Alianza", description: "Las demás facciones intentan sobrevivir la purga del Vacío.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'balanced' }, { id: 1, difficulty: 'Easy', personality: 'defensive' }, { id: 2, difficulty: 'Easy', personality: 'defensive' }] },
-    { id: 49, name: "Misión 50: ERROR FATAL 0x00000", description: "1 contra 1 definitivo. IA Imposible. Sin aliados. Sobrevive.", mapConfig: { numNodes: 75, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }] }
+    {
+        id: 49,
+        name: "Misión 50: EVENT HORIZON",
+        description: "1 vs 1 Definitivo. El Vacío te espera. Sin esperanza.",
+        mapConfig: {
+            size: "epic",
+            fixedNodes: [
+                { x: 500, y: 1500, owner: 0, type: 2, baseHp: 100 }, // Player (Strong start, but far away)
+                { x: 3500, y: 1000, owner: 8, type: 4, baseHp: 200 }, // AI Boss 1
+                { x: 3500, y: 1500, owner: 8, type: 5, baseHp: 300 }, // AI Boss 2 (Mega)
+                { x: 3500, y: 2000, owner: 8, type: 4, baseHp: 200 }, // AI Boss 3
+                // Defensive wall of neutral nodes for AI
+                { x: 3000, y: 1200, owner: -1, type: 3, baseHp: 50 },
+                { x: 3000, y: 1500, owner: -1, type: 3, baseHp: 50 },
+                { x: 3000, y: 1800, owner: -1, type: 3, baseHp: 50 },
+                // Scattered neutral nodes
+                { x: 1000, y: 500, owner: -1, type: 1 },
+                { x: 1000, y: 2500, owner: -1, type: 1 },
+                { x: 2000, y: 1500, owner: -1, type: 2 },
+            ],
+            numNodes: 15 // Random filler nodes
+        },
+        enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }]
+    }
 ];
 
 const TutorialLevels = [
@@ -11288,7 +11268,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 const DEFAULT_COLORS = [
     '#4CAF50', '#f44336', '#2196F3', '#FF9800',
-    '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63'
+    '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63', '#000000'
 ];
 
 let PLAYER_COLORS = [...DEFAULT_COLORS];
@@ -14524,7 +14504,7 @@ window.renderCampaignGrid = () => {
     for (let i = 0; i < 50; i++) {
         const btn = document.createElement('button');
         btn.className = 'ui-btn-game';
-        btn.textContent = i === 0 ? 'T' : (i).toString();
+        btn.textContent = (i + 1).toString();
         btn.style.width = '100%';
         btn.style.height = '40px';
         btn.style.fontSize = '12px';
