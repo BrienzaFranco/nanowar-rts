@@ -304,81 +304,65 @@ export class SingleplayerController {
 
         if (this.gameOverShown) return;
 
-        const playerNodes = this.game.state.nodes.filter(n => n.owner === 0);
-        const enemyNodes = this.game.state.nodes.filter(n => n.owner > 0);
+        // --- 1. Basic State Assessment ---
+        const playerNodes = this.game.state.nodes.filter(n => n.owner === this.playerIndex);
+        const enemyNodes = this.game.state.nodes.filter(n => n.owner !== this.playerIndex && n.owner !== -1);
 
-        const playerUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner === 0);
-        const enemyUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner > 0);
+        const playerUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner === this.playerIndex);
+        const enemyUnits = this.game.state.entities.filter(e => !e.dead && !e.dying && e.owner !== this.playerIndex && e.owner !== -1);
 
         const playerHasNodes = playerNodes.length > 0;
-        const enemiesHaveNodes = enemyNodes.length > 0;
         const playerAlive = playerHasNodes || playerUnits.length > 0;
-        const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;
+        const enemiesAlive = enemyNodes.length > 0 || enemyUnits.length > 0;
 
-        // Custom Win Condition Check
-        if (this.winCondition) {
-            if (this.winCondition.type === 'unitsToGoal') {
-                const targetNode = this.game.state.nodes.find(n => n.id === this.winCondition.nodeId);
-                if (targetNode && targetNode.defendersInside >= this.winCondition.goal) {
-                    this.showGameOver(true);
-                    return;
-                }
-            } else if (this.winCondition.type === 'actionsComplete') {
-                const allDone = this.winCondition.actions.every(action => this.actionsPerformed.has(action));
-                if (allDone) {
-                    this.showGameOver(true);
-                    return;
-                }
-            } else if (this.winCondition.type === 'nodes') {
-                const pNodes = this.game.state.nodes.filter(n => n.owner === this.playerIndex).length;
-                if (pNodes >= this.winCondition.count) {
-                    this.showGameOver(true);
-                    return;
-                }
-            }
-        }
-
-        // Standard win condition check (only if no custom win condition, or explicitly standard)
-        const isStandardWin = !this.winCondition || this.winCondition.type === 'standard';
-
-        // BUG FIX: Strictly prevent standard victory in tutorials that have custom goals
-        const isTutorialWithCustomGoal = this.isCampaign && parseInt(this.campaignId) >= 100 && this.winCondition && this.winCondition.type !== 'standard';
-
-        if (isStandardWin && !this.gameOverShown && !isTutorialWithCustomGoal) {
-            const playersWithNodes = new Set(this.game.state.nodes.filter(n => n.owner !== -1).map(n => n.owner));
-
-            // In tutorials without enemies, don't trigger standard victory automatically
-            const campaignLevel = this.isCampaign ? getCampaignLevel(parseInt(this.campaignId)) : null;
-            const hasEnemiesInConfig = campaignLevel && campaignLevel.enemies && campaignLevel.enemies.length > 0;
-            const isFreePlay = !this.isCampaign;
-
-            if (isFreePlay || hasEnemiesInConfig || (this.winCondition && this.winCondition.type === 'standard')) {
-                if (playersWithNodes.size <= 1) {
-                    const winner = Array.from(playersWithNodes)[0];
-                    if (winner !== undefined) {
-                        this.showGameOver(winner === this.playerIndex);
-                    } else {
-                        // All nodes lost
-                        this.showGameOver(false);
-                    }
-                    return;
-                }
-            }
-        }
-
-        // Final absolute defeat check
+        // --- 2. Global Defeat Condition (Universal) ---
         if (!playerAlive && !this.gameOverShown) {
             this.showGameOver(false);
             return;
         }
 
-        // Final absolute victory check (only for standard mode with enemies)
-        if (isStandardWin && !enemiesAlive && !this.gameOverShown && !isTutorialWithCustomGoal) {
-            const campaignLevel = this.isCampaign ? getCampaignLevel(parseInt(this.campaignId)) : null;
-            const hasEnemiesInConfig = campaignLevel && campaignLevel.enemies && campaignLevel.enemies.length > 0;
-            if (hasEnemiesInConfig || !this.isCampaign) {
+        // --- 3. Objective-Based Victory (Priority) ---
+        if (this.winCondition && this.winCondition.type !== 'standard') {
+            let victoryTriggered = false;
+
+            if (this.winCondition.type === 'unitsToGoal') {
+                const targetNode = this.game.state.nodes.find(n => n.id === this.winCondition.nodeId);
+                // In unitsToGoal, defendersInside counts units that ARE inside or VERY close to entering
+                if (targetNode && targetNode.defendersInside >= this.winCondition.goal) {
+                    victoryTriggered = true;
+                }
+            } else if (this.winCondition.type === 'actionsComplete') {
+                const allDone = this.winCondition.actions.every(action => this.actionsPerformed.has(action));
+                if (allDone) victoryTriggered = true;
+            } else if (this.winCondition.type === 'nodes') {
+                if (playerNodes.length >= this.winCondition.count) {
+                    victoryTriggered = true;
+                }
+            }
+
+            if (victoryTriggered) {
                 this.showGameOver(true);
                 return;
+            }
+
+            // IMPORTANT: If we have a special objective, we STOP HERE for victory.
+            // Eliminating enemies does NOT give victory unless the objective says so.
+            // But we still check for warning messages below.
+        } else {
+            // --- 4. Standard Elimination Victory ---
+            // Only triggers if no winCondition is set, or type is explicitly 'standard'
+            const isStandard = !this.winCondition || this.winCondition.type === 'standard';
+
+            if (isStandard && !enemiesAlive && !this.gameOverShown) {
+                // In Free Play there are always enemies (or it's pointless)
+                // In Campaign, we check if enemies were intended
+                const campaignLevel = this.isCampaign ? getCampaignLevel(parseInt(this.campaignId)) : null;
+                const hadEnemies = !this.isCampaign || (campaignLevel && campaignLevel.enemies && campaignLevel.enemies.length > 0);
+
+                if (hadEnemies) {
+                    this.showGameOver(true);
+                    return;
+                }
             }
         }
 

@@ -2,11 +2,11 @@
 
 export const CampaignLevels = [
     // Phase 1: Recluta (0-4)
-    { id: 0, name: "Misión 1: Frontera Real", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
-    { id: 1, name: "Misión 2: Escaramuza Rival", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
-    { id: 2, name: "Misión 3: Paso Estrecho", description: "Controla los cuellos de botella.", mapConfig: { numNodes: 12, size: 'small' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
-    { id: 3, name: "Misión 4: Refuerzos", description: "Rojo tiene reservas ocultas.", mapConfig: { numNodes: 14, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'defensive' }] },
-    { id: 4, name: "Misión 5: Jefe de División", description: "El comandante Rojo se defiende con todo.", mapConfig: { numNodes: 15, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 0, name: "Misión 1: Frontera Real", description: "Rojo empieza a moverse. Captura rápido.", winCondition: { type: 'standard' }, mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
+    { id: 1, name: "Misión 2: Escaramuza Rival", description: "Rojo competirá por los neutrales.", winCondition: { type: 'standard' }, mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
+    { id: 2, name: "Misión 3: Paso Estrecho", description: "Controla los cuellos de botella.", winCondition: { type: 'standard' }, mapConfig: { numNodes: 12, size: 'small' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 3, name: "Misión 4: Refuerzos", description: "Rojo tiene reservas ocultas.", winCondition: { type: 'standard' }, mapConfig: { numNodes: 14, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'defensive' }] },
+    { id: 4, name: "Misión 5: Jefe de División", description: "El comandante Rojo se defiende con todo.", winCondition: { type: 'standard' }, mapConfig: { numNodes: 15, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
 
     // Phase 2: Expansión (5-14)
     { id: 5, name: "Misión 6: Un Nuevo Enemigo", description: "Aparece un contendiente Azul.", mapConfig: { numNodes: 18, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'balanced' }, { id: 2, difficulty: 'Intermediate', personality: 'balanced' }] },
@@ -175,6 +175,7 @@ export const TutorialLevels = [
         name: "5. Partida de Formación",
         description: "Una batalla real sencilla contra un oponente básico.",
         isTutorial: true,
+        winCondition: { type: 'standard' },
         mapConfig: { numNodes: 6, size: 'small' },
         enemies: [{ id: 1, difficulty: 'Easy', personality: 'balanced' }],
         tutorialSteps: [
