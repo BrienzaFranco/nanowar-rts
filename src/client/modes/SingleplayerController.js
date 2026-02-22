@@ -17,6 +17,7 @@ export class SingleplayerController {
         this.currentTutorialStep = 0;
         this.tutorialTimer = 0;
         this.tutorialActive = false;
+        this.winCondition = null;
     }
 
     setup(playerCount = 1, difficulty = 'intermediate', testMode = false, campaignId = null) {
@@ -77,6 +78,10 @@ export class SingleplayerController {
                 this.currentTutorialStep = 0;
                 this.tutorialTimer = 0;
             }
+
+            if (campaignConfig.winCondition) {
+                this.winCondition = campaignConfig.winCondition;
+            }
         } else {
             // Create AIs for CPUs (indices > 0)
             for (let i = 1; i < playerCount; i++) {
@@ -117,6 +122,23 @@ export class SingleplayerController {
                 height,
                 fixedNodes || null
             );
+
+            // Spawn initial tutorial entities if defined
+            if (campaignConfig.mapConfig.initialEntities) {
+                campaignConfig.mapConfig.initialEntities.forEach(group => {
+                    for (let i = 0; i < group.count; i++) {
+                        // Offset slightly
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * 50;
+                        const ent = new Entity(
+                            group.x + Math.cos(angle) * dist,
+                            group.y + Math.sin(angle) * dist,
+                            group.owner
+                        );
+                        this.game.state.entities.push(ent);
+                    }
+                });
+            }
         } else {
             this.game.state.nodes = MapGenerator.generate(this.game.state.playerCount, width, height);
         }
@@ -277,6 +299,17 @@ export class SingleplayerController {
 
         const playerHasNodes = playerNodes.length > 0;
         const enemiesHaveNodes = enemyNodes.length > 0;
+
+        // Custom Win Condition Check
+        if (this.winCondition) {
+            if (this.winCondition.type === 'unitsToGoal') {
+                const targetNode = this.game.state.nodes.find(n => n.id === this.winCondition.nodeId);
+                if (targetNode && targetNode.defendersInside >= this.winCondition.goal) {
+                    this.showGameOver(true);
+                    return;
+                }
+            }
+        }
 
         const playerAlive = playerHasNodes || playerUnits.length > 0;
         const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;

@@ -3,8 +3,9 @@ import { Entity } from './Entity.js'; // Circular dependency if Entity imports N
 // Actually Node creates new Entity in update(). So it needs to import Entity.
 
 export class Node {
-    constructor(id, x, y, ownerId, type = NODE_TYPES.MEDIUM) {
+    constructor(id, x, y, ownerId, type = NODE_TYPES.MEDIUM, productionDisabled = false) {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
+        this.productionDisabled = productionDisabled;
 
         const config = NODE_CONFIG[type] || NODE_CONFIG[NODE_TYPES.MEDIUM];
 
@@ -139,7 +140,7 @@ export class Node {
             }
         }
 
-        if (this.owner !== -1) {
+        if (this.owner !== -1 && !this.productionDisabled) {
             // Heal node slowly if not at max
             const healRate = 0.5;
             if (this.baseHp < this.maxHp) {

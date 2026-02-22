@@ -7788,6 +7788,7 @@ class SingleplayerController {
         this.currentTutorialStep = 0;
         this.tutorialTimer = 0;
         this.tutorialActive = false;
+        this.winCondition = null;
     }
 
     setup(playerCount = 1, difficulty = 'intermediate', testMode = false, campaignId = null) {
@@ -7848,6 +7849,10 @@ class SingleplayerController {
                 this.currentTutorialStep = 0;
                 this.tutorialTimer = 0;
             }
+
+            if (campaignConfig.winCondition) {
+                this.winCondition = campaignConfig.winCondition;
+            }
         } else {
             // Create AIs for CPUs (indices > 0)
             for (let i = 1; i < playerCount; i++) {
@@ -7888,6 +7893,23 @@ class SingleplayerController {
                 height,
                 fixedNodes || null
             );
+
+            // Spawn initial tutorial entities if defined
+            if (campaignConfig.mapConfig.initialEntities) {
+                campaignConfig.mapConfig.initialEntities.forEach(group => {
+                    for (let i = 0; i < group.count; i++) {
+                        // Offset slightly
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * 50;
+                        const ent = new _shared_Entity_js__WEBPACK_IMPORTED_MODULE_2__.Entity(
+                            group.x + Math.cos(angle) * dist,
+                            group.y + Math.sin(angle) * dist,
+                            group.owner
+                        );
+                        this.game.state.entities.push(ent);
+                    }
+                });
+            }
         } else {
             this.game.state.nodes = _shared_MapGenerator_js__WEBPACK_IMPORTED_MODULE_3__.MapGenerator.generate(this.game.state.playerCount, width, height);
         }
@@ -8048,6 +8070,17 @@ class SingleplayerController {
 
         const playerHasNodes = playerNodes.length > 0;
         const enemiesHaveNodes = enemyNodes.length > 0;
+
+        // Custom Win Condition Check
+        if (this.winCondition) {
+            if (this.winCondition.type === 'unitsToGoal') {
+                const targetNode = this.game.state.nodes.find(n => n.id === this.winCondition.nodeId);
+                if (targetNode && targetNode.defendersInside >= this.winCondition.goal) {
+                    this.showGameOver(true);
+                    return;
+                }
+            }
+        }
 
         const playerAlive = playerHasNodes || playerUnits.length > 0;
         const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;
@@ -10131,22 +10164,53 @@ __webpack_require__.r(__webpack_exports__);
 
 const CampaignLevels = [
     // Phase 1: Recluta (0-4)
+    // Phase 0: Tutoriales Obligatorios (0-3)
     {
         id: 0,
-        name: "Misión 1: Despertar",
-        description: "Nivel 1 (Tutorial). Rojo defensivo. Aprende a conquistar.",
+        name: "Tutorial 1: Conquista",
+        description: "Aprende a mover tus tropas para capturar territorio.",
         isTutorial: true,
-        mapConfig: { numNodes: 6, size: 'small' },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 }, // Player
+                { x: 750, y: 500, owner: -1, type: 1, baseHp: 5 }, // Neutral
+                { x: 1100, y: 500, owner: 1, type: 2, baseHp: 10, productionDisabled: true } // Enemy
+            ],
+        },
         enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
         tutorialSteps: [
-            { trigger: 'time', delay: 1500, text: 'Comandante, selecciona tu nodo (Click o Tap) y arrastra hacia los nodos grises.' },
-            { trigger: 'nodes', count: 2, text: 'Bien. Cada nodo conquistado generará tropas con el tiempo.' },
-            { trigger: 'units', count: 30, text: 'Espera a agrupar fuerzas y ataca el nodo rojo para ganar.' }
+            { trigger: 'time', delay: 1000, text: '¡Bienvenido Comandante! El nodo VERDE es tu base.' },
+            { trigger: 'time', delay: 4000, text: 'HAZ CLICK Y ARRASTRA desde tu nodo hacia el nodo GRIS para enviar tropas.' },
+            { trigger: 'nodes', count: 2, text: '¡Bien! Los nodos conquistados generan unidades automáticamente.' },
+            { trigger: 'units', count: 15, text: 'FINALIZACIÓN: Ataca el nodo ROJO ahora para ganar.' }
         ]
     },
-    { id: 1, name: "Misión 2: Frontera", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
-    { id: 2, name: "Misión 3: Escaramuza", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
-    { id: 3, name: "Misión 4: Agresión", description: "Rojo ataca proactivamente.", mapConfig: { numNodes: 12, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'aggressive' }] },
+    {
+        id: 1,
+        name: "Tutorial 2: Sanación",
+        description: "Tus nodos heridos necesitan tropas para recuperarse.",
+        isTutorial: true,
+        winCondition: { type: 'unitsToGoal', nodeId: 0, goal: 30 }, // Goal: Put 30 units in the node
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 2 }, // Dying Player Node
+                { x: 1200, y: 500, owner: 1, type: 2, baseHp: 50, productionDisabled: true } // Inactive Enemy
+            ],
+            initialEntities: [
+                { x: 250, y: 500, owner: 0, count: 35 } // Start with units nearby
+            ]
+        },
+        enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: '¡ALERTA! Tu nodo principal está a punto de colapsar (baja vida).' },
+            { trigger: 'time', delay: 4000, text: 'ORDEN: Envía tus unidades de vuelta al nodo VERDE para sanarlo.' },
+            { trigger: 'time', delay: 8000, text: 'RECUERDA: Mantener tus nodos con vida alta maximiza la producción.' }
+        ]
+    },
+    { id: 2, name: "Misión 1: Frontera Real", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
+    { id: 3, name: "Misión 2: Escaramuza Rival", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
     { id: 4, name: "Misión 5: Jefe de División", description: "El comandante Rojo se defiende con todo.", mapConfig: { numNodes: 15, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
 
     // Phase 2: Expansión (5-14)
@@ -12411,7 +12475,7 @@ class MapGenerator {
             // Bypass random generation and use fixed layout
             console.log(`Loading fixed map layout with ${fixedNodes.length} nodes.`);
             fixedNodes.forEach((n, index) => {
-                const node = new _Node_js__WEBPACK_IMPORTED_MODULE_0__.Node(index, n.x, n.y, n.owner, n.type);
+                const node = new _Node_js__WEBPACK_IMPORTED_MODULE_0__.Node(index, n.x, n.y, n.owner, n.type, !!n.productionDisabled);
                 if (n.baseHp !== undefined) node.baseHp = n.baseHp;
                 if (n.maxHp !== undefined) node.maxHp = n.maxHp;
                 if (n.radius !== undefined) node.radius = n.radius;
@@ -12646,8 +12710,9 @@ __webpack_require__.r(__webpack_exports__);
 // Actually Node creates new Entity in update(). So it needs to import Entity.
 
 class Node {
-    constructor(id, x, y, ownerId, type = _GameConfig_js__WEBPACK_IMPORTED_MODULE_0__.NODE_TYPES.MEDIUM) {
+    constructor(id, x, y, ownerId, type = _GameConfig_js__WEBPACK_IMPORTED_MODULE_0__.NODE_TYPES.MEDIUM, productionDisabled = false) {
         this.id = id; this.x = x; this.y = y; this.owner = ownerId; this.type = type;
+        this.productionDisabled = productionDisabled;
 
         const config = _GameConfig_js__WEBPACK_IMPORTED_MODULE_0__.NODE_CONFIG[type] || _GameConfig_js__WEBPACK_IMPORTED_MODULE_0__.NODE_CONFIG[_GameConfig_js__WEBPACK_IMPORTED_MODULE_0__.NODE_TYPES.MEDIUM];
 
@@ -12782,7 +12847,7 @@ class Node {
             }
         }
 
-        if (this.owner !== -1) {
+        if (this.owner !== -1 && !this.productionDisabled) {
             // Heal node slowly if not at max
             const healRate = 0.5;
             if (this.baseHp < this.maxHp) {

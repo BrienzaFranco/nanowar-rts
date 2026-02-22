@@ -2,22 +2,53 @@
 
 export const CampaignLevels = [
     // Phase 1: Recluta (0-4)
+    // Phase 0: Tutoriales Obligatorios (0-3)
     {
         id: 0,
-        name: "Misión 1: Despertar",
-        description: "Nivel 1 (Tutorial). Rojo defensivo. Aprende a conquistar.",
+        name: "Tutorial 1: Conquista",
+        description: "Aprende a mover tus tropas para capturar territorio.",
         isTutorial: true,
-        mapConfig: { numNodes: 6, size: 'small' },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 }, // Player
+                { x: 750, y: 500, owner: -1, type: 1, baseHp: 5 }, // Neutral
+                { x: 1100, y: 500, owner: 1, type: 2, baseHp: 10, productionDisabled: true } // Enemy
+            ],
+        },
         enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
         tutorialSteps: [
-            { trigger: 'time', delay: 1500, text: 'Comandante, selecciona tu nodo (Click o Tap) y arrastra hacia los nodos grises.' },
-            { trigger: 'nodes', count: 2, text: 'Bien. Cada nodo conquistado generará tropas con el tiempo.' },
-            { trigger: 'units', count: 30, text: 'Espera a agrupar fuerzas y ataca el nodo rojo para ganar.' }
+            { trigger: 'time', delay: 1000, text: '¡Bienvenido Comandante! El nodo VERDE es tu base.' },
+            { trigger: 'time', delay: 4000, text: 'HAZ CLICK Y ARRASTRA desde tu nodo hacia el nodo GRIS para enviar tropas.' },
+            { trigger: 'nodes', count: 2, text: '¡Bien! Los nodos conquistados generan unidades automáticamente.' },
+            { trigger: 'units', count: 15, text: 'FINALIZACIÓN: Ataca el nodo ROJO ahora para ganar.' }
         ]
     },
-    { id: 1, name: "Misión 2: Frontera", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
-    { id: 2, name: "Misión 3: Escaramuza", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
-    { id: 3, name: "Misión 4: Agresión", description: "Rojo ataca proactivamente.", mapConfig: { numNodes: 12, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'aggressive' }] },
+    {
+        id: 1,
+        name: "Tutorial 2: Sanación",
+        description: "Tus nodos heridos necesitan tropas para recuperarse.",
+        isTutorial: true,
+        winCondition: { type: 'unitsToGoal', nodeId: 0, goal: 30 }, // Goal: Put 30 units in the node
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 2 }, // Dying Player Node
+                { x: 1200, y: 500, owner: 1, type: 2, baseHp: 50, productionDisabled: true } // Inactive Enemy
+            ],
+            initialEntities: [
+                { x: 250, y: 500, owner: 0, count: 35 } // Start with units nearby
+            ]
+        },
+        enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: '¡ALERTA! Tu nodo principal está a punto de colapsar (baja vida).' },
+            { trigger: 'time', delay: 4000, text: 'ORDEN: Envía tus unidades de vuelta al nodo VERDE para sanarlo.' },
+            { trigger: 'time', delay: 8000, text: 'RECUERDA: Mantener tus nodos con vida alta maximiza la producción.' }
+        ]
+    },
+    { id: 2, name: "Misión 1: Frontera Real", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
+    { id: 3, name: "Misión 2: Escaramuza Rival", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
     { id: 4, name: "Misión 5: Jefe de División", description: "El comandante Rojo se defiende con todo.", mapConfig: { numNodes: 15, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
 
     // Phase 2: Expansión (5-14)

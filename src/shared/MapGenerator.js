@@ -18,7 +18,7 @@ export class MapGenerator {
             // Bypass random generation and use fixed layout
             console.log(`Loading fixed map layout with ${fixedNodes.length} nodes.`);
             fixedNodes.forEach((n, index) => {
-                const node = new Node(index, n.x, n.y, n.owner, n.type);
+                const node = new Node(index, n.x, n.y, n.owner, n.type, !!n.productionDisabled);
                 if (n.baseHp !== undefined) node.baseHp = n.baseHp;
                 if (n.maxHp !== undefined) node.maxHp = n.maxHp;
                 if (n.radius !== undefined) node.radius = n.radius;
