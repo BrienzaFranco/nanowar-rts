@@ -26,6 +26,7 @@ export class Game {
         this.waypointLines = [];
 
         this.running = false;
+        this.paused = false;
         this.gameOverShown = false;
         this.healSoundCooldown = 0;
         this.healSoundDelay = 5;
@@ -259,6 +260,12 @@ export class Game {
         const loop = (now) => {
             if (!game.running) return;
 
+            if (game.paused) {
+                game.lastTime = now;
+                game.animationId = requestAnimationFrame(loop);
+                return;
+            }
+
             // If more than 100ms passed, the tab was likely backgrounded.
             // Don't try to simulate the massive time gap, rely on server sync.
             const elapsed = now - game.lastTime;
@@ -445,7 +452,7 @@ export class Game {
                         this.particles.push(new Particle(event.x, event.y, color, 1.5, 'sacrifice', event.targetX, event.targetY));
                     }
                 }
-                
+
                 // Cleanup selection
                 if (this.systems && this.systems.selection) {
                     this.systems.selection.onEntityDead(event.entityIndex);

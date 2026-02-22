@@ -90,6 +90,11 @@ export class SingleplayerController {
                 this.ais.push(new AIController(this.game, i, aiDifficulty));
             }
         }
+
+        // Show objective pop-up at the start
+        if (campaignConfig) {
+            this.showObjectivePopUp(campaignConfig);
+        }
     }
 
     createLevel(campaignConfig = null) {
@@ -336,11 +341,15 @@ export class SingleplayerController {
         // Standard win condition check (only if no custom win condition, or explicitly standard)
         const isStandardWin = !this.winCondition || this.winCondition.type === 'standard';
 
-        if (isStandardWin && !this.gameOverShown) {
+        // BUG FIX: Strictly prevent standard victory in tutorials that have custom goals
+        const isTutorialWithCustomGoal = this.isCampaign && parseInt(this.campaignId) >= 100 && this.winCondition && this.winCondition.type !== 'standard';
+
+        if (isStandardWin && !this.gameOverShown && !isTutorialWithCustomGoal) {
             const playersWithNodes = new Set(this.game.state.nodes.filter(n => n.owner !== -1).map(n => n.owner));
 
             // In tutorials without enemies, don't trigger standard victory automatically
-            const hasEnemiesInConfig = this.isCampaign && getCampaignLevel(parseInt(this.campaignId))?.enemies?.length > 0;
+            const campaignLevel = this.isCampaign ? getCampaignLevel(parseInt(this.campaignId)) : null;
+            const hasEnemiesInConfig = campaignLevel && campaignLevel.enemies && campaignLevel.enemies.length > 0;
             const isFreePlay = !this.isCampaign;
 
             if (isFreePlay || hasEnemiesInConfig || (this.winCondition && this.winCondition.type === 'standard')) {
@@ -364,8 +373,9 @@ export class SingleplayerController {
         }
 
         // Final absolute victory check (only for standard mode with enemies)
-        if (isStandardWin && !enemiesAlive && !this.gameOverShown) {
-            const hasEnemiesInConfig = this.isCampaign && getCampaignLevel(parseInt(this.campaignId))?.enemies?.length > 0;
+        if (isStandardWin && !enemiesAlive && !this.gameOverShown && !isTutorialWithCustomGoal) {
+            const campaignLevel = this.isCampaign ? getCampaignLevel(parseInt(this.campaignId)) : null;
+            const hasEnemiesInConfig = campaignLevel && campaignLevel.enemies && campaignLevel.enemies.length > 0;
             if (hasEnemiesInConfig || !this.isCampaign) {
                 this.showGameOver(true);
                 return;
@@ -390,6 +400,73 @@ export class SingleplayerController {
         } else if (playerHasNodes) {
             this.playerLostNodesWarning = false;
         }
+    }
+
+    showObjectivePopUp(mission) {
+        this.game.paused = true;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 2000;
+            font-family: 'Outfit', sans-serif; color: white; text-align: center;
+            backdrop-filter: blur(10px);
+        `;
+
+        const title = document.createElement('h1');
+        title.textContent = mission.name;
+        title.style.cssText = `font-size: 3rem; margin-bottom: 0.5rem; color: #4CAF50; text-transform: uppercase; letter-spacing: 4px;`;
+
+        const desc = document.createElement('p');
+        desc.textContent = mission.description;
+        desc.style.cssText = `font-size: 1.5rem; max-width: 600px; margin-bottom: 2rem; color: #ccc; line-height: 1.6;`;
+
+        const goalBox = document.createElement('div');
+        goalBox.style.cssText = `
+            background: rgba(255,255,255,0.05); padding: 20px 40px; border-radius: 12px;
+            border: 1px solid rgba(76,175,80,0.3); margin-bottom: 3rem;
+        `;
+
+        const goalTitle = document.createElement('div');
+        goalTitle.textContent = 'OBJETIVO PRINCIPAL';
+        goalTitle.style.cssText = `font-size: 0.9rem; color: #4CAF50; margin-bottom: 10px; font-weight: bold; letter-spacing: 2px;`;
+
+        const goalText = document.createElement('div');
+        goalText.style.cssText = `font-size: 1.2rem; font-weight: bold;`;
+
+        // Dynamic goal description
+        if (mission.winCondition) {
+            if (mission.winCondition.type === 'nodes') goalText.textContent = `Captura al menos ${mission.winCondition.count} nodos.`;
+            else if (mission.winCondition.type === 'unitsToGoal') goalText.textContent = `Lleva ${mission.winCondition.goal} unidades al nodo objetivo.`;
+            else if (mission.winCondition.type === 'actionsComplete') goalText.textContent = `Realiza las acciones indicadas en pantalla.`;
+            else goalText.textContent = `Elimina a todos los enemigos.`;
+        } else {
+            goalText.textContent = `Elimina a todos los enemigos.`;
+        }
+
+        goalBox.appendChild(goalTitle);
+        goalBox.appendChild(goalText);
+
+        const btn = document.createElement('button');
+        btn.textContent = 'COMENZAR MISIÓN';
+        btn.style.cssText = `
+            padding: 15px 40px; font-size: 1.2rem; background: #4CAF50; color: white;
+            border: none; border-radius: 30px; cursor: pointer; font-weight: bold;
+            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(76,175,80,0.4);
+        `;
+        btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
+        btn.onmouseout = () => btn.style.transform = 'scale(1)';
+        btn.onclick = () => {
+            overlay.remove();
+            this.game.paused = false;
+        };
+
+        overlay.appendChild(title);
+        overlay.appendChild(desc);
+        overlay.appendChild(goalBox);
+        overlay.appendChild(btn);
+        document.body.appendChild(overlay);
     }
 
     showGameOver(won) {
