@@ -7939,6 +7939,8 @@ class SingleplayerController {
     onAction(action) {
         if (!this.actionsPerformed) this.actionsPerformed = new Set();
         this.actionsPerformed.add(action);
+        // Compatibility for different action names
+        if (action === 'move') this.actionsPerformed.add('moved');
     }
 
     surrender() {
@@ -8090,6 +8092,35 @@ class SingleplayerController {
                 if (allDone) {
                     this.showGameOver(true);
                     return;
+                }
+            } else if (this.winCondition.type === 'nodes') {
+                const pNodes = this.game.state.nodes.filter(n => n.owner === this.playerIndex).length;
+                if (pNodes >= this.winCondition.count) {
+                    this.showGameOver(true);
+                    return;
+                }
+            }
+        }
+
+        // Standard win condition check (only if no custom win condition, or explicitly standard)
+        const isStandardWin = !this.winCondition || this.winCondition.type === 'standard';
+
+        if (isStandardWin && !this.gameOverShown) {
+            const playersWithNodes = new Set(this.game.state.nodes.filter(n => n.owner !== -1).map(n => n.owner));
+
+            // In tutorials without enemies, don't trigger standard victory automatically
+            const hasEnemiesInConfig = this.isCampaign && (0,_shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_5__.getCampaignLevel)(parseInt(this.campaignId))?.enemies?.length > 0;
+            const isFreePlay = !this.isCampaign;
+
+            if (isFreePlay || hasEnemiesInConfig || (this.winCondition && this.winCondition.type === 'standard')) {
+                if (playersWithNodes.size <= 1) {
+                    const winner = Array.from(playersWithNodes)[0];
+                    if (winner !== undefined) {
+                        this.showGameOver(winner === this.playerIndex);
+                    } else {
+                        // All nodes lost
+                        this.showGameOver(false);
+                    }
                 }
             }
         }
