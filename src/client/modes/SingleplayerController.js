@@ -307,6 +307,8 @@ export class SingleplayerController {
 
         const playerHasNodes = playerNodes.length > 0;
         const enemiesHaveNodes = enemyNodes.length > 0;
+        const playerAlive = playerHasNodes || playerUnits.length > 0;
+        const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;
 
         // Custom Win Condition Check
         if (this.winCondition) {
@@ -370,8 +372,7 @@ export class SingleplayerController {
             }
         }
 
-        const playerAlive = playerHasNodes || playerUnits.length > 0;
-        const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;
+        // All good, logic continues...
 
         if (!playerHasNodes && playerAlive) {
             if (!this.playerLostNodesWarning) {

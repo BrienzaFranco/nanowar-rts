@@ -1,6 +1,6 @@
 const DEFAULT_COLORS = [
     '#4CAF50', '#f44336', '#2196F3', '#FF9800',
-    '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63', '#000000'
+    '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63', '#1a1a1a'
 ];
 
 export let PLAYER_COLORS = [...DEFAULT_COLORS];

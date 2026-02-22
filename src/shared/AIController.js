@@ -12,6 +12,11 @@ export class AIController {
             this.personality = personalities[Math.floor(Math.random() * personalities.length)];
         }
 
+        // Force Black AI (Owner 8) to be always aggressive
+        if (this.playerId === 8) {
+            this.personality = 'aggressive';
+        }
+
         const baseIntervals = {
             'Easy': 6.0,
             'Intermediate': 3.5,

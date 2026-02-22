@@ -61,14 +61,14 @@ export class MapGenerator {
 
         const cx = worldWidth / 2;
         const cy = worldHeight / 2;
-        const mapRadius = Math.min(worldWidth, worldHeight) * 0.46;
+        const mapRadius = Math.min(worldWidth, worldHeight) * 0.42; // Slightly smaller to pull nodes inward
 
         const baseAngleOffset = Math.random() * Math.PI * 2;
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
 
         // Helper to check collision for a single position against existing nodes
         const isValidPos = (x, y, r, extraMargin = 120) => {
-            const margin = 100;
+            const margin = 200; // Increased margin for better centering
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
 

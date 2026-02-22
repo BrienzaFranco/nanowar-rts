@@ -8078,6 +8078,8 @@ class SingleplayerController {
 
         const playerHasNodes = playerNodes.length > 0;
         const enemiesHaveNodes = enemyNodes.length > 0;
+        const playerAlive = playerHasNodes || playerUnits.length > 0;
+        const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;
 
         // Custom Win Condition Check
         if (this.winCondition) {
@@ -8141,8 +8143,7 @@ class SingleplayerController {
             }
         }
 
-        const playerAlive = playerHasNodes || playerUnits.length > 0;
-        const enemiesAlive = enemiesHaveNodes || enemyUnits.length > 0;
+        // All good, logic continues...
 
         if (!playerHasNodes && playerAlive) {
             if (!this.playerLostNodesWarning) {
@@ -9877,6 +9878,11 @@ class AIController {
             this.personality = personalities[Math.floor(Math.random() * personalities.length)];
         }
 
+        // Force Black AI (Owner 8) to be always aggressive
+        if (this.playerId === 8) {
+            this.personality = 'aggressive';
+        }
+
         const baseIntervals = {
             'Easy': 6.0,
             'Intermediate': 3.5,
@@ -10235,7 +10241,7 @@ const CampaignLevels = [
     { id: 4, name: "Misión 5: Jefe de División", description: "El comandante Rojo se defiende con todo.", mapConfig: { numNodes: 15, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
 
     // Phase 2: Expansión (5-14)
-    { id: 5, name: "Misión 6: Un Nuevo Enemigo", description: "Aparece un contendiente Azul.", mapConfig: { numNodes: 18, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Easy', personality: 'balanced' }, { id: 2, difficulty: 'Easy', personality: 'balanced' }] },
+    { id: 5, name: "Misión 6: Un Nuevo Enemigo", description: "Aparece un contendiente Azul.", mapConfig: { numNodes: 18, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'balanced' }, { id: 2, difficulty: 'Intermediate', personality: 'balanced' }] },
     { id: 6, name: "Misión 7: Fuego Cruzado", description: "Rojo es agresivo, Azul es defensivo.", mapConfig: { numNodes: 20, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'aggressive' }, { id: 2, difficulty: 'Intermediate', personality: 'defensive' }] },
     { id: 7, name: "Misión 8: Alianza Oculta", description: "Enfrenta a dos enemigos que cooperan implícitamente.", mapConfig: { numNodes: 20, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }, { id: 2, difficulty: 'Intermediate', personality: 'expansive' }] },
     { id: 8, name: "Misión 9: Expansión Rival", description: "Rojo y Azul buscan apoderarse del mapa.", mapConfig: { numNodes: 25, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'expansive' }, { id: 2, difficulty: 'Normal', personality: 'expansive' }] },
@@ -10286,7 +10292,7 @@ const CampaignLevels = [
     { id: 45, name: "Misión 46: El Despertar del Vacío", description: "Aparece una amenaza oscura y letal. El color Negro.", mapConfig: { numNodes: 40, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Expert', personality: 'aggressive' }, { id: 1, difficulty: 'Normal', personality: 'defensive' }, { id: 2, difficulty: 'Normal', personality: 'defensive' }] },
     { id: 46, name: "Misión 47: Oscuridad Creciente", description: "La amenaza consume nodos neutrales rápidamente.", mapConfig: { numNodes: 50, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Expert', personality: 'expansive' }] },
     { id: 47, name: "Misión 48: El Vórtice", description: "Flanqueos masivos requeridos para frenar su avance.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }] },
-    { id: 48, name: "Misión 49: La Última Alianza", description: "Las demás facciones intentan sobrevivir la purga del Vacío.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'balanced' }, { id: 1, difficulty: 'Easy', personality: 'defensive' }, { id: 2, difficulty: 'Easy', personality: 'defensive' }] },
+    { id: 48, name: "Misión 49: La Última Alianza", description: "Las demás facciones intentan sobrevivir la purga del Vacío.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'balanced' }, { id: 1, difficulty: 'Hard', personality: 'defensive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }] },
     {
         id: 49,
         name: "Misión 50: EVENT HORIZON",
@@ -11278,7 +11284,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 const DEFAULT_COLORS = [
     '#4CAF50', '#f44336', '#2196F3', '#FF9800',
-    '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63', '#000000'
+    '#9C27B0', '#00BCD4', '#FFEB3B', '#E91E63', '#1a1a1a'
 ];
 
 let PLAYER_COLORS = [...DEFAULT_COLORS];
@@ -12659,14 +12665,14 @@ class MapGenerator {
 
         const cx = worldWidth / 2;
         const cy = worldHeight / 2;
-        const mapRadius = Math.min(worldWidth, worldHeight) * 0.46;
+        const mapRadius = Math.min(worldWidth, worldHeight) * 0.42; // Slightly smaller to pull nodes inward
 
         const baseAngleOffset = Math.random() * Math.PI * 2;
         const mapType = MAP_TYPES[Math.floor(Math.random() * MAP_TYPES.length)];
 
         // Helper to check collision for a single position against existing nodes
         const isValidPos = (x, y, r, extraMargin = 120) => {
-            const margin = 100;
+            const margin = 200; // Increased margin for better centering
             if (x - r < margin || x + r > worldWidth - margin ||
                 y - r < margin || y + r > worldHeight - margin) return false;
 
