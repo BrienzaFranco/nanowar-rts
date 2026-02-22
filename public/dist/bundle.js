@@ -10130,74 +10130,79 @@ __webpack_require__.r(__webpack_exports__);
 // shared/CampaignConfig.js
 
 const CampaignLevels = [
+    // Phase 1: Recluta (0-4)
     {
         id: 0,
-        name: "Entrenamiento Básico",
-        description: "Aprende los conceptos básicos del movimiento y conquista.",
+        name: "Misión 1: Despertar",
+        description: "Nivel 1 (Tutorial). Rojo defensivo. Aprende a conquistar.",
         isTutorial: true,
-        mapConfig: {
-            numNodes: 5,
-            size: "small", // Using existing map sizes
-            fixedNodes: null, // No fixed positions for now, fallback to random
-        },
-        enemies: [
-            { id: 2, color: 0xFF4444, difficulty: 'Easy', personality: 'defensive' }
+        mapConfig: { numNodes: 6, size: 'small' },
+        enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1500, text: 'Comandante, selecciona tu nodo (Click o Tap) y arrastra hacia los nodos grises.' },
+            { trigger: 'nodes', count: 2, text: 'Bien. Cada nodo conquistado generará tropas con el tiempo.' },
+            { trigger: 'units', count: 30, text: 'Espera a agrupar fuerzas y ataca el nodo rojo para ganar.' }
         ]
     },
-    {
-        id: 1,
-        name: "Expansión Rápida",
-        description: "El enemigo es más agresivo, captura nodos neutrales rápido.",
-        isTutorial: false,
-        mapConfig: {
-            numNodes: 8,
-            size: "small",
-        },
-        enemies: [
-            { id: 2, color: 0xFF4444, difficulty: 'Intermediate', personality: 'expansive' }
-        ]
-    },
-    {
-        id: 2,
-        name: "Cuellos de Botella",
-        description: "Encuentro en un mapa un poco más grande.",
-        isTutorial: false,
-        mapConfig: {
-            numNodes: 12,
-            size: "medium",
-        },
-        enemies: [
-            { id: 2, color: 0xFF4444, difficulty: 'Intermediate', personality: 'aggressive' }
-        ]
-    },
-    {
-        id: 3,
-        name: "Batalla a Tres Bandas",
-        description: "Aparece un nuevo contendiente Azul.",
-        isTutorial: false,
-        mapConfig: {
-            numNodes: 15,
-            size: "medium",
-        },
-        enemies: [
-            { id: 2, color: 0xFF4444, difficulty: 'Normal', personality: 'defensive' },
-            { id: 3, color: 0x4444FF, difficulty: 'Normal', personality: 'expansive' }
-        ]
-    },
-    {
-        id: 4,
-        name: "Primera Prueba de Fuego",
-        description: "El enemigo Rojo no se rinde fácilmente.",
-        isTutorial: false,
-        mapConfig: {
-            numNodes: 20,
-            size: "large",
-        },
-        enemies: [
-            { id: 2, color: 0xFF4444, difficulty: 'Hard', personality: 'aggressive' }
-            // Added up to level 5 just to prove the concept for Phase 1
-        ]
-    }
+    { id: 1, name: "Misión 2: Frontera", description: "Rojo empieza a moverse. Captura rápido.", mapConfig: { numNodes: 8, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'defensive' }] },
+    { id: 2, name: "Misión 3: Escaramuza", description: "Rojo competirá por los neutrales.", mapConfig: { numNodes: 10, size: 'small' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }] },
+    { id: 3, name: "Misión 4: Agresión", description: "Rojo ataca proactivamente.", mapConfig: { numNodes: 12, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'aggressive' }] },
+    { id: 4, name: "Misión 5: Jefe de División", description: "El comandante Rojo se defiende con todo.", mapConfig: { numNodes: 15, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }] },
+
+    // Phase 2: Expansión (5-14)
+    { id: 5, name: "Misión 6: Un Nuevo Enemigo", description: "Aparece un contendiente Azul.", mapConfig: { numNodes: 18, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Easy', personality: 'balanced' }, { id: 2, difficulty: 'Easy', personality: 'balanced' }] },
+    { id: 6, name: "Misión 7: Fuego Cruzado", description: "Rojo es agresivo, Azul es defensivo.", mapConfig: { numNodes: 20, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'aggressive' }, { id: 2, difficulty: 'Intermediate', personality: 'defensive' }] },
+    { id: 7, name: "Misión 8: Alianza Oculta", description: "Enfrenta a dos enemigos que cooperan implícitamente.", mapConfig: { numNodes: 20, size: 'medium' }, enemies: [{ id: 1, difficulty: 'Intermediate', personality: 'expansive' }, { id: 2, difficulty: 'Intermediate', personality: 'expansive' }] },
+    { id: 8, name: "Misión 9: Expansión Rival", description: "Rojo y Azul buscan apoderarse del mapa.", mapConfig: { numNodes: 25, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'expansive' }, { id: 2, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 9, name: "Misión 10: El Sándwich", description: "Debes sobrevivir a un empuje doble.", mapConfig: { numNodes: 25, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'aggressive' }, { id: 2, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 10, name: "Misión 11: Asimetría", description: "Ellos tienen menos nodos pero más grandes.", mapConfig: { numNodes: 22, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'defensive' }, { id: 2, difficulty: 'Normal', personality: 'defensive' }] },
+    { id: 11, name: "Misión 12: El Tesoro", description: "Rojo protege una bóveda, Azul intenta robarla.", mapConfig: { numNodes: 30, size: 'large' }, enemies: [{ id: 1, difficulty: 'Hard', personality: 'defensive' }, { id: 2, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 12, name: "Misión 13: Vacío Estelar", description: "Mapa inmenso, pocos nodos. Largos viajes.", mapConfig: { numNodes: 15, size: 'epic' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'defensive' }, { id: 2, difficulty: 'Normal', personality: 'defensive' }] },
+    { id: 13, name: "Misión 14: La Horda Azul", description: "Azul tiene mucha sed de batalla.", mapConfig: { numNodes: 25, size: 'large' }, enemies: [{ id: 2, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 14, name: "Misión 15: Jefes de Sector", description: "Rojo y Azul están decididos a eliminarte.", mapConfig: { numNodes: 30, size: 'large' }, enemies: [{ id: 1, difficulty: 'Hard', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'balanced' }] },
+
+    // Phase 3: Guerra de Facciones (15-24)
+    { id: 15, name: "Misión 16: Caos a tres bandas", description: "Se suma Naranja. Multi-gestión obligatoria.", mapConfig: { numNodes: 30, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'aggressive' }, { id: 2, difficulty: 'Normal', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 16, name: "Misión 17: Escalada 1", description: "Lucha de desgaste en mapas amplios.", mapConfig: { numNodes: 35, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 17, name: "Misión 18: Escalada 2", description: "Lucha de desgaste en mapas amplios.", mapConfig: { numNodes: 35, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 18, name: "Misión 19: Escalada 3", description: "Lucha de desgaste en mapas amplios.", mapConfig: { numNodes: 35, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 19, name: "Misión 20: Escalada 4", description: "Lucha de desgaste en mapas amplios.", mapConfig: { numNodes: 35, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 20, name: "Misión 21: Escalada 5", description: "Lucha de desgaste en mapas amplios.", mapConfig: { numNodes: 35, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 21, name: "Misión 22: Escalada 6", description: "Lucha de desgaste en mapas amplios.", mapConfig: { numNodes: 35, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 22, name: "Misión 23: Escalada 7", description: "Lucha de desgaste en mapas amplios.", mapConfig: { numNodes: 35, size: 'large' }, enemies: [{ id: 1, difficulty: 'Normal', personality: 'balanced' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'expansive' }] },
+    { id: 23, name: "Misión 24: Contraataque", description: "Las tres facciones empiezan a acorralarte.", mapConfig: { numNodes: 38, size: 'large' }, enemies: [{ id: 1, difficulty: 'Hard', personality: 'aggressive' }, { id: 2, difficulty: 'Normal', personality: 'defensive' }, { id: 3, difficulty: 'Hard', personality: 'expansive' }] },
+    { id: 24, name: "Misión 25: Triunvirato", description: "Tres generales te buscan coordinadamente.", mapConfig: { numNodes: 40, size: 'epic' }, enemies: [{ id: 1, difficulty: 'Hard', personality: 'aggressive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Hard', personality: 'expansive' }] },
+
+    // Phase 4: Tácticas Avanzadas (25-34)
+    { id: 25, name: "Misión 26: Desventaja Táctica", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 26, name: "Misión 27: Desventaja Táctica 2", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 27, name: "Misión 28: Desventaja Táctica 3", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 28, name: "Misión 29: Desventaja Táctica 4", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 29, name: "Misión 30: Desventaja Táctica 5", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 30, name: "Misión 31: Desventaja Táctica 6", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 31, name: "Misión 32: Desventaja Táctica 7", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 32, name: "Misión 33: Desventaja Táctica 8", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 33, name: "Misión 34: Desventaja Táctica 9", description: "Enemigos de IA Experta dominan el sector.", mapConfig: { numNodes: 45, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Expert', personality: 'balanced' }, { id: 5, difficulty: 'Hard', personality: 'expansive' }, { id: 6, difficulty: 'Normal', personality: 'aggressive' }] },
+    { id: 34, name: "Misión 35: General Violeta", description: "Enemigo en dificultad Imposible liderando la defensa.", mapConfig: { numNodes: 50, size: 'epic' }, enemies: [{ id: 4, difficulty: 'Impossible', personality: 'defensive' }] },
+
+    // Phase 5: Maestría (35-44)
+    { id: 35, name: "Misión 36: Maestría Total 1", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 36, name: "Misión 37: Maestría Total 2", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 37, name: "Misión 38: Maestría Total 3", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 38, name: "Misión 39: Maestría Total 4", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 39, name: "Misión 40: Maestría Total 5", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 40, name: "Misión 41: Maestría Total 6", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 41, name: "Misión 42: Maestría Total 7", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 42, name: "Misión 43: Maestría Total 8", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 43, name: "Misión 44: Maestría Total 9", description: "Batallas a escala galáctica. Solo sobreviven los fuertes.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 7, difficulty: 'Expert', personality: 'aggressive' }, { id: 4, difficulty: 'Expert', personality: 'expansive' }, { id: 2, difficulty: 'Hard', personality: 'defensive' }, { id: 3, difficulty: 'Normal', personality: 'balanced' }] },
+    { id: 44, name: "Misión 45: La Guardia de Élite", description: "Comandos Expertos defienden a la guardia dorada.", mapConfig: { numNodes: 70, size: 'epic' }, enemies: [{ id: 1, difficulty: 'Expert', personality: 'aggressive' }, { id: 2, difficulty: 'Expert', personality: 'defensive' }, { id: 3, difficulty: 'Expert', personality: 'expansive' }, { id: 7, difficulty: 'Impossible', personality: 'balanced' }] },
+
+    // Phase 6: El Vacío (45-49)
+    { id: 45, name: "Misión 46: El Despertar del Vacío", description: "Aparece una amenaza oscura y letal. El color Negro.", mapConfig: { numNodes: 40, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Expert', personality: 'aggressive' }, { id: 1, difficulty: 'Normal', personality: 'defensive' }, { id: 2, difficulty: 'Normal', personality: 'defensive' }] },
+    { id: 46, name: "Misión 47: Oscuridad Creciente", description: "La amenaza consume nodos neutrales rápidamente.", mapConfig: { numNodes: 50, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Expert', personality: 'expansive' }] },
+    { id: 47, name: "Misión 48: El Vórtice", description: "Flanqueos masivos requeridos para frenar su avance.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }] },
+    { id: 48, name: "Misión 49: La Última Alianza", description: "Las demás facciones intentan sobrevivir la purga del Vacío.", mapConfig: { numNodes: 60, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'balanced' }, { id: 1, difficulty: 'Easy', personality: 'defensive' }, { id: 2, difficulty: 'Easy', personality: 'defensive' }] },
+    { id: 49, name: "Misión 50: ERROR FATAL 0x00000", description: "1 contra 1 definitivo. IA Imposible. Sin aliados. Sobrevive.", mapConfig: { numNodes: 75, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }] }
 ];
 
 function getCampaignLevel(id) {
