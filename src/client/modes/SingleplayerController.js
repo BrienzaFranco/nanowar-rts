@@ -186,6 +186,9 @@ export class SingleplayerController {
     sendAction(action) {
         const { type, unitIds, nodeIds, targetX, targetY, targetNodeId, path } = action;
 
+        // Track action for tutorials
+        this.onAction(type);
+
         if (type === 'path' && path && unitIds) {
             unitIds.forEach(id => {
                 const ent = this.game.state.entities.find(e => e.id === id);

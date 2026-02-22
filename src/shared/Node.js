@@ -54,7 +54,10 @@ export class Node {
         const nearbyEntities = spatialGrid.retrieve(this.x, this.y, this.influenceRadius);
 
         for (let e of nearbyEntities) {
-            if (e.dead || e.dying) continue;
+            // Surgical Fix: Count units even if they are 'dying' as long as they are being absorbed
+            // This allows the victory condition to see units that hit the node but are disappearing to heal it.
+            if (e.dead) continue;
+            if (e.dying && e.deathType !== 'absorbed' && e.deathType !== 'sacrifice') continue;
 
             // Squared distance check is faster
             const dx = e.x - this.x;
