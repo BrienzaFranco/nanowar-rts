@@ -52,7 +52,7 @@ export class MultiplayerController {
 
         this.socket.on('lobbyUpdate', (data) => {
             console.log('Lobby Update:', data);
-            
+
             // Update our player index based on our position in the players array
             const myIndex = data.players.findIndex(p => p.id === this.socket.id);
             if (myIndex !== -1) {
@@ -137,6 +137,7 @@ export class MultiplayerController {
 
         this.socket.on('syncStateDO', (serverState) => {
             if (this.game.gameOverShown) return;
+            if (this.gameLost && !this.playerDefeated) return; // Stop sync if game over unless we are spectating
 
             if (this.game.running || this.playerDefeated) {
                 this.syncStateDO(serverState);
@@ -243,7 +244,7 @@ export class MultiplayerController {
             `;
 
             box.innerHTML = `
-                <button onclick="this.parentElement.parentElement.remove(); location.href='index.html';" style="
+                <button id="close-game-over" style="
                     position: absolute; top: 15px; right: 20px;
                     background: none; border: none; color: #444;
                     font-size: 24px; cursor: pointer; line-height: 1; transition: color 0.2s;
@@ -267,6 +268,12 @@ export class MultiplayerController {
 
             overlay.appendChild(box);
             document.body.appendChild(overlay);
+
+            // Add click listener to close button properly
+            box.querySelector('#close-game-over').onclick = () => {
+                overlay.remove();
+                location.href = 'index.html';
+            };
 
             // Initial graph state
             this.graphState = {
@@ -294,7 +301,7 @@ export class MultiplayerController {
 
                 let dataArray = [];
                 let title = '';
-                let timeScale = 1; 
+                let timeScale = 1;
 
                 // Update active button style
                 ['prod', 'units', 'nodes'].forEach(t => {
@@ -444,7 +451,7 @@ export class MultiplayerController {
                 ctx.font = 'bold 13px "Courier New"';
                 ctx.textAlign = 'center';
                 ctx.fillText(title, w / 2, 18);
-                
+
                 ctx.fillStyle = 'rgba(255,255,255,0.2)';
                 ctx.font = '9px "Courier New"';
                 ctx.fillText('SCROLL: ZOOM • DRAG: PAN', w / 2, h - 8);
@@ -468,22 +475,25 @@ export class MultiplayerController {
                 let isDragging = false;
                 let lastX = 0;
 
-                canvas.addEventListener('mousedown', (e) => {
-                    isDragging = true;
-                    lastX = e.clientX;
-                });
-
-                window.addEventListener('mousemove', (e) => {
+                const onMouseMove = (e) => {
                     if (!isDragging) return;
                     const dx = e.clientX - lastX;
                     this.graphState.offset += dx;
                     lastX = e.clientX;
                     window.updateGraph();
+                };
+
+                const onMouseUp = () => {
+                    isDragging = false;
+                };
+
+                canvas.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    lastX = e.clientX;
                 });
 
-                window.addEventListener('mouseup', () => {
-                    isDragging = false;
-                });
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
 
                 canvas.addEventListener('wheel', (e) => {
                     e.preventDefault();
@@ -493,6 +503,14 @@ export class MultiplayerController {
                     if (this.graphState.scale === 1.0) this.graphState.offset = 0;
                     window.updateGraph();
                 });
+
+                // Clean up listeners when overlay is removed
+                this.cleanupGameOver = () => {
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('mouseup', onMouseUp);
+                    delete window.updateGraph;
+                    delete window.downloadGraph;
+                };
 
                 window.updateGraph('production');
             }, 100);
@@ -515,12 +533,14 @@ export class MultiplayerController {
             // Click outside to close
             overlay.addEventListener('click', (e) => {
                 if (e.target === overlay) {
+                    if (this.cleanupGameOver) this.cleanupGameOver();
                     overlay.remove();
                     location.href = 'index.html';
                 }
             });
 
             document.getElementById('restart-btn').addEventListener('click', () => {
+                if (this.cleanupGameOver) this.cleanupGameOver();
                 overlay.remove();
                 location.reload();
             });
@@ -580,6 +600,8 @@ export class MultiplayerController {
     }
 
     syncStateDO(serverState) {
+        if (this.game.gameOverShown && !this.playerDefeated) return;
+
         if (!this.game.sharedMemory) {
             const buffer = new ArrayBuffer(MEMORY_LAYOUT.TOTAL_SIZE);
             this.game.sharedMemory = new SharedMemory(buffer);

@@ -429,7 +429,7 @@ export class Game {
                 { speedMultiplier: 1 }
             );
         }
-        this.sharedEngine.step(dt);
+        if (view) this.sharedEngine.step(dt);
 
         // Process death events for particles/sounds
         const deathCount = view.getDeathEventsCount();

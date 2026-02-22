@@ -89,7 +89,7 @@ export class GameServer {
 
                 // Notify others that this player surrendered/disconnected
                 this.io.to(this.roomId).emit('playerDefeated', { playerIndex: removedPlayerIndex, surrendered: true });
-                
+
                 // Immediately check win condition
                 this.checkWinCondition();
             } else {
@@ -204,7 +204,7 @@ export class GameServer {
 
         console.log(`Player ${playerIndex} surrendered - nodes neutralized, units killed`);
         this.io.to(this.roomId).emit('playerDefeated', { playerIndex, surrendered: true });
-        
+
         // Immediately check win condition
         this.checkWinCondition();
     }
@@ -250,7 +250,7 @@ export class GameServer {
     }
 
     getStats(includeHistory = false) {
-        // Minimal stats needed by clients to avoid crashing
+        // Stats needed by clients for the endgame screen
         let current = {};
         for (let i = 0; i < this.playerSockets.length; i++) current[i] = 0;
 
@@ -268,11 +268,16 @@ export class GameServer {
             producedMapped[pid] = { total: this.stats.produced[pid] };
         }
 
+        const lostMapped = {};
+        for (let pid in this.stats.lost) {
+            lostMapped[pid] = { total: this.stats.lost[pid] };
+        }
+
         const result = {
             elapsed: this.elapsedTime / 60,
             produced: producedMapped,
             current: current,
-            lost: {},
+            lost: lostMapped,
             captured: this.stats.captured,
             events: []
         };
