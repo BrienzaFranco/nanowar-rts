@@ -429,6 +429,10 @@
                     <h3 style="color: #FFEB3B;">MODO CAMPAÑA</h3>
                     <p>Misiones clasíficas para un solo jugador.</p>
                 </div>
+                <div class="btn-mode" id="btn-mode-tutorials">
+                    <h3 style="color: #4CAF50;">TUTORIALES</h3>
+                    <p>Aprende las mecánicas básicas paso a paso.</p>
+                </div>
                 <div class="btn-mode" id="btn-mode-single">
                     <h3>SINGLEPLAYER</h3>
                     <p>Simulación de combate contra IAs.</p>
@@ -460,6 +464,28 @@
             <button class="btn" id="btn-start-campaign" style="border-color: #FFEB3B; color: #FFEB3B;" disabled>INICIAR
                 MISIÓN</button>
             <button class="btn secondary" id="btn-back-modes-campaign">← VOLVER</button>
+        </div>
+    </div>
+
+    <!-- SCREEN: TUTORIAL SELECTOR -->
+    <div id="screen-tutorials" class="screen">
+        <div class="menu-container" style="max-width: 800px;">
+            <h2 style="font-size: 14px; margin-top: 0; margin-bottom: 30px; letter-spacing: 4px; color: #4CAF50;">
+                ACADEMIA - TUTORIALES</h2>
+
+            <div id="tutorials-grid"
+                style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px;">
+                <!-- Filled via JS -->
+            </div>
+
+            <div style="text-align: left; margin-bottom: 20px; font-size: 12px; opacity: 0.8; height: 60px;">
+                <h3 id="tutorial-level-title" style="margin: 0 0 5px; color: #4CAF50;">--</h3>
+                <p id="tutorial-level-desc" style="margin: 0;">Selecciona un tutorial.</p>
+            </div>
+
+            <button class="btn" id="btn-start-tutorial" style="border-color: #4CAF50; color: #4CAF50;" disabled>INICIAR
+                TUTORIAL</button>
+            <button class="btn secondary" id="btn-back-modes-tutorials">← VOLVER</button>
         </div>
     </div>
 
@@ -586,6 +612,7 @@
             const screens = {
                 modes: document.getElementById('screen-modes'),
                 campaign: document.getElementById('screen-campaign'),
+                tutorials: document.getElementById('screen-tutorials'),
                 single: document.getElementById('screen-single'),
                 multi: document.getElementById('screen-multi'),
                 lobby: document.getElementById('lobby-screen'),
@@ -661,6 +688,11 @@
                 if (window.renderCampaignGrid) window.renderCampaignGrid();
             });
 
+            document.getElementById('btn-mode-tutorials').addEventListener('click', () => {
+                showScreen('tutorials');
+                if (window.renderTutorialGrid) window.renderTutorialGrid();
+            });
+
             document.getElementById('btn-mode-single').addEventListener('click', () => {
                 showScreen('single');
                 populateColorPicker('single-color-picker', null);
@@ -683,6 +715,7 @@
 
             // -- INIT SINGLEPLAYER --
             document.getElementById('btn-back-modes-campaign').addEventListener('click', () => showScreen('modes'));
+            document.getElementById('btn-back-modes-tutorials').addEventListener('click', () => showScreen('modes'));
             document.getElementById('btn-back-modes-1').addEventListener('click', () => showScreen('modes'));
             document.getElementById('btn-back-modes-2').addEventListener('click', () => showScreen('modes'));
 

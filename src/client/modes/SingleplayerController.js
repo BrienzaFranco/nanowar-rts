@@ -3,7 +3,7 @@ import { Node } from '../../shared/Node.js';
 import { Entity } from '../../shared/Entity.js';
 import { MapGenerator } from '../../shared/MapGenerator.js';
 import { sounds } from '../systems/SoundManager.js';
-import { CampaignLevels } from '../../shared/CampaignConfig.js';
+import { CampaignLevels, getCampaignLevel } from '../../shared/CampaignConfig.js';
 import { CampaignManager } from '../CampaignManager.js';
 
 export class SingleplayerController {
@@ -18,6 +18,7 @@ export class SingleplayerController {
         this.tutorialTimer = 0;
         this.tutorialActive = false;
         this.winCondition = null;
+        this.actionsPerformed = new Set();
     }
 
     setup(playerCount = 1, difficulty = 'intermediate', testMode = false, campaignId = null) {
@@ -26,7 +27,7 @@ export class SingleplayerController {
         let campaignConfig = null;
 
         if (this.isCampaign) {
-            campaignConfig = CampaignLevels.find(l => l.id === parseInt(this.campaignId));
+            campaignConfig = getCampaignLevel(parseInt(this.campaignId));
             if (!campaignConfig) {
                 console.error("Campaign level not found. Falling back to default.");
                 this.isCampaign = false;
@@ -162,6 +163,11 @@ export class SingleplayerController {
                 }
             }
         });
+    }
+
+    onAction(action) {
+        if (!this.actionsPerformed) this.actionsPerformed = new Set();
+        this.actionsPerformed.add(action);
     }
 
     surrender() {
@@ -305,6 +311,12 @@ export class SingleplayerController {
             if (this.winCondition.type === 'unitsToGoal') {
                 const targetNode = this.game.state.nodes.find(n => n.id === this.winCondition.nodeId);
                 if (targetNode && targetNode.defendersInside >= this.winCondition.goal) {
+                    this.showGameOver(true);
+                    return;
+                }
+            } else if (this.winCondition.type === 'actionsComplete') {
+                const allDone = this.winCondition.actions.every(action => this.actionsPerformed.has(action));
+                if (allDone) {
                     this.showGameOver(true);
                     return;
                 }

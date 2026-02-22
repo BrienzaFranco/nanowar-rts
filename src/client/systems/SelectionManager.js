@@ -293,6 +293,9 @@ export class SelectionManager {
                         }
                     });
                 }
+                if (this.game.controller && this.game.controller.onAction) {
+                    this.game.controller.onAction('rally');
+                }
                 this.rallyMode = false;
                 return;
             }
@@ -469,6 +472,9 @@ export class SelectionManager {
                             }
                         });
                     }
+                    if (this.game.controller && this.game.controller.onAction) {
+                        this.game.controller.onAction('rally');
+                    }
                     this.game.systems.input.nodeUnderMouse = null;
                     this.isSelectingBox = false;
                     this.rallyMode = false; // Reset rally mode after drag-setting
@@ -538,6 +544,10 @@ export class SelectionManager {
 
     executeCommand(worldX, worldY, targetNode) {
         this.game.spawnCommandIndicator(worldX, worldY, targetNode ? 'attack' : 'move');
+
+        if (this.game.controller && this.game.controller.onAction) {
+            this.game.controller.onAction('move');
+        }
 
         if (targetNode && targetNode.owner !== -1 && targetNode.owner !== (this.game.controller.playerIndex || 0)) {
             sounds.playAttack();

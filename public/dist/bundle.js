@@ -7789,6 +7789,7 @@ class SingleplayerController {
         this.tutorialTimer = 0;
         this.tutorialActive = false;
         this.winCondition = null;
+        this.actionsPerformed = new Set();
     }
 
     setup(playerCount = 1, difficulty = 'intermediate', testMode = false, campaignId = null) {
@@ -7797,7 +7798,7 @@ class SingleplayerController {
         let campaignConfig = null;
 
         if (this.isCampaign) {
-            campaignConfig = _shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_5__.CampaignLevels.find(l => l.id === parseInt(this.campaignId));
+            campaignConfig = (0,_shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_5__.getCampaignLevel)(parseInt(this.campaignId));
             if (!campaignConfig) {
                 console.error("Campaign level not found. Falling back to default.");
                 this.isCampaign = false;
@@ -7933,6 +7934,11 @@ class SingleplayerController {
                 }
             }
         });
+    }
+
+    onAction(action) {
+        if (!this.actionsPerformed) this.actionsPerformed = new Set();
+        this.actionsPerformed.add(action);
     }
 
     surrender() {
@@ -8076,6 +8082,12 @@ class SingleplayerController {
             if (this.winCondition.type === 'unitsToGoal') {
                 const targetNode = this.game.state.nodes.find(n => n.id === this.winCondition.nodeId);
                 if (targetNode && targetNode.defendersInside >= this.winCondition.goal) {
+                    this.showGameOver(true);
+                    return;
+                }
+            } else if (this.winCondition.type === 'actionsComplete') {
+                const allDone = this.winCondition.actions.every(action => this.actionsPerformed.has(action));
+                if (allDone) {
                     this.showGameOver(true);
                     return;
                 }
@@ -8968,6 +8980,9 @@ class SelectionManager {
                         }
                     });
                 }
+                if (this.game.controller && this.game.controller.onAction) {
+                    this.game.controller.onAction('rally');
+                }
                 this.rallyMode = false;
                 return;
             }
@@ -9144,6 +9159,9 @@ class SelectionManager {
                             }
                         });
                     }
+                    if (this.game.controller && this.game.controller.onAction) {
+                        this.game.controller.onAction('rally');
+                    }
                     this.game.systems.input.nodeUnderMouse = null;
                     this.isSelectingBox = false;
                     this.rallyMode = false; // Reset rally mode after drag-setting
@@ -9213,6 +9231,10 @@ class SelectionManager {
 
     executeCommand(worldX, worldY, targetNode) {
         this.game.spawnCommandIndicator(worldX, worldY, targetNode ? 'attack' : 'move');
+
+        if (this.game.controller && this.game.controller.onAction) {
+            this.game.controller.onAction('move');
+        }
 
         if (targetNode && targetNode.owner !== -1 && targetNode.owner !== (this.game.controller.playerIndex || 0)) {
             _SoundManager_js__WEBPACK_IMPORTED_MODULE_0__.sounds.playAttack();
@@ -10158,6 +10180,7 @@ class AIController {
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   CampaignLevels: () => (/* binding */ CampaignLevels),
+/* harmony export */   TutorialLevels: () => (/* binding */ TutorialLevels),
 /* harmony export */   getCampaignLevel: () => (/* binding */ getCampaignLevel)
 /* harmony export */ });
 // shared/CampaignConfig.js
@@ -10269,7 +10292,104 @@ const CampaignLevels = [
     { id: 49, name: "Misión 50: ERROR FATAL 0x00000", description: "1 contra 1 definitivo. IA Imposible. Sin aliados. Sobrevive.", mapConfig: { numNodes: 75, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }] }
 ];
 
+const TutorialLevels = [
+    {
+        id: 100,
+        name: "1. Movimiento y Órdenes",
+        description: "Aprende a mover tus tropas y a establecer puntos de reunión (Rally Points).",
+        isTutorial: true,
+        winCondition: { type: 'actionsComplete', actions: ['moved', 'rally'] },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 },
+                { x: 800, y: 500, owner: -1, type: 1, baseHp: 5 }
+            ],
+            initialEntities: [
+                { x: 400, y: 400, owner: 0, count: 10 }
+            ]
+        },
+        enemies: [],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: '¡Bienvenido! Primero, MOVER: Haz click y arrastra desde tu nodo verde a cualquier parte.' },
+            { trigger: 'time', delay: 5000, text: 'RALLY POINT: Selecciona tu nodo y presiona [E] sobre el mapa para fijar un punto de salida.' },
+            { trigger: 'time', delay: 10000, text: 'Haz ambas acciones para completar este tutorial.' }
+        ]
+    },
+    {
+        id: 101,
+        name: "2. Conquista Neutral",
+        description: "Expande tu territorio capturando nodos grises.",
+        isTutorial: true,
+        winCondition: { type: 'nodes', count: 2 },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 },
+                { x: 900, y: 500, owner: -1, type: 1, baseHp: 5 }
+            ]
+        },
+        enemies: [],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Captura el nodo gris. Envía suficientes tropas hasta que el HP llegue a cero.' },
+            { trigger: 'nodes', count: 2, text: '¡Excelente! Ahora ese nodo te pertenece y generará tropas para ti.' }
+        ]
+    },
+    {
+        id: 102,
+        name: "3. Sanación de Nodos",
+        description: "Envía tropas de vuelta a tus nodos heridos para repararlos.",
+        isTutorial: true,
+        winCondition: { type: 'unitsToGoal', nodeId: 0, goal: 20 },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 2 }
+            ],
+            initialEntities: [
+                { x: 250, y: 500, owner: 0, count: 25 }
+            ]
+        },
+        enemies: [],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Tu nodo tiene poca vida (está parpadeando). Envía tropas de vuelta hacia él.' },
+            { trigger: 'time', delay: 5000, text: 'Al entrar, las unidades "curan" el nodo hasta su capacidad máxima.' }
+        ]
+    },
+    {
+        id: 103,
+        name: "4. Combate y Victoria",
+        description: "Vence a las tropas enemigas y captura su base.",
+        isTutorial: true,
+        winCondition: { type: 'standard' },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 },
+                { x: 1000, y: 500, owner: 1, type: 2, baseHp: 10, productionDisabled: true }
+            ]
+        },
+        enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Para ganar, debes capturar todos los nodos enemigos (Rojos).' },
+            { trigger: 'time', delay: 5000, text: 'El enemigo está debilitado. Ataca con todo para tomar su nodo.' }
+        ]
+    },
+    {
+        id: 104,
+        name: "5. Partida de Formación",
+        description: "Una batalla real sencilla contra un oponente básico.",
+        isTutorial: true,
+        mapConfig: { numNodes: 6, size: 'small' },
+        enemies: [{ id: 1, difficulty: 'Easy', personality: 'balanced' }],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Aplica todo lo aprendido para derrotar al Comandante Rojo.' }
+        ]
+    }
+];
+
 function getCampaignLevel(id) {
+    if (id >= 100) return TutorialLevels.find(l => l.id === id) || null;
     return CampaignLevels.find(level => level.id === id) || null;
 }
 
@@ -14417,6 +14537,39 @@ window.renderCampaignGrid = () => {
     }
 };
 
+let selectedTutorialId = null;
+
+window.renderTutorialGrid = () => {
+    const grid = document.getElementById('tutorials-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    _shared_CampaignConfig_js__WEBPACK_IMPORTED_MODULE_10__.TutorialLevels.forEach(config => {
+        const btn = document.createElement('button');
+        btn.className = 'ui-btn-game';
+        btn.textContent = (config.id - 99).toString(); // Show 1, 2, 3...
+        btn.style.width = '100%';
+        btn.style.height = '60px';
+        btn.style.fontSize = '18px';
+        btn.style.borderColor = '#4CAF50';
+        btn.style.color = '#4CAF50';
+
+        btn.addEventListener('click', () => {
+            selectedTutorialId = config.id;
+            document.getElementById('tutorial-level-title').textContent = config.name;
+            document.getElementById('tutorial-level-desc').textContent = config.description || 'Sin descripción.';
+            document.getElementById('btn-start-tutorial').disabled = false;
+
+            // Visual selection
+            Array.from(grid.children).forEach(c => c.style.background = 'transparent');
+            btn.style.background = 'rgba(76, 175, 80, 0.2)';
+        });
+
+        grid.appendChild(btn);
+    });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const btnStartCampaign = document.getElementById('btn-start-campaign');
     if (btnStartCampaign) {
@@ -14424,6 +14577,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedCampaignId !== null) {
                 // We pass the campaign id in the URL
                 window.location.href = `singleplayer.html?campaign=${selectedCampaignId}`;
+            }
+        });
+    }
+    const btnStartTutorial = document.getElementById('btn-start-tutorial');
+    if (btnStartTutorial) {
+        btnStartTutorial.addEventListener('click', () => {
+            if (selectedTutorialId !== null) {
+                window.location.href = `singleplayer.html?campaign=${selectedTutorialId}`;
             }
         });
     }

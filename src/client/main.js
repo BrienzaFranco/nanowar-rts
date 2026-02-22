@@ -8,7 +8,7 @@ import { GameState } from '../shared/GameState.js';
 import { sounds } from './systems/SoundManager.js';
 import { setPlayerColor } from '../shared/GameConfig.js';
 import { Entity } from '../shared/Entity.js';
-import { CampaignLevels } from '../shared/CampaignConfig.js';
+import { CampaignLevels, TutorialLevels } from '../shared/CampaignConfig.js';
 import { CampaignManager } from './CampaignManager.js';
 
 window.initGame = (mode) => {
@@ -211,6 +211,39 @@ window.renderCampaignGrid = () => {
     }
 };
 
+let selectedTutorialId = null;
+
+window.renderTutorialGrid = () => {
+    const grid = document.getElementById('tutorials-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    TutorialLevels.forEach(config => {
+        const btn = document.createElement('button');
+        btn.className = 'ui-btn-game';
+        btn.textContent = (config.id - 99).toString(); // Show 1, 2, 3...
+        btn.style.width = '100%';
+        btn.style.height = '60px';
+        btn.style.fontSize = '18px';
+        btn.style.borderColor = '#4CAF50';
+        btn.style.color = '#4CAF50';
+
+        btn.addEventListener('click', () => {
+            selectedTutorialId = config.id;
+            document.getElementById('tutorial-level-title').textContent = config.name;
+            document.getElementById('tutorial-level-desc').textContent = config.description || 'Sin descripción.';
+            document.getElementById('btn-start-tutorial').disabled = false;
+
+            // Visual selection
+            Array.from(grid.children).forEach(c => c.style.background = 'transparent');
+            btn.style.background = 'rgba(76, 175, 80, 0.2)';
+        });
+
+        grid.appendChild(btn);
+    });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const btnStartCampaign = document.getElementById('btn-start-campaign');
     if (btnStartCampaign) {
@@ -218,6 +251,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedCampaignId !== null) {
                 // We pass the campaign id in the URL
                 window.location.href = `singleplayer.html?campaign=${selectedCampaignId}`;
+            }
+        });
+    }
+    const btnStartTutorial = document.getElementById('btn-start-tutorial');
+    if (btnStartTutorial) {
+        btnStartTutorial.addEventListener('click', () => {
+            if (selectedTutorialId !== null) {
+                window.location.href = `singleplayer.html?campaign=${selectedTutorialId}`;
             }
         });
     }

@@ -107,6 +107,103 @@ export const CampaignLevels = [
     { id: 49, name: "Misión 50: ERROR FATAL 0x00000", description: "1 contra 1 definitivo. IA Imposible. Sin aliados. Sobrevive.", mapConfig: { numNodes: 75, size: 'epic' }, enemies: [{ id: 8, difficulty: 'Impossible', personality: 'aggressive' }] }
 ];
 
+export const TutorialLevels = [
+    {
+        id: 100,
+        name: "1. Movimiento y Órdenes",
+        description: "Aprende a mover tus tropas y a establecer puntos de reunión (Rally Points).",
+        isTutorial: true,
+        winCondition: { type: 'actionsComplete', actions: ['moved', 'rally'] },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 },
+                { x: 800, y: 500, owner: -1, type: 1, baseHp: 5 }
+            ],
+            initialEntities: [
+                { x: 400, y: 400, owner: 0, count: 10 }
+            ]
+        },
+        enemies: [],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: '¡Bienvenido! Primero, MOVER: Haz click y arrastra desde tu nodo verde a cualquier parte.' },
+            { trigger: 'time', delay: 5000, text: 'RALLY POINT: Selecciona tu nodo y presiona [E] sobre el mapa para fijar un punto de salida.' },
+            { trigger: 'time', delay: 10000, text: 'Haz ambas acciones para completar este tutorial.' }
+        ]
+    },
+    {
+        id: 101,
+        name: "2. Conquista Neutral",
+        description: "Expande tu territorio capturando nodos grises.",
+        isTutorial: true,
+        winCondition: { type: 'nodes', count: 2 },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 },
+                { x: 900, y: 500, owner: -1, type: 1, baseHp: 5 }
+            ]
+        },
+        enemies: [],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Captura el nodo gris. Envía suficientes tropas hasta que el HP llegue a cero.' },
+            { trigger: 'nodes', count: 2, text: '¡Excelente! Ahora ese nodo te pertenece y generará tropas para ti.' }
+        ]
+    },
+    {
+        id: 102,
+        name: "3. Sanación de Nodos",
+        description: "Envía tropas de vuelta a tus nodos heridos para repararlos.",
+        isTutorial: true,
+        winCondition: { type: 'unitsToGoal', nodeId: 0, goal: 20 },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 2 }
+            ],
+            initialEntities: [
+                { x: 250, y: 500, owner: 0, count: 25 }
+            ]
+        },
+        enemies: [],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Tu nodo tiene poca vida (está parpadeando). Envía tropas de vuelta hacia él.' },
+            { trigger: 'time', delay: 5000, text: 'Al entrar, las unidades "curan" el nodo hasta su capacidad máxima.' }
+        ]
+    },
+    {
+        id: 103,
+        name: "4. Combate y Victoria",
+        description: "Vence a las tropas enemigas y captura su base.",
+        isTutorial: true,
+        winCondition: { type: 'standard' },
+        mapConfig: {
+            size: "small",
+            fixedNodes: [
+                { x: 400, y: 500, owner: 0, type: 2, baseHp: 50 },
+                { x: 1000, y: 500, owner: 1, type: 2, baseHp: 10, productionDisabled: true }
+            ]
+        },
+        enemies: [{ id: 1, difficulty: 'Easy', personality: 'defensive' }],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Para ganar, debes capturar todos los nodos enemigos (Rojos).' },
+            { trigger: 'time', delay: 5000, text: 'El enemigo está debilitado. Ataca con todo para tomar su nodo.' }
+        ]
+    },
+    {
+        id: 104,
+        name: "5. Partida de Formación",
+        description: "Una batalla real sencilla contra un oponente básico.",
+        isTutorial: true,
+        mapConfig: { numNodes: 6, size: 'small' },
+        enemies: [{ id: 1, difficulty: 'Easy', personality: 'balanced' }],
+        tutorialSteps: [
+            { trigger: 'time', delay: 1000, text: 'Aplica todo lo aprendido para derrotar al Comandante Rojo.' }
+        ]
+    }
+];
+
 export function getCampaignLevel(id) {
+    if (id >= 100) return TutorialLevels.find(l => l.id === id) || null;
     return CampaignLevels.find(level => level.id === id) || null;
 }
